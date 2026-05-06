@@ -1,5 +1,6 @@
 package com.fix.engine.abdullah
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -10,12 +11,13 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.AppAdapter
+import com.fix.engine.abdullah.ui.details.AppDetailsActivity
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Android Application Store
- * Architecture: MVVM + ViewBinding + Coroutines + ListAdapter
+ * Architecture: MVVM + ViewBinding + Coroutines + Navigation
  */
 class MainActivity : AppCompatActivity() {
 
@@ -37,7 +39,7 @@ class MainActivity : AppCompatActivity() {
         setupRecyclerView()
         setupObservers()
         
-        // تحميل البيانات الأولية عند فتح التطبيق
+        // تحميل البيانات عند بدء التشغيل
         refreshData()
     }
 
@@ -50,43 +52,52 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * إعداد القائمة (RecyclerView) بلمسة هادئة واحترافية
+     * إعداد القائمة بربطها بشاشة التفاصيل
      */
     private fun setupRecyclerView() {
         appAdapter = AppAdapter { app ->
-            // منطق النقر على التطبيق: فتح صفحة التفاصيل مثلاً
-            Toast.makeText(this, "استعراض: ${app.name}", Toast.LENGTH_SHORT).show()
+            // الانتقال الاحترافي لشاشة التفاصيل
+            val intent = Intent(this, AppDetailsActivity::class.java).apply {
+                putExtra("APP_DATA", app) // تأكد أن AppModel ينفذ Serializable أو Parcelable
+            }
+            startActivity(intent)
+            // إضافة حركة انتقال ناعمة (اختياري)
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         }
 
         binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = appAdapter
-            // منع الرمش عند التحديث لضمان هدوء الواجهة
             setHasFixedSize(true)
         }
     }
 
     /**
-     * مراقبة البيانات والحالات من الـ ViewModel بذكاء
+     * مراقبة البيانات والحالات من الـ ViewModel
      */
     private fun setupObservers() {
         // مراقبة حالة التحميل (Loading State)
         viewModel.isLoading.observe(this) { isLoading ->
             binding.progressBar.isVisible = isLoading
-            // إخفاء القائمة مؤقتاً أثناء التحميل الأول لزيادة الأناقة البصرية
-            if (isLoading && appAdapter.itemCount == 0) {
-                binding.recyclerView.alpha = 0.5f
+            
+            // تأثير بصري هادئ للقائمة عند التحميل
+            if (isLoading) {
+                binding.recyclerView.animate().alpha(0.3f).setDuration(200).start()
             } else {
-                binding.recyclerView.animate().alpha(1.0f).setDuration(300).start()
+                binding.recyclerView.animate().alpha(1.0f).setDuration(400).start()
             }
         }
 
         // مراقبة قائمة التطبيقات وتمريرها للـ Adapter
         viewModel.appsList.observe(this) { apps ->
-            appAdapter.submitList(apps)
+            if (apps.isNullOrEmpty()) {
+                // هنا يمكن إظهار رسالة "لا توجد تطبيقات حالياً"
+            } else {
+                appAdapter.submitList(apps)
+            }
         }
 
-        // مراقبة رسائل الخطأ وعرضها بشكل غير مزعج
+        // مراقبة رسائل الخطأ
         viewModel.errorMessage.observe(this) { error ->
             error?.let {
                 Toast.makeText(this, it, Toast.LENGTH_LONG).show()
@@ -95,12 +106,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshData() {
-        // رابط المستودع الخاص بك (يفضل نقله لملف Constants لاحقاً)
+        // رابط المستودع المحدث (JSON)
         val repoUrl = "https://raw.githubusercontent.com/your-username/your-repo/main/apps.json"
         viewModel.loadApps(repoUrl)
     }
 
-    // --- إدارة القائمة العلوية (Menu) ---
+    // --- إدارة القائمة العلوية ---
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
