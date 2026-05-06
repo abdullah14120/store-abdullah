@@ -10,9 +10,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // مستودع JitPack ضروري جداً لتحميل مكتبة Fetch2 ومكتبات الصور
+        
+        // هذا السطر هو "المفتاح" لحل مشكلتك الآن
         maven { url 'https://jitpack.io' }
     }
 }
+
 rootProject.name = "FIX ENGINE"
 include ':app'
