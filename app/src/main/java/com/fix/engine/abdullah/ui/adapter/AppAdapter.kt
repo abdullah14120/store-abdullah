@@ -1,0 +1,54 @@
+package com.fix.engine.abdullah.ui.adapter
+
+import android.view.LayoutInflater
+import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
+import com.fix.engine.abdullah.data.model.AppModel
+import com.fix.engine.abdullah.databinding.ItemAppBinding
+
+class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
+    ListAdapter<AppModel, AppAdapter.AppViewHolder>(AppDiffCallback()) {
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AppViewHolder {
+        val binding = ItemAppBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return AppViewHolder(binding)
+    }
+
+    override fun onBindViewHolder(holder: AppViewHolder, position: Int) {
+        holder.bind(getItem(position))
+    }
+
+    inner class AppViewHolder(private val binding: ItemAppBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(app: AppModel) {
+            binding.apply {
+                txtAppName.text = app.name
+                txtDeveloper.text = app.developer
+                txtVersion.text = "إصدار ${app.versionName}"
+
+                // تحميل الأيقونة بهدوء مع تأثير Fade
+                Glide.with(root.context)
+                    .load(app.iconUrl)
+                    .transition(DrawableTransitionOptions.withCrossFade())
+                    .into(imgAppIcon)
+
+                root.setOnClickListener { onAppClick(app) }
+                btnDownload.setOnClickListener { /* تنفيذ منطق التحميل */ }
+            }
+        }
+    }
+
+    // لتحديث القائمة بذكاء وسرعة
+    class AppDiffCallback : DiffUtil.ItemCallback<AppModel>() {
+        override fun areItemsTheSame(oldItem: AppModel, newItem: AppModel) = 
+            oldItem.packageName == newItem.packageName
+
+        override fun areContentsTheSame(oldItem: AppModel, newItem: AppModel) = 
+            oldItem == newItem
+    }
+}
