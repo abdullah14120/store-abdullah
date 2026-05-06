@@ -1,7 +1,6 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    // أضفنا هذا لضمان معالجة الإضافات في كوتلن بشكل سليم
     id 'kotlin-kapt' 
 }
 
@@ -17,21 +16,17 @@ android {
         versionName "1.0-FIX"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        
-        // مهم جداً لمكتبة Fetch لضمان عدم تعارض قواعد البيانات
         multiDexEnabled true 
     }
 
     buildTypes {
         release {
             minifyEnabled true 
-            // أضفنا توقيعك "Abdullah Al-Tamimi" برمجياً في الـ Metadata لاحقاً
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
     compileOptions {
-        // رفعنا التوافق لـ Java 17 ليتوافق مع Gradle 8.0+
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
@@ -44,7 +39,6 @@ android {
         viewBinding true
     }
     
-    // تحسين لضمان عدم تعارض ملفات المكتبات
     packagingOptions {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
@@ -53,7 +47,7 @@ android {
 }
 
 dependencies {
-    // المكتبات الأساسية (تم تحديث الإصدارات للأحدث)
+    // المكتبات الأساسية
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
@@ -63,10 +57,10 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
 
-    // دورة حياة التطبيق (ViewModel & LiveData)
+    // دورة حياة التطبيق (ViewModel & LiveData & Activity KTX)
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
-    implementation 'androidx.activity:activity-ktx:1.8.2' // ضرورية لعمل by viewModels()
+    implementation 'androidx.activity:activity-ktx:1.8.2'
 
     // الشبكة والمستودعات
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
@@ -75,13 +69,13 @@ dependencies {
 
     // الصور (Glide)
     implementation 'com.github.bumptech.glide:glide:4.16.0'
+    kapt 'com.github.bumptech.glide:compiler:4.16.0'
+
+    // --- محرك التحميل الاحترافي (Fetch2) ---
+    // تم تصحيح المسار وحذف السطر الخاطئ الذي يبدأ بـ androidx
     implementation "com.github.tonyodev.fetch2:fetch2:3.1.6"
-    kapt 'com.github.bumptech.glide:compiler:4.16.0' // استخدمنا kapt بدلاً من annotationProcessor لـ Kotlin
 
-    // محرك التحميل الاحترافي (Fetch2)
-    implementation "androidx.tonyodev.fetch2:fetch2:3.1.6"
-
-    // تعدد الأقسام (MultiDex) لضمان عدم توقف التطبيق القديم
+    // تعدد الأقسام (MultiDex)
     implementation 'androidx.multidex:multidex:2.0.1'
 
     testImplementation 'junit:junit:4.13.2'
