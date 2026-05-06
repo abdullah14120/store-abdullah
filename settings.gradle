@@ -6,15 +6,12 @@ pluginManagement {
     }
 }
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS) // غيرنا هذه لتكون الأولوية للإعدادات هنا
     repositories {
         google()
         mavenCentral()
-        
-        // هذا السطر هو "المفتاح" لحل مشكلتك الآن
-        maven { url 'https://jitpack.io' }
+        maven { url 'https://jitpack.io' } // مستودع المكتبات الخارجية
     }
 }
-
 rootProject.name = "FIX ENGINE"
 include ':app'
