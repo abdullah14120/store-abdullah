@@ -3,33 +3,37 @@ package com.fix.engine.abdullah
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
-import androidx.lifecycle.lifecycleScope
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
-import com.fix.engine.abdullah.util.Log // سنقوم بإنشاء كلاس Log مخصص لاحقاً
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Android Application Store
- * Description: The main entry point for the store engine.
+ * Architecture: MVVM + ViewBinding + Coroutines
  */
 class MainActivity : AppCompatActivity() {
 
-    // ViewBinding للوصول الآمن لجميع عناصر الواجهة
     private lateinit var binding: ActivityMainBinding
+    
+    // ربط الـ ViewModel بطريقة كوتلن الحديثة (Activity KTX)
+    private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // تهيئة الواجهة
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         setupToolbar()
-        initializeEngine()
+        setupObservers()
+        
+        // جلب البيانات عند بدء التطبيق من الرابط المخصص لمستودعك
+        val repoUrl = "https://raw.githubusercontent.com/your-username/your-repo/main/apps.json"
+        viewModel.loadApps(repoUrl)
     }
 
     private fun setupToolbar() {
@@ -40,37 +44,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun initializeEngine() {
-        // استخدام Coroutines لتشغيل عمليات الخلفية دون تجميد الواجهة
-        lifecycleScope.launch {
-            try {
-                showLoading(true)
-                
-                // هنا سنقوم لاحقاً باستدعاء محرك الشبكة لجلب البيانات
-                // محاكاة لعملية جلب البيانات (تأخير ثانية واحدة)
-                delay(1000)
-                
-                updateStatus("Engine Ready")
-                showLoading(false)
-                
-            } catch (e: Exception) {
-                showLoading(false)
-                updateStatus("Error: ${e.message}")
+    /**
+     * مراقبة البيانات والحالات من الـ ViewModel
+     */
+    private fun setupObservers() {
+        // مراقبة حالة التحميل لإظهار أو إخفاء الـ ProgressBar
+        viewModel.isLoading.observe(this) { isLoading ->
+            binding.progressBar.isVisible = isLoading
+        }
+
+        // مراقبة قائمة التطبيقات (هنا سنقوم لاحقاً بربطها بالـ RecyclerView)
+        viewModel.appsList.observe(this) { apps ->
+            if (apps.isNotEmpty()) {
+                // تحديث القائمة في الواجهة
+                Toast.makeText(this, "تم جلب ${apps.size} تطبيق بنجاح", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // مراقبة الأخطاء
+        viewModel.errorMessage.observe(this) { error ->
+            error?.let {
+                Toast.makeText(this, it, Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    private fun showLoading(isLoading: Boolean) {
-        // الوصول للعناصر عبر binding يضمن عدم حدوث NullPointerException
-        binding.progressBar.isVisible = isLoading
-    }
-
-    private fun updateStatus(message: String) {
-        // مثال لاستخدام binding للوصول لـ TextView
-        // binding.statusTextView.text = message
-    }
-
-    // إدارة القائمة العلوية (Menu) بشكل احترافي
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
         return true
@@ -79,11 +77,12 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_refresh -> {
-                initializeEngine()
+                val repoUrl = "https://raw.githubusercontent.com/your-username/your-repo/main/apps.json"
+                viewModel.loadApps(repoUrl)
                 true
             }
             R.id.action_settings -> {
-                // فتح الإعدادات لاحقاً
+                // سيتم العمل على الإعدادات لاحقاً
                 true
             }
             else -> super.onOptionsItemSelected(item)
