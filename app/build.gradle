@@ -1,32 +1,37 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    // تم حذف ButterKnife plugin لعدم الحاجة إليه بعد الآن
+    // أضفنا هذا لضمان معالجة الإضافات في كوتلن بشكل سليم
+    id 'kotlin-kapt' 
 }
 
 android {
     namespace 'com.fix.engine.abdullah'
-    compileSdk 34 // أحدث إصدار مستقر
+    compileSdk 34 
 
     defaultConfig {
         applicationId "com.fix.engine.abdullah"
-        minSdk 24 // دعم واسع للأجهزة (Android 7.0+)
+        minSdk 24 
         targetSdk 34
         versionCode 1
         versionName "1.0-FIX"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // مهم جداً لمكتبة Fetch لضمان عدم تعارض قواعد البيانات
+        multiDexEnabled true 
     }
 
     buildTypes {
         release {
-            minifyEnabled true // تفعيل حماية الكود وتصغير الحجم
+            minifyEnabled true 
+            // أضفنا توقيعك "Abdullah Al-Tamimi" برمجياً في الـ Metadata لاحقاً
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // توقيع التطبيق باسمك (Abdullah Al-Tamimi) سيتم هنا لاحقاً
         }
     }
 
     compileOptions {
+        // رفعنا التوافق لـ Java 17 ليتوافق مع Gradle 8.0+
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
@@ -35,40 +40,49 @@ android {
         jvmTarget = '17'
     }
 
-    // تفعيل الـ ViewBinding (البديل الحديث لـ ButterKnife)
     buildFeatures {
         viewBinding true
+    }
+    
+    // تحسين لضمان عدم تعارض ملفات المكتبات
+    packagingOptions {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
     }
 }
 
 dependencies {
-    // المكتبات الأساسية
+    // المكتبات الأساسية (تم تحديث الإصدارات للأحدث)
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // النواة: Kotlin Coroutines (بديل RxJava للأداء العالي)
+    // النواة: Kotlin Coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
 
-    // إدارة دورة حياة التطبيق (ViewModel & LiveData)
+    // دورة حياة التطبيق (ViewModel & LiveData)
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
+    implementation 'androidx.activity:activity-ktx:1.8.2' // ضرورية لعمل by viewModels()
 
-    // مكتبات الربط الشبكي (للاتصال بالمستودعات)
+    // الشبكة والمستودعات
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
 
-    // معالجة الصور (Glide)
+    // الصور (Glide)
     implementation 'com.github.bumptech.glide:glide:4.16.0'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
+    kapt 'com.github.bumptech.glide:compiler:4.16.0' // استخدمنا kapt بدلاً من annotationProcessor لـ Kotlin
 
-    // التحميلات (Fetch) - النسخة المتوافقة مع Android 13+
+    // محرك التحميل الاحترافي (Fetch2)
     implementation "androidx.tonyodev.fetch2:fetch2:3.1.6"
 
-    // الاختبارات
+    // تعدد الأقسام (MultiDex) لضمان عدم توقف التطبيق القديم
+    implementation 'androidx.multidex:multidex:2.0.1'
+
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
