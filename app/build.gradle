@@ -75,6 +75,7 @@ dependencies {
 
     // الصور (Glide)
     implementation 'com.github.bumptech.glide:glide:4.16.0'
+    implementation "com.github.tonyodev.fetch2:fetch2:3.1.6"
     kapt 'com.github.bumptech.glide:compiler:4.16.0' // استخدمنا kapt بدلاً من annotationProcessor لـ Kotlin
 
     // محرك التحميل الاحترافي (Fetch2)
