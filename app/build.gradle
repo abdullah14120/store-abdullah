@@ -73,7 +73,7 @@ dependencies {
 
     // --- محرك التحميل الاحترافي (Fetch2) ---
     // تم تصحيح المسار وحذف السطر الخاطئ الذي يبدأ بـ androidx
-    implementation "com.github.tonyodev:fetch2:3.0.12"
+    implementation "androidx.tonyodev.fetch2:fetch2:3.1.6"
 
     // تعدد الأقسام (MultiDex)
     implementation 'androidx.multidex:multidex:2.0.1'
