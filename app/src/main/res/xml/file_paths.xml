@@ -2,9 +2,13 @@
 <paths>
     <external-files-path
         name="my_downloads"
-        path="downloads/" />
+        path="Download/" />
     
     <external-path
         name="external_storage"
+        path="." />
+
+    <files-path
+        name="internal_files"
         path="." />
 </paths>
