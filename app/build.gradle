@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace 'com.fix.engine.abdullah'
-    compileSdk 35
+    compileSdk 35 // متوافق مع آخر تحديثات النظام
 
     defaultConfig {
         applicationId "com.fix.engine.abdullah"
@@ -16,12 +16,15 @@ android {
         versionName "1.0-FIX"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // MultiDex مهم لأننا نستخدم مكتبات ضخمة مثل Retrofit و Glide
         multiDexEnabled true 
     }
 
     buildTypes {
         release {
             minifyEnabled true 
+            // حماية الكود وتصغير حجم الـ APK الخاص بمتجر FIX ENGINE
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -36,7 +39,7 @@ android {
     }
 
     buildFeatures {
-        viewBinding true
+        viewBinding true // نستخدم ViewBinding للوصول للعناصر بأمان وسرعة
     }
     
     packagingOptions {
@@ -47,37 +50,34 @@ android {
 }
 
 dependencies {
-    // المكتبات الأساسية
+    // المكتبات الأساسية لواجهة المستخدم
     implementation 'androidx.core:core-ktx:1.15.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // النواة: Kotlin Coroutines
+    // البرمجة المتزامنة (Coroutines) لضمان عدم تعليق التطبيق أثناء جلب البيانات
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
 
-    // دورة حياة التطبيق (ViewModel & LiveData & Activity KTX)
+    // إدارة البيانات (Architecture Components)
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
     implementation 'androidx.activity:activity-ktx:1.8.2'
 
-    // الشبكة والمستودعات
+    // الاتصال بالإنترنت وجلب الـ JSON الخاص بالمستودع
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
 
-    // الصور (Glide)
+    // معالجة صور أيقونات التطبيقات (Glide)
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     kapt 'com.github.bumptech.glide:compiler:4.16.0'
 
-    // --- محرك التحميل الاحترافي (Fetch2) ---
-    // تم تصحيح المسار وحذف السطر الخاطئ الذي يبدأ بـ androidx
-    implementation "com.github.tonyofrancis.Fetch:fetch2:3.4.1"
-
-    // تعدد الأقسام (MultiDex)
+    // دعم الأجهزة القديمة
     implementation 'androidx.multidex:multidex:2.0.1'
 
+    // أدوات الاختبار
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
