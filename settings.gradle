@@ -1,18 +1,40 @@
 pluginManagement {
     repositories {
-        google()
+        // ترتيب المستودعات مهم: قوقل أولاً للأمان والسرعة
+        google {
+            content {
+                includeGroupAndSubgroups("com.android")
+                includeGroupAndSubgroups("com.google")
+                includeGroupAndSubgroups("androidx")
+            }
+        }
         mavenCentral()
         gradlePluginPortal()
     }
 }
+
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS) // غيرنا هذه لتكون الأولوية للإعدادات هنا
+    // PREFER_SETTINGS تضمن أن إعداداتك هنا هي التي ستنفذ وتلغي أي إعدادات قديمة في ملفات build.gradle
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://jitpack.io' } // مستودع المكتبات الخارجية
+        
+        // مستودع JitPack: ضروري جداً للمكتبات الخارجية ومشاريع GitHub
+        maven { 
+            url 'https://jitpack.io'
+            content {
+                // نطلب من Gradle البحث في JitPack فقط عن المكتبات التي لا يجدها في MavenCentral
+                includeGroup("com.github.tonyodev")
+                includeGroup("com.github.bumptech.glide")
+            }
+        }
     }
 }
+
+// اسم المشروع الذي يظهر في أندرويد ستوديو
 rootProject.name = "FIX ENGINE"
+
+// تضمين الموديول الأساسي للتطبيق
 include ':app'
-android.suppressUnsupportedCompileSdk=35
