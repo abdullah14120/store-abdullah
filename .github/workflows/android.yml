@@ -2,7 +2,7 @@ name: Build FIX ENGINE APK
 
 on:
   push:
-    branches: [ "main", "master" ] # سيعمل البناء عند الرفع على الفروع الأساسية
+    branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
 
@@ -18,19 +18,24 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'adopt' # توزيعة مستقرة جداً لبيئات الـ CI
+          distribution: 'temurin' # توزيعة ممتازة ومستقرة جداً لـ Android
           cache: 'gradle'
+
+      - name: Generate New Gradle Wrapper
+        # هنا نقوم بإنشاء الـ Wrapper في كل مرة لضمان نظافة بيئة البناء
+        run: gradle wrapper --gradle-version 8.2
 
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        # أضفت خيار --stacktrace لإظهار التفاصيل إذا حدث خطأ في الـ API 35
-        run: ./gradlew assembleDebug --stacktrace
+        # استخدام ./gradlew لضمان استخدام النسخة التي أنشأناها للتو
+        # أضفت --no-daemon لأنها أفضل في بيئات الـ CI لتجنب تعليق العمليات
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FIX-ENGINE-Debug-APK
+          name: FIX-ENGINE-Build-${{ github.run_number }}
           path: app/build/outputs/apk/debug/*.apk
-          retention-days: 7 # الاحتفاظ بالملف لمدة 7 أيام لتوفير المساحة
+          retention-days: 5 # تقليل الأيام للحفاظ على مساحة التخزين في حسابك
