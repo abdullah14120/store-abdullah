@@ -2,6 +2,7 @@ package com.fix.engine.abdullah.data.model
 
 import com.google.gson.annotations.SerializedName
 import java.io.Serializable
+import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
@@ -36,7 +37,6 @@ data class AppModel(
     @SerializedName("size") 
     val size: Long = 0,
     
-    // أضفت لك حقلاً اختيارياً لتصنيف التطبيقات لاحقاً
     @SerializedName("category")
     val category: String = "General"
 
@@ -47,6 +47,6 @@ data class AppModel(
      */
     fun getFormattedSize(): String {
         return if (size <= 0) "Unknown Size" 
-        else String.format("%.2f MB", size.toDouble() / (1024 * 1024))
+        else String.format(Locale.US, "%.2f MB", size.toDouble() / (1024 * 1024))
     }
 }
