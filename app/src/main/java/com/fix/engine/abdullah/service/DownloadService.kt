@@ -16,7 +16,7 @@ import java.util.Locale
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Advanced Download & Install Manager
  */
-class DownloadManager(private val context: Context, private val fetch: Fetch) {
+class DownloadService(private val context: Context, private val fetch: Fetch) {
 
     fun startDownload(app: AppModel, onProgress: (Int, String, String) -> Unit) {
         // تحديد مسار التحميل داخل مجلد التطبيق الخاص لضمان الصلاحيات
