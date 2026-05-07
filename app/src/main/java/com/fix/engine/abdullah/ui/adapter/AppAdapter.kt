@@ -23,25 +23,28 @@ class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
     }
 
     inner class AppViewHolder(private val binding: ItemAppBinding) :
-        RecyclerView.ViewHolder(binding.root) {
+    RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(app: AppModel) {
-            binding.apply {
-                txtAppName.text = app.name
-                txtDeveloper.text = app.developer
-                txtVersion.text = "إصدار ${app.versionName}"
+    fun bind(app: AppModel) {
+        binding.apply {
+            txtAppName.text = app.name
+            txtDeveloper.text = app.developer
+            txtVersion.text = "الإصدار: ${app.versionName}"
 
-                // تحميل الأيقونة بهدوء مع تأثير Fade
-                Glide.with(root.context)
-                    .load(app.iconUrl)
-                    .transition(DrawableTransitionOptions.withCrossFade())
-                    .into(imgAppIcon)
+            Glide.with(root.context)
+                .load(app.iconUrl)
+                .placeholder(com.fix.engine.abdullah.R.drawable.ic_app_placeholder) // صورة مؤقتة
+                .error(com.fix.engine.abdullah.R.drawable.ic_app_error) // صورة في حال الخطأ
+                .transition(DrawableTransitionOptions.withCrossFade())
+                .into(imgAppIcon)
 
-                root.setOnClickListener { onAppClick(app) }
-                btnDownload.setOnClickListener { /* تنفيذ منطق التحميل */ }
-            }
+            // نجعل الضغط على العنصر كاملاً أو زر التحميل يؤدي لنفس النتيجة
+            root.setOnClickListener { onAppClick(app) }
+            btnDownload.setOnClickListener { onAppClick(app) }
         }
     }
+}
+    
 
     // لتحديث القائمة بذكاء وسرعة
     class AppDiffCallback : DiffUtil.ItemCallback<AppModel>() {
