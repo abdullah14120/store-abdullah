@@ -1,5 +1,6 @@
 package com.fix.engine.abdullah
 
+import android.annotation.SuppressLint
 import android.app.DownloadManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -24,8 +25,8 @@ import java.io.File
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Core Store Activity
- * Updates: Android DownloadManager Integration & Auto-Installer
+ * Project: FIX ENGINE
+ * Feature: Enhanced User Notifications & Auto-Installer
  */
 class MainActivity : AppCompatActivity() {
 
@@ -33,7 +34,7 @@ class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
     private lateinit var appAdapter: AppAdapter
 
-    // مراقب انتهاء التحميل الخاص بالنظام
+    // مراقب أحداث التحميل لإخطار المستخدم بالنتائج
     private val downloadReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
@@ -52,7 +53,7 @@ class MainActivity : AppCompatActivity() {
         setupRecyclerView()
         setupObservers()
         
-        // تسجيل المراقب لسماع إشارة انتهاء التحميل
+        // تسجيل المراقب (Receiver) مع مراعاة الحماية في أندرويد 13+
         val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(downloadReceiver, filter, RECEIVER_EXPORTED)
@@ -65,14 +66,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.apply {
-            title = "FIX ENGINE"
-            subtitle = "By Abdullah Al-Tamimi"
-        }
+        supportActionBar?.title = "FIX ENGINE"
+        // إضافة ملاحظة للمستخدم في الشريط العلوي
+        binding.toolbar.subtitle = "متجر التطبيقات الخاص بك"
     }
 
     private fun setupRecyclerView() {
         appAdapter = AppAdapter { app ->
+            // إبلاغ المستخدم بالانتقال
+            Toast.makeText(this, "فتح تفاصيل ${app.name}", Toast.LENGTH_SHORT).show()
             val intent = Intent(this, AppDetailsActivity::class.java).apply {
                 putExtra("APP_DATA", app)
             }
@@ -82,56 +84,60 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = appAdapter
-            setHasFixedSize(true)
         }
     }
 
     private fun setupObservers() {
         viewModel.isLoading.observe(this) { isLoading ->
             binding.progressBar.isVisible = isLoading
+            if (isLoading) {
+                // ملاحظة للمستخدم عند بدء جلب البيانات
+                Toast.makeText(this, "جاري تحديث القائمة...", Toast.LENGTH_SHORT).show()
+            }
         }
 
         viewModel.appsList.observe(this) { apps ->
-            if (!apps.isNullOrEmpty()) {
+            if (apps.isNullOrEmpty()) {
+                Toast.makeText(this, "لا توجد تطبيقات متاحة حالياً", Toast.LENGTH_LONG).show()
+            } else {
                 appAdapter.submitList(apps)
             }
         }
 
         viewModel.errorMessage.observe(this) { error ->
-            error?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
+            error?.let { 
+                // إظهار ملاحظة الخطأ بشكل بارز
+                Toast.makeText(this, "تنبيه: $it", Toast.LENGTH_LONG).show() 
+            }
         }
     }
 
-    /**
-     * التحقق من حالة الملف المحمل وبدء التثبيت
-     */
+    @SuppressLint("Range")
     private fun checkDownloadStatus(id: Long) {
         val downloadManager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val query = DownloadManager.Query().setFilterById(id)
         val cursor = downloadManager.query(query)
 
-        if (cursor.moveToFirst()) {
-            val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-            if (cursor.getInt(statusIndex) == DownloadManager.STATUS_SUCCESSFUL) {
-                val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-                val fileUri = Uri.parse(cursor.getString(uriIndex))
-                
-                // تحويل الـ URI إلى ملف حقيقي للبدء بالتثبيت
-                val file = fileUri.path?.let { File(it) }
-                if (file != null && file.exists()) {
-                    installApk(file)
-                } else {
-                    // في بعض الأجهزة الحديثة نحتاج للحصول على المسار عبر ContentResolver
-                    Toast.makeText(this, "اكتمل التحميل بنجاح", Toast.LENGTH_SHORT).show()
+        if (cursor != null && cursor.moveToFirst()) {
+            val status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
+            
+            when (status) {
+                DownloadManager.STATUS_SUCCESSFUL -> {
+                    Toast.makeText(this, "اكتمل التحميل! جاري تحضير المثبّت...", Toast.LENGTH_LONG).show()
+                    val uriString = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI))
+                    uriString?.let {
+                        val file = File(Uri.parse(it).path ?: "")
+                        if (file.exists()) installApk(file)
+                    }
+                }
+                DownloadManager.STATUS_FAILED -> {
+                    Toast.makeText(this, "فشل التحميل، يرجى التحقق من اتصال الإنترنت", Toast.LENGTH_LONG).show()
                 }
             }
+            cursor.close()
         }
-        cursor.close()
     }
 
-    /**
-     * دالة التثبيت التلقائي - Auto Installer
-     */
     private fun installApk(file: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "${packageName}.provider", file)
@@ -142,19 +148,24 @@ class MainActivity : AppCompatActivity() {
             }
             startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(this, "خطأ في تشغيل المثبّت: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "خطأ في فتح ملف APK: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun refreshData() {
-        val repoUrl = "https://raw.githubusercontent.com/Abdullah-AlTamimi/FixEngine/main/apps.json"
+        // رابط المستودع الخاص بك
+        val repoUrl = "Abdullah-AlTamimi/FixEngine/main/apps.json"
         viewModel.loadApps(repoUrl)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // إلغاء التسجيل لمنع تسريب الذاكرة
-        unregisterReceiver(downloadReceiver)
+        // إلغاء التسجيل لتجنب تسريب الذاكرة (Memory Leak)
+        try {
+            unregisterReceiver(downloadReceiver)
+        } catch (e: Exception) {
+            // تجاهل الخطأ إذا لم يكن مسجلاً
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
