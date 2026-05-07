@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="sharedpref" path="." />
+    <include domain="database" path="." />
+    
+    <exclude domain="file" path="downloads" />
+    <exclude domain="file" path="Download" />
+    
+    <exclude domain="root" path="cache" />
+</full-backup-content>
