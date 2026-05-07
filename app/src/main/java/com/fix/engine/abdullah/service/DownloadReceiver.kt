@@ -11,18 +11,12 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import java.io.File
 
-/**
- * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Auto Installer Receiver
- */
 class DownloadReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val action = intent.action
-        if (DownloadManager.ACTION_DOWNLOAD_COMPLETE == action) {
+        if (DownloadManager.ACTION_DOWNLOAD_COMPLETE == intent.action) {
             val downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
             if (downloadId != -1L) {
-                // استرجاع مسار الملف المحمل من نظام أندرويد
                 installDownloadedPackage(context, downloadId)
             }
         }
@@ -33,33 +27,35 @@ class DownloadReceiver : BroadcastReceiver() {
         val query = DownloadManager.Query().setFilterById(downloadId)
         val cursor = downloadManager.query(query)
 
-        if (cursor.moveToFirst()) {
+        if (cursor != null && cursor.moveToFirst()) {
             val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-            val status = cursor.getInt(statusIndex)
-
-            if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                val localUriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-                val localUriString = cursor.getString(localUriIndex)
+            if (cursor.getInt(statusIndex) == DownloadManager.STATUS_SUCCESSFUL) {
                 
-                if (localUriString != null) {
-                    val fileUri = Uri.parse(localUriString)
-                    val file = File(fileUri.path ?: "")
+                // الطريقة الأكثر أماناً لجلب الملف في الأنظمة الحديثة
+                val fileUriString = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI))
+                cursor.close() // نغلق الكرسي فوراً بعد جلب البيانات
 
-                    if (file.exists()) {
-                        openInstaller(context, file)
-                    } else {
-                        // في بعض الأجهزة قد يكون المسار بتنسيق مختلف، نحاول جلب المسار الحقيقي
-                        Toast.makeText(context, "اكتمل التحميل، يرجى النقر على الإشعار للتثبيت", Toast.LENGTH_LONG).show()
+                fileUriString?.let { uriString ->
+                    val fileUri = Uri.parse(uriString)
+                    // التحويل من Uri إلى File يحتاج معالجة للمسارات التي تبدأ بـ file://
+                    val filePath = fileUri.path
+                    if (filePath != null) {
+                        val file = File(filePath)
+                        if (file.exists()) {
+                            openInstaller(context, file)
+                        } else {
+                            showToast(context, "لم يتم العثور على ملف APK")
+                        }
                     }
                 }
+            } else {
+                cursor.close()
             }
         }
-        cursor.close()
     }
 
     private fun openInstaller(context: Context, file: File) {
         try {
-            // استخدام FileProvider لمنح صلاحية القراءة لمثبت الحزم
             val contentUri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.provider",
@@ -70,14 +66,20 @@ class DownloadReceiver : BroadcastReceiver() {
                 setDataAndType(contentUri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // إضافة flag إضافي لضمان الظهور فوق التطبيقات الأخرى
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
 
             context.startActivity(installIntent)
             
         } catch (e: Exception) {
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(context, "فشل بدء التثبيت: ${e.message}", Toast.LENGTH_LONG).show()
-            }
+            showToast(context, "فشل التثبيت: تأكد من منح صلاحية تثبيت التطبيقات")
+        }
+    }
+
+    private fun showToast(context: Context, message: String) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 }
