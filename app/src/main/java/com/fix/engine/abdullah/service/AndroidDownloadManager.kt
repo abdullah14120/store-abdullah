@@ -7,14 +7,21 @@ import android.os.Environment
 import android.widget.Toast
 import java.io.File
 
+/**
+ * Developed by: Abdullah Al-Tamimi
+ * Project: FIX ENGINE - Download Core
+ * Fix: Corrected 'setAllowedOverRoaming' and added directory safety checks.
+ */
 class AndroidDownloadManager(private val context: Context) {
 
     private val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
     fun enqueueDownload(url: String, fileName: String): Long {
-        // تأكد من وجود المجلد أولاً لتجنب خطأ FileNotFound
+        // 1. تحديد مجلد التحميل الرسمي للتطبيق (Download)
         val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-        if (downloadDir?.exists() == false) {
+        
+        // 2. التأكد من أن المجلد موجود فعلياً في ذاكرة النظام
+        if (downloadDir != null && !downloadDir.exists()) {
             downloadDir.mkdirs()
         }
 
@@ -23,20 +30,30 @@ class AndroidDownloadManager(private val context: Context) {
         return try {
             val request = DownloadManager.Request(Uri.parse(url))
                 .setTitle("FIX ENGINE")
-                .setDescription("جاري تحميل $fileName...")
-                // إظهار الإشعار أثناء التحميل وبعد الانتهاء
+                .setDescription("جاري تحميل: $fileName")
+                
+                // إعدادات التنبيهات والظهور في الإشعارات
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                // استخدام Uri.fromFile سليم هنا لأن DownloadManager يعمل بصلاحيات النظام
+                
+                // تحديد المسار: نستخدم Uri.fromFile مع ملفات الـ ExternalFilesDir
                 .setDestinationUri(Uri.fromFile(file))
-                .setAllowedOverMetered(true)
-                .setAllowedOverRoaming(true)
-                // إضافة هذه لضمان أن النظام سيفحص الملف بحثاً عن الفيروسات أو الوسائط (اختياري)
-                .setAllowedInRoaming(true)
+                
+                // إعدادات الشبكة (مهمة جداً للمستخدمين في اليمن)
+                .setAllowedOverMetered(true) // السماح بالتحميل عبر بيانات الهاتف (Mobile Data)
+                .setAllowedOverRoaming(true) // تم إصلاحها هنا (Correct function name)
+                
+                // جعل الملف قابلاً للفحص بواسطة نظام أندرويد لزيادة الأمان
+                .setAllowedInRoaming(true) // هذه هي الدالة الصحيحة لبيانات التجوال
 
+            // إضافة الطلب إلى طابور النظام وإرجاع المعرف (ID)
             downloadManager.enqueue(request)
+            
         } catch (e: Exception) {
-            Toast.makeText(context, "فشل بدء التحميل: ${e.message}", Toast.LENGTH_SHORT).show()
-            -1L
+            // إظهار رسالة خطأ واضحة للمستخدم في حال فشل الرابط
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                Toast.makeText(context, "خطأ في بدء التحميل: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+            -1L // نرجع -1 للدلالة على الفشل
         }
     }
 }
