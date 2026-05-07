@@ -7,9 +7,15 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
+import com.fix.engine.abdullah.R
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.databinding.ItemAppBinding
 
+/**
+ * Developed by: Abdullah Al-Tamimi
+ * Project: FIX ENGINE
+ * Design: Material Design 3 ListAdapter
+ */
 class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
     ListAdapter<AppModel, AppAdapter.AppViewHolder>(AppDiffCallback()) {
 
@@ -23,35 +29,45 @@ class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
     }
 
     inner class AppViewHolder(private val binding: ItemAppBinding) :
-    RecyclerView.ViewHolder(binding.root) {
+        RecyclerView.ViewHolder(binding.root) {
 
-    fun bind(app: AppModel) {
-        binding.apply {
-            txtAppName.text = app.name
-            txtDeveloper.text = app.developer
-            txtVersion.text = "الإصدار: ${app.versionName}"
+        fun bind(app: AppModel) {
+            binding.apply {
+                // تعيين النصوص
+                txtAppName.text = app.name
+                txtDeveloper.text = app.developer
+                txtVersion.text = "الإصدار: ${app.versionName}"
 
-            Glide.with(root.context)
-                .load(app.iconUrl)
-                .placeholder(com.fix.engine.abdullah.R.drawable.ic_app_placeholder) // صورة مؤقتة
-                .error(com.fix.engine.abdullah.R.drawable.ic_app_error) // صورة في حال الخطأ
-                .transition(DrawableTransitionOptions.withCrossFade())
-                .into(imgAppIcon)
+                // تحميل الأيقونة باستخدام Glide مع الربط بالموارد الجديدة
+                Glide.with(root.context)
+                    .load(app.iconUrl)
+                    .placeholder(R.drawable.ic_app_placeholder) // المورد الذي أنشأناه
+                    .error(R.drawable.ic_app_error)             // المورد الذي أنشأناه
+                    .transition(DrawableTransitionOptions.withCrossFade()) // تأثير تلاشي ناعم
+                    .into(imgAppIcon)
 
-            // نجعل الضغط على العنصر كاملاً أو زر التحميل يؤدي لنفس النتيجة
-            root.setOnClickListener { onAppClick(app) }
-            btnDownload.setOnClickListener { onAppClick(app) }
+                // تفعيل التفاعل مع العنصر
+                root.setOnClickListener { onAppClick(app) }
+                
+                // زر التحميل السريع يفتح شاشة التفاصيل أيضاً لضمان استمرارية العملية
+                btnDownload.setOnClickListener { onAppClick(app) }
+                
+                // إضافة خلفية الـ Ripple (تأثير الضغط) التي أنشأناها
+                root.setBackgroundResource(R.drawable.bg_item_app)
+            }
         }
     }
-}
-    
 
-    // لتحديث القائمة بذكاء وسرعة
+    /**
+     * حساب الاختلافات بذكاء لتحديث العناصر المتغيرة فقط
+     */
     class AppDiffCallback : DiffUtil.ItemCallback<AppModel>() {
-        override fun areItemsTheSame(oldItem: AppModel, newItem: AppModel) = 
-            oldItem.packageName == newItem.packageName
+        override fun areItemsTheSame(oldItem: AppModel, newItem: AppModel): Boolean {
+            return oldItem.packageName == newItem.packageName
+        }
 
-        override fun areContentsTheSame(oldItem: AppModel, newItem: AppModel) = 
-            oldItem == newItem
+        override fun areContentsTheSame(oldItem: AppModel, newItem: AppModel): Boolean {
+            return oldItem == newItem
+        }
     }
 }
