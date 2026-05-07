@@ -9,46 +9,44 @@ import java.util.concurrent.TimeUnit
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Core Network Client
- * Purpose: Handling API calls with advanced configurations (Timeout & Logging)
+ * Update: Added 'instance' reference to fix Build Errors
  */
 object RetrofitClient {
     
-    // الرابط الأساسي للمستودع
+    // الرابط الأساسي لمستودعات GitHub الخام
     private const val BASE_URL = "https://raw.githubusercontent.com/"
 
-    /**
-     * إعداد عميل OkHttp لإضافة ميزات إضافية مثل وقت الانتظار والمراقبة
-     */
     private val okHttpClient: OkHttpClient by lazy {
-        // إضافة مراقب لمشاهدة الروابط والبيانات في Logcat أثناء التطوير
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            // نستخدم Level.BASIC في الإنتاج و BODY في التطوير
+            level = HttpLoggingInterceptor.Level.BODY 
         }
 
         OkHttpClient.Builder()
             .addInterceptor(logging)
-            .connectTimeout(30, TimeUnit.SECONDS) // مهلة الاتصال
-            .readTimeout(30, TimeUnit.SECONDS)    // مهلة القراءة
-            .writeTimeout(30, TimeUnit.SECONDS)   // مهلة الكتابة
-            .retryOnConnectionFailure(true)      // إعادة المحاولة عند فشل الاتصال
+            .connectTimeout(60, TimeUnit.SECONDS) // زيادة المهلة لتناسب الإنترنت الضعيف
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .build()
     }
 
-    /**
-     * بناء كائن Retrofit
-     */
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(okHttpClient) // ربط Retrofit بالعميل الذي أعددناه
+            .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 
     /**
-     * تعريف الخدمة التي سنستخدمها لجلب البيانات
+     * هذا هو المتغير الذي يبحث عنه الـ Repository والـ ViewModel
+     * قمت بإضافة "instance" كاسم مستعار لـ apiService لضمان التوافق
      */
-    val apiService: ApiService by lazy {
+    val instance: ApiService by lazy {
         retrofit.create(ApiService::class.java)
     }
+
+    // للمحافظة على التوافق مع أي كود قديم يستخدم apiService مباشرة
+    val apiService: ApiService get() = instance
 }
