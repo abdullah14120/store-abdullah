@@ -1,37 +1,50 @@
 package com.fix.engine.abdullah
 
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.AppAdapter
 import com.fix.engine.abdullah.ui.details.AppDetailsActivity
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
+import java.io.File
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Android Application Store
- * Architecture: MVVM + ViewBinding + Coroutines + Navigation
+ * Project: FIX ENGINE - Core Store Activity
+ * Updates: Android DownloadManager Integration & Auto-Installer
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    
-    // ربط الـ ViewModel بطريقة كوتلن الحديثة
     private val viewModel: MainViewModel by viewModels()
-    
-    // تعريف الـ Adapter كمتغير خاص
     private lateinit var appAdapter: AppAdapter
+
+    // مراقب انتهاء التحميل الخاص بالنظام
+    private val downloadReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+            if (id != -1L) {
+                checkDownloadStatus(id)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -39,7 +52,14 @@ class MainActivity : AppCompatActivity() {
         setupRecyclerView()
         setupObservers()
         
-        // تحميل البيانات عند بدء التشغيل
+        // تسجيل المراقب لسماع إشارة انتهاء التحميل
+        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(downloadReceiver, filter, RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(downloadReceiver, filter)
+        }
+
         refreshData()
     }
 
@@ -51,18 +71,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * إعداد القائمة بربطها بشاشة التفاصيل
-     */
     private fun setupRecyclerView() {
         appAdapter = AppAdapter { app ->
-            // الانتقال الاحترافي لشاشة التفاصيل
             val intent = Intent(this, AppDetailsActivity::class.java).apply {
-                putExtra("APP_DATA", app) // تأكد أن AppModel ينفذ Serializable أو Parcelable
+                putExtra("APP_DATA", app)
             }
             startActivity(intent)
-            // إضافة حركة انتقال ناعمة (اختياري)
-            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         }
 
         binding.recyclerView.apply {
@@ -72,46 +86,76 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * مراقبة البيانات والحالات من الـ ViewModel
-     */
     private fun setupObservers() {
-        // مراقبة حالة التحميل (Loading State)
         viewModel.isLoading.observe(this) { isLoading ->
             binding.progressBar.isVisible = isLoading
-            
-            // تأثير بصري هادئ للقائمة عند التحميل
-            if (isLoading) {
-                binding.recyclerView.animate().alpha(0.3f).setDuration(200).start()
-            } else {
-                binding.recyclerView.animate().alpha(1.0f).setDuration(400).start()
-            }
         }
 
-        // مراقبة قائمة التطبيقات وتمريرها للـ Adapter
         viewModel.appsList.observe(this) { apps ->
-            if (apps.isNullOrEmpty()) {
-                // هنا يمكن إظهار رسالة "لا توجد تطبيقات حالياً"
-            } else {
+            if (!apps.isNullOrEmpty()) {
                 appAdapter.submitList(apps)
             }
         }
 
-        // مراقبة رسائل الخطأ
         viewModel.errorMessage.observe(this) { error ->
-            error?.let {
-                Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+            error?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
+        }
+    }
+
+    /**
+     * التحقق من حالة الملف المحمل وبدء التثبيت
+     */
+    private fun checkDownloadStatus(id: Long) {
+        val downloadManager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val query = DownloadManager.Query().setFilterById(id)
+        val cursor = downloadManager.query(query)
+
+        if (cursor.moveToFirst()) {
+            val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+            if (cursor.getInt(statusIndex) == DownloadManager.STATUS_SUCCESSFUL) {
+                val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+                val fileUri = Uri.parse(cursor.getString(uriIndex))
+                
+                // تحويل الـ URI إلى ملف حقيقي للبدء بالتثبيت
+                val file = fileUri.path?.let { File(it) }
+                if (file != null && file.exists()) {
+                    installApk(file)
+                } else {
+                    // في بعض الأجهزة الحديثة نحتاج للحصول على المسار عبر ContentResolver
+                    Toast.makeText(this, "اكتمل التحميل بنجاح", Toast.LENGTH_SHORT).show()
+                }
             }
+        }
+        cursor.close()
+    }
+
+    /**
+     * دالة التثبيت التلقائي - Auto Installer
+     */
+    private fun installApk(file: File) {
+        try {
+            val uri = FileProvider.getUriForFile(this, "${packageName}.provider", file)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "خطأ في تشغيل المثبّت: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun refreshData() {
-        // رابط المستودع المحدث (JSON)
-        val repoUrl = "https://raw.githubusercontent.com/your-username/your-repo/main/apps.json"
+        val repoUrl = "https://raw.githubusercontent.com/Abdullah-AlTamimi/FixEngine/main/apps.json"
         viewModel.loadApps(repoUrl)
     }
 
-    // --- إدارة القائمة العلوية ---
+    override fun onDestroy() {
+        super.onDestroy()
+        // إلغاء التسجيل لمنع تسريب الذاكرة
+        unregisterReceiver(downloadReceiver)
+    }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
@@ -122,10 +166,6 @@ class MainActivity : AppCompatActivity() {
         return when (item.itemId) {
             R.id.action_refresh -> {
                 refreshData()
-                true
-            }
-            R.id.action_settings -> {
-                // سيتم توجيه المستخدم للإعدادات لاحقاً
                 true
             }
             else -> super.onOptionsItemSelected(item)
