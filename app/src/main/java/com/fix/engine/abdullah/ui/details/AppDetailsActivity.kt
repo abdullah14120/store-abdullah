@@ -1,6 +1,5 @@
 package com.fix.engine.abdullah.ui.details
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
@@ -14,11 +13,6 @@ import com.fix.engine.abdullah.databinding.ActivityAppDetailsBinding
 import com.fix.engine.abdullah.service.AndroidDownloadManager
 import com.fix.engine.abdullah.service.DownloadTracker
 
-/**
- * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE
- * Engine: Official Android DownloadManager Integration
- */
 class AppDetailsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAppDetailsBinding
@@ -31,21 +25,31 @@ class AppDetailsActivity : AppCompatActivity() {
         binding = ActivityAppDetailsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // إعداد المحركات الجديدة
         downloadManager = AndroidDownloadManager(this)
         tracker = DownloadTracker(this)
 
         setupToolbar()
 
-        // استقبال البيانات مع دعم الإصدارات الحديثة
-        val appData = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            intent.getSerializableExtra("APP_DATA", AppModel::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getSerializableExtra("APP_DATA") as? AppModel
+        // الطريقة الأكثر أماناً لاستقبال البيانات وتجنب الـ Crash
+        val appData = try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                // تعديل بسيط هنا: استخدام getSerializableExtra التقليدي مع cast آمن
+                @Suppress("DEPRECATION")
+                intent.getSerializableExtra("APP_DATA") as? AppModel
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getSerializableExtra("APP_DATA") as? AppModel
+            }
+        } catch (e: Exception) {
+            null
         }
 
-        appData?.let { displayDetails(it) }
+        if (appData != null) {
+            displayDetails(appData)
+        } else {
+            Toast.makeText(this, "بيانات التطبيق غير صالحة", Toast.LENGTH_SHORT).show()
+            finish() // إغلاق الصفحة بأمان بدل الانهيار
+        }
     }
 
     private fun setupToolbar() {
@@ -61,9 +65,16 @@ class AppDetailsActivity : AppCompatActivity() {
             txtDetailsDev.text = app.developer
             txtDescription.text = app.description ?: "لا يوجد وصف متاح لهذا التطبيق."
             
-            // ربط البيانات بالـ Badges
-            badgeVersion.root.findViewById<TextView>(R.id.txtValue).text = app.versionName
-            badgeSize.root.findViewById<TextView>(R.id.txtValue).text = app.getFormattedSize()
+            // حماية الوصول للـ Badges لمنع NullPointerException
+            try {
+                badgeVersion.root.findViewById<TextView>(R.id.txtValue)?.text = app.versionName
+                badgeVersion.root.findViewById<TextView>(R.id.txtLabel)?.text = "الإصدار"
+                
+                badgeSize.root.findViewById<TextView>(R.id.txtValue)?.text = app.getFormattedSize()
+                badgeSize.root.findViewById<TextView>(R.id.txtLabel)?.text = "الحجم"
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
 
             Glide.with(this@AppDetailsActivity)
                 .load(app.iconUrl)
@@ -80,16 +91,12 @@ class AppDetailsActivity : AppCompatActivity() {
 
     private fun startDownloadProcess(app: AppModel) {
         isDownloading = true
-        
-        // تغيير الواجهة
         binding.btnInstallLarge.visibility = View.GONE
         binding.layoutDownloadProgress.visibility = View.VISIBLE
 
-        // بدء التحميل عبر نظام أندرويد
         val fileName = "${app.packageName}.apk"
         val downloadId = downloadManager.enqueueDownload(app.downloadUrl, fileName)
 
-        // بدء متابعة النسبة المئوية
         tracker.startTracking(downloadId) { progress, sizeLabel ->
             runOnUiThread {
                 binding.apply {
@@ -100,6 +107,7 @@ class AppDetailsActivity : AppCompatActivity() {
                     
                     if (progress >= 100) {
                         resetUI()
+                        txtDownloadSpeed.text = "اكتمل التحميل"
                     }
                 }
             }
@@ -110,12 +118,12 @@ class AppDetailsActivity : AppCompatActivity() {
         isDownloading = false
         binding.btnInstallLarge.visibility = View.VISIBLE
         binding.layoutDownloadProgress.visibility = View.GONE
-        binding.btnInstallLarge.text = "فتح الملف"
+        binding.btnInstallLarge.text = "تثبيت الملف"
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // إيقاف التتبع عند الخروج لمنع استهلاك البطارية
+        // منع الـ Crash إذا لم يتم تهيئة الـ tracker بشكل صحيح
         if (::tracker.isInitialized) {
             tracker.stopTracking()
         }
