@@ -1,7 +1,11 @@
 package com.fix.engine.abdullah.ui.adapter
 
+import android.content.pm.PackageManager
+import android.os.Build
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -13,8 +17,8 @@ import com.fix.engine.abdullah.databinding.ItemAppBinding
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE
- * Design: Material Design 3 ListAdapter
+ * Project: FIX ENGINE - Update Engine Edition
+ * Feature: Real-time Update Detection in List
  */
 class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
     ListAdapter<AppModel, AppAdapter.AppViewHolder>(AppDiffCallback()) {
@@ -32,35 +36,57 @@ class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(app: AppModel) {
+            val context = binding.root.context
             binding.apply {
-                // تعيين النصوص
                 txtAppName.text = app.name
                 txtDeveloper.text = app.developer
-                txtVersion.text = "الإصدار: ${app.versionName}"
+                
+                // فحص حالة التحديث
+                val isUpdateAvailable = checkUpdateStatus(app)
+                
+                if (isUpdateAvailable) {
+                    txtVersion.text = "تحديث متاح: ${app.versionName}"
+                    txtVersion.setTextColor(ContextCompat.getColor(context, R.color.colorPrimary))
+                    btnDownload.text = "تحديث"
+                    // يمكنك تغيير خلفية الزر هنا لتمييزه
+                } else {
+                    txtVersion.text = "الإصدار: ${app.versionName}"
+                    txtVersion.setTextColor(ContextCompat.getColor(context, android.R.color.darker_gray))
+                    btnDownload.text = "فتح"
+                }
 
-                // تحميل الأيقونة باستخدام Glide مع الربط بالموارد الجديدة
-                Glide.with(root.context)
+                Glide.with(context)
                     .load(app.iconUrl)
-                    .placeholder(R.drawable.ic_app_placeholder) // المورد الذي أنشأناه
-                    .error(R.drawable.ic_app_error)             // المورد الذي أنشأناه
-                    .transition(DrawableTransitionOptions.withCrossFade()) // تأثير تلاشي ناعم
+                    .placeholder(R.drawable.ic_app_placeholder)
+                    .error(R.drawable.ic_app_error)
+                    .transition(DrawableTransitionOptions.withCrossFade())
                     .into(imgAppIcon)
 
-                // تفعيل التفاعل مع العنصر
                 root.setOnClickListener { onAppClick(app) }
-                
-                // زر التحميل السريع يفتح شاشة التفاصيل أيضاً لضمان استمرارية العملية
                 btnDownload.setOnClickListener { onAppClick(app) }
-                
-                // إضافة خلفية الـ Ripple (تأثير الضغط) التي أنشأناها
-                root.setBackgroundResource(R.drawable.bg_item_app)
+            }
+        }
+
+        /**
+         * دالة داخلية لمقارنة نسخة التطبيق المثبتة مع المستودع
+         */
+        private fun checkUpdateStatus(app: AppModel): Boolean {
+            return try {
+                val pInfo = binding.root.context.packageManager.getPackageInfo(app.packageName, 0)
+                val installedVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    pInfo.longVersionCode
+                } else {
+                    @Suppress("DEPRECATION")
+                    pInfo.versionCode.toLong()
+                }
+                // إذا كان إصدار المستودع (JSON) أكبر من المثبت
+                app.versionCode > installedVersionCode
+            } catch (e: PackageManager.NameNotFoundException) {
+                false // التطبيق غير مثبت، لا نعتبره تحديثاً بل تثبيت جديد
             }
         }
     }
 
-    /**
-     * حساب الاختلافات بذكاء لتحديث العناصر المتغيرة فقط
-     */
     class AppDiffCallback : DiffUtil.ItemCallback<AppModel>() {
         override fun areItemsTheSame(oldItem: AppModel, newItem: AppModel): Boolean {
             return oldItem.packageName == newItem.packageName
