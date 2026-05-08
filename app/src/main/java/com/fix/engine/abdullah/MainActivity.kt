@@ -173,7 +173,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshData() {
-        val repoUrl = "https://raw.githubusercontent.com/Abdullah-AlTamimi/FixEngine/main/apps.json"
+        val repoUrl = "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/apps.json"
         viewModel.loadApps(repoUrl)
     }
 
