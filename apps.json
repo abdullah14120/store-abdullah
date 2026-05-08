@@ -1,0 +1,26 @@
+[
+  {
+    "packageName": "com.fix.engine.test",
+    "name": "تطبيق تجريبي 1",
+    "versionName": "1.0.0",
+    "versionCode": 1,
+    "icon": "https://img.icons8.com/color/512/android-os.png",
+    "downloadUrl": "https://example.com/test1.apk",
+    "developer": "Abdullah Al-Tamimi",
+    "description": "هذا التطبيق مجرد تجربة للتأكد من أن المتجر يسحب البيانات من GitHub بنجاح.",
+    "size": 1024000,
+    "category": "Testing"
+  },
+  {
+    "packageName": "com.fix.engine.test2",
+    "name": "تطبيق تجريبي 2",
+    "versionName": "2.5.0",
+    "versionCode": 5,
+    "icon": "https://img.icons8.com/color/512/google-play.png",
+    "downloadUrl": "https://example.com/test2.apk",
+    "developer": "Abdullah Al-Tamimi",
+    "description": "تجربة التطبيق الثاني للتأكد من نظام العرض الشبكي (RecyclerView).",
+    "size": 2048000,
+    "category": "Testing"
+  }
+]
