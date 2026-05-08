@@ -7,20 +7,8 @@
     "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/512px-Telegram_logo.svg.png",
     "downloadUrl": "https://telegram.org/dl/android/apk",
     "developer": "Telegram FZ-LLC",
-    "description": "تجربة تحميل تطبيق تليجرام الرسمي عبر متجر FIX ENGINE. هذا الفحص يتأكد من قدرة المتجر على التعامل مع الملفات الكبيرة (أكثر من 50 ميجابايت) ونظام التثبيت التلقائي.",
+    "description": "تجربة تحميل تطبيق تليجرام الرسمي عبر متجر FIX ENGINE.",
     "size": 72400000,
     "category": "Communication"
-  },
-  {
-    "packageName": "com.github.android",
-    "name": "GitHub Mobile",
-    "versionName": "1.145.0",
-    "versionCode": 145,
-    "icon": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
-    "downloadUrl": "https://github.com/mobile/android/releases/latest/download/GitHub.apk",
-    "developer": "GitHub, Inc.",
-    "description": "تطبيق جيت هب الرسمي. استخدم هذا التطبيق لتجربة سرعة التحميل وتتبع النسبة المئوية في متجرك الخاص.",
-    "size": 45000000,
-    "category": "Tools"
   }
 ]
