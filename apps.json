@@ -1,42 +1,26 @@
-{
-  "repo": {
-    "timestamp": 1776262576886,
-    "version": 40001,
-    "name": "NasaPhone Abdullah",
-    "icon": "nasa_icon.png",
-    "address": "https://codeberg.org/abdullah_tamemi/nasaphone/-/raw/main/",
-    "description": "المستودع الرسمي لناسا فون - نسخة شاملة وموقعة"
+[
+  {
+    "packageName": "org.telegram.messenger",
+    "name": "Telegram (Fix Edition)",
+    "versionName": "10.3.1",
+    "versionCode": 4120,
+    "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/512px-Telegram_logo.svg.png",
+    "downloadUrl": "https://telegram.org/dl/android/apk",
+    "developer": "Telegram FZ-LLC",
+    "description": "تجربة تحميل تطبيق تليجرام الرسمي عبر متجر FIX ENGINE. هذا الفحص يتأكد من قدرة المتجر على التعامل مع الملفات الكبيرة (أكثر من 50 ميجابايت) ونظام التثبيت التلقائي.",
+    "size": 72400000,
+    "category": "Communication"
   },
-  "apps": [
-    {
-      "packageName": "com.universe.messenger",
-      "name": "ABWhatsApp",
-      "suggestedVersionCode": "21474836471",
-      "added": 1776262576886,
-      "lastUpdated": 1776262576886,
-      "localized": {
-        "ar": {
-          "name": "ABWhatsApp Blue_V30 الأزرق",
-          "summary": "تحديث جديد لواتساب عبدالله التميمي اللون الأزرق V30",
-          "description": "<p>تم تحديث البصمة الرقمية لضمان التكامل التام مع النسخ المثبتة مسبقاً.</p>"
-        }
-      }
-    }
-  ],
-  "packages": {
-    "com.universe.messenger": [
-      {
-        "versionName": "2.26.14.75",
-        "versionCode": 21474836471,
-        "apkName": "1.apk",
-        "hashType": "sha256",
-        "sig": "a726213f1d412d5ad66a0aa092abb4d3",
-        "signer": "9c2db70513515fdbfbbc585b3edf3d7123d4dc67c94ffd306361c1d79bbf18ac",
-        "size": 339182325,
-        "minSdkVersion": 29,
-        "targetSdkVersion": 36,
-        "added": 1776262576886
-      }
-    ]
+  {
+    "packageName": "com.github.android",
+    "name": "GitHub Mobile",
+    "versionName": "1.145.0",
+    "versionCode": 145,
+    "icon": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+    "downloadUrl": "https://github.com/mobile/android/releases/latest/download/GitHub.apk",
+    "developer": "GitHub, Inc.",
+    "description": "تطبيق جيت هب الرسمي. استخدم هذا التطبيق لتجربة سرعة التحميل وتتبع النسبة المئوية في متجرك الخاص.",
+    "size": 45000000,
+    "category": "Tools"
   }
-}
+]
