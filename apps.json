@@ -5,7 +5,7 @@
     "versionName": "1.0.0",
     "versionCode": 1,
     "icon": "https://img.icons8.com/color/512/android-os.png",
-    "downloadUrl": "Shield-Pro.apk",
+    "downloadUrl": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/Shield-Pro.apk",
     "developer": "Abdullah Al-Tamimi",
     "description": "هذا التطبيق مجرد تجربة للتأكد من أن المتجر يسحب البيانات من GitHub بنجاح.",
     "size": 1024000,
