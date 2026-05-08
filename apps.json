@@ -1,14 +1,42 @@
-[
-  {
-    "packageName": "com.example.testapp",
-    "name": "تطبيق الفحص الأول",
-    "versionName": "1.0.1",
-    "versionCode": 2,
-    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/main/icon.png",
-    "downloadUrl": "https://github.com/abdullah14120/store-abdullah/releases/download/v1.0/test.apk",
-    "developer": "Abdullah Al-Tamimi",
-    "description": "هذا أول تطبيق حقيقي يتم تحميله من متجر FIX ENGINE. جاري فحص نظام التثبيت التلقائي.",
-    "size": 2500000, 
-    "category": "Tools"
+{
+  "repo": {
+    "timestamp": 1776262576886,
+    "version": 40001,
+    "name": "NasaPhone Abdullah",
+    "icon": "nasa_icon.png",
+    "address": "https://codeberg.org/abdullah_tamemi/nasaphone/-/raw/main/",
+    "description": "المستودع الرسمي لناسا فون - نسخة شاملة وموقعة"
+  },
+  "apps": [
+    {
+      "packageName": "com.universe.messenger",
+      "name": "ABWhatsApp",
+      "suggestedVersionCode": "21474836471",
+      "added": 1776262576886,
+      "lastUpdated": 1776262576886,
+      "localized": {
+        "ar": {
+          "name": "ABWhatsApp Blue_V30 الأزرق",
+          "summary": "تحديث جديد لواتساب عبدالله التميمي اللون الأزرق V30",
+          "description": "<p>تم تحديث البصمة الرقمية لضمان التكامل التام مع النسخ المثبتة مسبقاً.</p>"
+        }
+      }
+    }
+  ],
+  "packages": {
+    "com.universe.messenger": [
+      {
+        "versionName": "2.26.14.75",
+        "versionCode": 21474836471,
+        "apkName": "1.apk",
+        "hashType": "sha256",
+        "sig": "a726213f1d412d5ad66a0aa092abb4d3",
+        "signer": "9c2db70513515fdbfbbc585b3edf3d7123d4dc67c94ffd306361c1d79bbf18ac",
+        "size": 339182325,
+        "minSdkVersion": 29,
+        "targetSdkVersion": 36,
+        "added": 1776262576886
+      }
+    ]
   }
-]
+}
