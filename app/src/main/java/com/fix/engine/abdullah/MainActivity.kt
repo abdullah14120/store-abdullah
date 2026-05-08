@@ -18,16 +18,20 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.work.*
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.AppAdapter
 import com.fix.engine.abdullah.ui.details.AppDetailsActivity
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
+import com.fix.engine.abdullah.service.UpdateWorker
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Intelligent Bridge
- * Updates: GBWhatsApp Tag Filtering & Deep Link Handling
+ * Project: FIX ENGINE - Enterprise Edition
+ * Updates: No-Filter Mode, Update Dialog, and Background Notifications
  */
 class MainActivity : AppCompatActivity() {
 
@@ -51,10 +55,9 @@ class MainActivity : AppCompatActivity() {
         setupRecyclerView()
         setupObservers()
         registerDownloadReceiver()
+        setupBackgroundWork()
 
-        // معالجة الرابط القادم من الدالة المحقونة (Smali)
         handleIncomingDeepLink(intent)
-        
         refreshData()
     }
 
@@ -62,7 +65,7 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.apply {
             title = "FIX ENGINE"
-            subtitle = "نظام التحديث الذكي مفعل"
+            subtitle = "مركز التحديثات والخدمات"
         }
     }
 
@@ -84,17 +87,11 @@ class MainActivity : AppCompatActivity() {
 
         viewModel.appsList.observe(this) { apps ->
             if (!apps.isNullOrEmpty()) {
-                // الفلترة: عرض تطبيقاتك فقط (المثبتة بوسم GBWhatsApp أو غير المثبتة إطلاقاً)
-                val filteredList = apps.filter { app ->
-                    try {
-                        val pInfo = packageManager.getPackageInfo(app.packageName, PackageManager.GET_ACTIVITIES)
-                        pInfo.activities?.any { it.nonLocalizedLabel == "GBWhatsApp" } ?: false
-                    } catch (e: PackageManager.NameNotFoundException) {
-                        true // إظهار التطبيق في المتجر إذا لم يكن ثبّت بعد
-                    }
-                }
-                appAdapter.submitList(filteredList)
-                checkVersionUpdates(filteredList)
+                // تم تعطيل الفلترة الذكية بناءً على طلبك - عرض القائمة كاملة
+                appAdapter.submitList(apps)
+                
+                // فحص التحديثات لإظهار الديالوج
+                checkForUpdates(apps)
             }
         }
 
@@ -102,14 +99,63 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * معالجة روابط: fixengine://details?pkg=com.package.name
+     * فحص الإصدارات المثبتة ومقارنتها بالمستودع
      */
+    private fun checkForUpdates(apps: List<com.fix.engine.abdullah.data.model.AppModel>) {
+        for (app in apps) {
+            try {
+                val pInfo = packageManager.getPackageInfo(app.packageName, 0)
+                val installedVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    pInfo.longVersionCode
+                } else {
+                    @Suppress("DEPRECATION")
+                    pInfo.versionCode.toLong()
+                }
+
+                if (app.versionCode > installedVersionCode) {
+                    showUpdateDialog(app)
+                    break // إظهار ديالوج واحد فقط
+                }
+            } catch (e: PackageManager.NameNotFoundException) {
+                // التطبيق غير مثبت، نتجاهل الفحص له
+            }
+        }
+    }
+
+    private fun showUpdateDialog(app: com.fix.engine.abdullah.data.model.AppModel) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("تحديث جديد متاح!")
+            .setMessage("تم العثور على إصدار جديد لتطبيق ${app.name}. هل تود الانتقال لصفحة التحديث؟")
+            .setPositiveButton("تحديث الآن") { _, _ ->
+                val intent = Intent(this, AppDetailsActivity::class.java).apply {
+                    putExtra("APP_DATA", app)
+                }
+                startActivity(intent)
+            }
+            .setNegativeButton("ليس الآن", null)
+            .show()
+    }
+
+    /**
+     * إعداد فحص الخلفية للإشعارات كل 24 ساعة
+     */
+    private fun setupBackgroundWork() {
+        val updateRequest = PeriodicWorkRequestBuilder<UpdateWorker>(24, TimeUnit.HOURS)
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "FixEngineUpdateCheck",
+            ExistingPeriodicWorkPolicy.KEEP,
+            updateRequest
+        )
+    }
+
     private fun handleIncomingDeepLink(intent: Intent?) {
         val uri: Uri? = intent?.data
         if (uri != null && uri.scheme == "fixengine") {
             val pkgName = uri.getQueryParameter("pkg")
             pkgName?.let { pkg ->
-                // البحث عن الحزمة وفتح صفحة تفاصيلها مباشرة
                 viewModel.appsList.value?.find { it.packageName == pkg }?.let { app ->
                     val detailsIntent = Intent(this, AppDetailsActivity::class.java).apply {
                         putExtra("APP_DATA", app)
@@ -117,20 +163,6 @@ class MainActivity : AppCompatActivity() {
                     startActivity(detailsIntent)
                 }
             }
-        }
-    }
-
-    /**
-     * مقارنة النسخة الحالية بالنسخة في المستودع (بناءً على versionName)
-     */
-    private fun checkVersionUpdates(apps: List<com.fix.engine.abdullah.data.model.AppModel>) {
-        apps.forEach { app ->
-            try {
-                val currentVersion = packageManager.getPackageInfo(app.packageName, 0).versionName
-                if (currentVersion != app.versionName) {
-                    // يمكنك هنا إظهار إشعار بسيط بوجود تحديث
-                }
-            } catch (e: Exception) {}
         }
     }
 
