@@ -77,7 +77,9 @@ dependencies {
     // دعم الأجهزة القديمة
     implementation 'androidx.multidex:multidex:2.0.1'
 
-    implementation "androidx.work:work-*:2.11.2"
+    // الإصدار الرسمي المستقر لعام 2026 كما في الصورة
+    implementation "androidx.work:work-runtime-kotlin:2.11.2"
+
 
     // أدوات الاختبار
     testImplementation 'junit:junit:4.13.2'
