@@ -69,7 +69,7 @@ dependencies {
 
     // نظام التنبيهات (WorkManager) الإصدار الأحدث 2026
     // ملاحظة: إذا فشل التحميل التلقائي، ضعه كملف AAR في مجلد libs
-    implementation "androidx.work:work-runtime-kotlin:2.11.2"
+    implementation "app/libs/work-runtime-2.11.2.aar"
 
     // الاتصال بالشبكة (Retrofit)
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
