@@ -6,8 +6,6 @@ plugins {
 
 android {
     namespace 'com.fix.engine.abdullah'
-    
-    // استخدام SDK 35 مع مكتبة WorkManager 2.11.2
     compileSdk 35 
 
     defaultConfig {
@@ -21,7 +19,7 @@ android {
         multiDexEnabled true 
     }
 
-    // إجبار Gradle على قبول SDK 35 مع AGP 8.2.0 لتجنب الفشل
+    // إعدادات لضمان قبول المكتبات اليدوية وتجاوز أخطاء التوافق
     lintOptions {
         checkReleaseBuilds false
         abortOnError false
@@ -35,7 +33,6 @@ android {
     }
 
     compileOptions {
-        // تحديث لـ Java 17 ليتوافق مع مكتبات 2026
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
@@ -46,30 +43,23 @@ android {
 
     buildFeatures {
         viewBinding true
-        // تعطيل DataBinding لتقليل تعارضات الـ Merge التي واجهتها
         dataBinding false 
-    }
-    
-    packagingOptions {
-        resources {
-            excludes += '/META-INF/{AL2.0,LGPL2.1}'
-        }
     }
 }
 
 dependencies {
-    // دعم ملفات الـ AAR والـ JAR اليدوية في مجلد libs
+    // 1. السطر السحري: تعريف مجلد libs كمصدر للمكتبات المحلية
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
 
-    // المكتبات الأساسية (إصدارات مستقرة ومتوافقة)
+    // 2. استبدال التحميل التلقائي بملف المكتبة اليدوي
+    // تأكد من وضع ملف "work-runtime-kotlin-2.11.2.aar" داخل مجلد app/libs
+    implementation files('libs/work-runtime-kotlin-2.11.2.aar')
+
+    // المكتبات الأساسية (التي لا يمكن الاستغناء عنها لدعم واجهة المتجر)
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-
-    // نظام التنبيهات (WorkManager) الإصدار الأحدث 2026
-    // ملاحظة: إذا فشل التحميل التلقائي، ضعه كملف AAR في مجلد libs
-    implementation "app/libs/work-runtime-2.11.2.aar"
 
     // الاتصال بالشبكة (Retrofit)
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
