@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace 'com.fix.engine.abdullah'
-    compileSdk 34 // متوافق مع آخر تحديثات النظام
+    compileSdk 35 // متوافق مع آخر تحديثات النظام
 
     defaultConfig {
         applicationId "com.fix.engine.abdullah"
         minSdk 24 
-        targetSdk 34
+        targetSdk 35
         versionCode 1
         versionName "1.0-FIX"
 
@@ -78,7 +78,7 @@ dependencies {
     implementation 'androidx.multidex:multidex:2.0.1'
 
     // الإصدار الرسمي المستقر لعام 2026 كما في الصورة
-    implementation "androidx.work:work-runtime-kotlin:2.8.0"
+    implementation "androidx.work:work-runtime-kotlin:2.10.0"
 
 
     // أدوات الاختبار
