@@ -19,7 +19,6 @@ android {
         multiDexEnabled true 
     }
 
-    // تعطيل الـ Lint والـ DataBinding تماماً لتجنب فشل الـ Merge في GitHub
     lintOptions {
         checkReleaseBuilds false
         abortOnError false
@@ -43,10 +42,9 @@ android {
 
     buildFeatures {
         viewBinding true
-        dataBinding false // تأكيد التعطيل لمنع خطأ dataBindingMerge
+        dataBinding false 
     }
 
-    // منع الـ Jetifier من محاولة تحويل المكتبة اليدوية (يحل مشكلة Failed to transform)
     packagingOptions {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
@@ -55,40 +53,47 @@ android {
 }
 
 dependencies {
-    // 1. السطر السحري: قراءة الملفات المحلية
+    // 1. دعم المكتبات اليدوية في مجلد libs
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
 
-    // 2. الربط المباشر مع تجاوز أخطاء التحويل
-    // تأكد أن الاسم في GitHub هو تماماً: work-runtime-kotlin-2.11.2.aar
+    // 2. ربط مكتبة WorkManager اليدوية
     implementation(files("libs/work-runtime-2.9.1.aar"))
 
-    // 3. مكتبات تابعة ضرورية لعمل WorkManager يدوياً (بدونها سيحدث Crash)
+    // 3. الحل الحاسم للانهيار: إضافة مكتبات Room و SQLite
+    // مكتبة WorkManager لا تعمل بدون قاعدة بيانات Room
+    def room_version = "2.6.1"
+    implementation "androidx.room:room-runtime:$room_version"
+    implementation "androidx.room:room-ktx:$room_version"
+    kapt "androidx.room:room-compiler:$room_version"
+    
+    // دعم نظام التشغيل الأساسي لـ WorkManager
     implementation "androidx.startup:startup-runtime:1.1.1"
     implementation "com.google.guava:listenablefuture:1.0"
     implementation "androidx.sqlite:sqlite-framework:2.4.0"
 
-    // المكتبات الأساسية (إصدارات متوافقة مع SDK 35)
+    // 4. المكتبات الأساسية والواجهات (متوافقة مع أندرويد 15)
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // الاتصال بالشبكة
+    // 5. جلب البيانات من الإنترنت (Retrofit)
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
 
-    // الصور والـ Coroutines
+    // 6. معالجة الصور (Glide)
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     kapt 'com.github.bumptech.glide:compiler:4.16.0'
+
+    // 7. إدارة العمليات في الخلفية والـ Lifecycle
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-    
-    // Lifecycle & Activity
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
     implementation 'androidx.activity:activity-ktx:1.8.2'
     implementation 'androidx.multidex:multidex:2.0.1'
 
+    // الاختبارات
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
