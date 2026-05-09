@@ -60,7 +60,7 @@ dependencies {
 
     // 2. الربط المباشر مع تجاوز أخطاء التحويل
     // تأكد أن الاسم في GitHub هو تماماً: work-runtime-kotlin-2.11.2.aar
-    implementation(files("libs/work-runtime-2.11.2.aar"))
+    implementation(files("libs/work-runtime-2.9.1.aar"))
 
     // 3. مكتبات تابعة ضرورية لعمل WorkManager يدوياً (بدونها سيحدث Crash)
     implementation "androidx.startup:startup-runtime:1.1.1"
