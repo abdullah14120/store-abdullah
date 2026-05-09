@@ -78,7 +78,7 @@ dependencies {
     implementation 'androidx.multidex:multidex:2.0.1'
 
     // الإصدار الرسمي المستقر لعام 2026 كما في الصورة
-    implementation "androidx.work:work-runtime-kotlin:2.10.0"
+    implementation "androidx.work:work-runtime-kotlin:2.11.2"
 
 
     // أدوات الاختبار
