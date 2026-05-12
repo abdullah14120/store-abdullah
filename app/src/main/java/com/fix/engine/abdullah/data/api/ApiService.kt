@@ -7,19 +7,21 @@ import retrofit2.http.Url
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - API Interface
- * Purpose: Dynamically fetch application list from any GitHub Raw URL.
+ * Project: Abdullah Store - Professional API Engine
+ * Feature: Dynamic JSON Fetching with Error Handling Support
  */
 interface ApiService {
 
     /**
-     * جلب قائمة التطبيقات. 
-     * نستخدم @Url لتمكين تمرير الرابط الكامل لملف الـ JSON الخام (Raw).
+     * جلب قائمة التطبيقات من مستودع GitHub.
+     * تم استخدام Response<List<AppModel>> لضمان استقرار التطبيق عند حدوث أخطاء في الشبكة.
      */
     @GET
-    suspend fun getAppsList(@Url url: String): List<AppModel>
+    suspend fun getAppsList(@Url url: String): Response<List<AppModel>>
 
-    /* ملاحظة للمستقبل: إذا أردت الحصول على معلومات إضافية مثل كود الحالة (200, 404)
-       يمكنك استخدام Response<List<AppModel>> بدلاً من القائمة المباشرة.
-    */
+    /**
+     * ملاحظة تقنية: 
+     * استخدام @Url يمنح متجر Abdullah مرونة عالية، حيث يمكنك تغيير مصدر 
+     * التطبيقات (الـ JSON) برمجياً دون الحاجة لتحديث التطبيق نفسه.
+     */
 }
