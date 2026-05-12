@@ -5,42 +5,107 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FAFAFA"
+    android:background="@color/dark_background"
     tools:context=".MainActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#FFFFFF"
+        android:background="@android:color/transparent"
         app:elevation="0dp">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
+        <com.google.android.material.appbar.CollapsingToolbarLayout
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:titleCentered="true"
-            app:titleTextAppearance="@style/TextAppearance.FixEngine.Toolbar"
-            app:layout_scrollFlags="scroll|enterAlways" />
+            android:layout_height="wrap_content"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- اسم المتجر والشعار العلوي -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="متجر Abdullah"
+                    android:textColor="@color/white"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:fontFamily="sans-serif-black" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="استكشف أفضل التطبيقات المحدثة"
+                    android:textColor="@color/gray_light"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- شريط البحث الاحترافي -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/searchCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    app:cardBackgroundColor="#1F2937"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp"
+                    app:strokeWidth="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="12dp">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@android:drawable/ic_menu_search"
+                            app:tint="@color/secondary_cyan" />
+
+                        <EditText
+                            android:id="@+id/etSearch"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@android:color/transparent"
+                            android:hint="بحث عن تطبيقات..."
+                            android:textColorHint="@color/gray_light"
+                            android:textColor="@color/white"
+                            android:textSize="14sp"
+                            android:paddingHorizontal="10dp"
+                            android:imeOptions="actionSearch"
+                            android:inputType="text" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- قائمة التطبيقات بتصميم شبكي أو قائمة -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingTop="8dp"
+        android:paddingHorizontal="8dp"
         android:paddingBottom="16dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         tools:listitem="@layout/item_app" />
 
+    <!-- شاشة التحميل الجذابة -->
     <ProgressBar
         android:id="@+id/progressBar"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
         android:layout_gravity="center"
-        android:indeterminateTint="#00796B"
+        android:indeterminateTint="@color/secondary_cyan"
         android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
