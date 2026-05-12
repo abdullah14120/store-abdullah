@@ -12,13 +12,14 @@ android {
         applicationId "com.fix.engine.abdullah"
         minSdk 24 
         targetSdk 35
-        versionCode 1
-        versionName "1.0-FIX"
+        versionCode 2 // رفعنا الكود للتمييز بين النسخة القديمة والاحترافية
+        versionName "1.0-Professional"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         multiDexEnabled true 
     }
 
+    // لضمان بناء التطبيق حتى لو كانت هناك تحذيرات بسيطة
     lintOptions {
         checkReleaseBuilds false
         abortOnError false
@@ -26,7 +27,8 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled true 
+            minifyEnabled true // تفعيل تقليص الكود لحماية التطبيق وتصغير حجمه
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -41,8 +43,7 @@ android {
     }
 
     buildFeatures {
-        viewBinding true
-        dataBinding false 
+        viewBinding true // تفعيل الـ ViewBinding لربط الواجهات برمجياً بسلاسة
     }
 
     packagingOptions {
@@ -53,44 +54,50 @@ android {
 }
 
 dependencies {
-    // 1. دعم المكتبات اليدوية في مجلد libs
+    // 1. دعم الملفات اليدوية (إذا كنت تضع ملفات .aar في مجلد libs)
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
 
-    // 2. ربط مكتبة WorkManager اليدوية
-    implementation(files("libs/work-runtime-2.9.1.aar"))
+    // 2. المكتبات الأساسية (AndroidX) - أحدث الإصدارات المستقرة
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0' // ضروري للـ CardView والـ Google Fonts
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.activity:activity-ktx:1.9.0'
+    implementation 'androidx.fragment:fragment-ktx:1.7.1'
 
-    // 3. الحل الحاسم للانهيار: إضافة مكتبات Room و SQLite
-    // مكتبة WorkManager لا تعمل بدون قاعدة بيانات Room
+    // 3. إدارة البيانات والاتصال (الاحترافية)
+    implementation 'com.squareup.retrofit2:retrofit:2.11.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.11.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+
+    // 4. معالجة الصور والأيقونات (Glide)
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
+    kapt 'com.github.bumptech.glide:compiler:4.16.0'
+
+    // 5. العمليات في الخلفية والمهام المجدولة (WorkManager & Coroutines)
+    def work_version = "2.9.1"
+    implementation "androidx.work:work-runtime-ktx:$work_version"
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0'
+
+    // 6. مكتبة Room (ضرورية لعمل WorkManager ولتخزين البيانات مؤقتاً)
     def room_version = "2.6.1"
     implementation "androidx.room:room-runtime:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
     kapt "androidx.room:room-compiler:$room_version"
-    
-    // دعم نظام التشغيل الأساسي لـ WorkManager
-    implementation "androidx.startup:startup-runtime:1.1.1"
-    implementation "com.google.guava:listenablefuture:1.0"
     implementation "androidx.sqlite:sqlite-framework:2.4.0"
 
-    // 4. المكتبات الأساسية والواجهات (متوافقة مع أندرويد 15)
-    implementation 'androidx.core:core-ktx:1.12.0'
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.11.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    // 7. تحسين تجربة المستخدم (UI Extras)
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0' // ميزة سحب الشاشة للتحديث
+    implementation 'com.facebook.shimmer:shimmer:0.5.0' // تأثير الهيكل العظمي (Skeleton Loading)
+    implementation 'de.hdodenhof:circleimageview:3.1.0' // للأيقونات الدائرية إذا رغبت
 
-    // 5. جلب البيانات من الإنترنت (Retrofit)
-    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
-    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
-    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+    // 8. Lifecycle (ViewModel & LiveData)
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.8.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.0'
 
-    // 6. معالجة الصور (Glide)
-    implementation 'com.github.bumptech.glide:glide:4.16.0'
-    kapt 'com.github.bumptech.glide:compiler:4.16.0'
-
-    // 7. إدارة العمليات في الخلفية والـ Lifecycle
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
-    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
-    implementation 'androidx.activity:activity-ktx:1.8.2'
+    // 9. Startup & Multidex
+    implementation 'androidx.startup:startup-runtime:1.1.1'
     implementation 'androidx.multidex:multidex:2.0.1'
 
     // الاختبارات
