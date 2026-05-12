@@ -55,7 +55,7 @@ android {
 
 dependencies {
     // 1. دعم الملفات اليدوية (إذا كنت تضع ملفات .aar في مجلد libs)
-    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+    
 
     // 2. المكتبات الأساسية (AndroidX) - أحدث الإصدارات المستقرة
     implementation 'androidx.core:core-ktx:1.13.1'
