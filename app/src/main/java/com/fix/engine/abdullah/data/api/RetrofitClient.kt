@@ -8,26 +8,26 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Core Network Client
- * Update: Added 'instance' reference to fix Build Errors
+ * Project: Abdullah Store - High Performance Network Client
+ * Feature: Optimized for slow connections & Dynamic API Calls
  */
 object RetrofitClient {
     
-    // الرابط الأساسي لمستودعات GitHub الخام
     private const val BASE_URL = "https://raw.githubusercontent.com/"
 
     private val okHttpClient: OkHttpClient by lazy {
+        // مراقب البيانات لمتابعة الطلبات في الـ Logcat
         val logging = HttpLoggingInterceptor().apply {
-            // نستخدم Level.BASIC في الإنتاج و BODY في التطوير
             level = HttpLoggingInterceptor.Level.BODY 
         }
 
         OkHttpClient.Builder()
             .addInterceptor(logging)
-            .connectTimeout(60, TimeUnit.SECONDS) // زيادة المهلة لتناسب الإنترنت الضعيف
+            // إعدادات تناسب كافة سرعات الإنترنت لضمان عدم توقف المتجر
+            .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
+            .retryOnConnectionFailure(true) // إعادة المحاولة تلقائياً عند الفشل
             .build()
     }
 
@@ -40,13 +40,13 @@ object RetrofitClient {
     }
 
     /**
-     * هذا هو المتغير الذي يبحث عنه الـ Repository والـ ViewModel
-     * قمت بإضافة "instance" كاسم مستعار لـ apiService لضمان التوافق
+     * الوصول الموحد للخدمة (Singleton Instance)
+     * يتم استخدامه في AppRepository لجلب البيانات
      */
     val instance: ApiService by lazy {
         retrofit.create(ApiService::class.java)
     }
 
-    // للمحافظة على التوافق مع أي كود قديم يستخدم apiService مباشرة
+    // دعم التسمية القديمة لضمان عدم حدوث خطأ في الملفات الأخرى
     val apiService: ApiService get() = instance
 }
