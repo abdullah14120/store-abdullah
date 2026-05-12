@@ -1,7 +1,9 @@
 package com.fix.engine.abdullah.ui.details
 
+import android.annotation.SuppressLint
+import android.app.DownloadManager
+import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.view.View
@@ -9,6 +11,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.fix.engine.abdullah.R
@@ -35,15 +38,12 @@ class AppDetailsActivity : AppCompatActivity() {
 
         setupToolbar()
 
-        val appData = try {
-            @Suppress("DEPRECATION")
-            intent.getSerializableExtra("APP_DATA") as? AppModel
-        } catch (e: Exception) {
-            null
-        }
+        val appData = intent.getSerializableExtra("APP_DATA") as? AppModel
 
         if (appData != null) {
             displayDetails(appData)
+            // فحص الحالة فور الدخول للصفحة
+            checkCurrentStatus(appData)
         } else {
             Toast.makeText(this, "بيانات التطبيق غير صالحة", Toast.LENGTH_SHORT).show()
             finish()
@@ -57,29 +57,52 @@ class AppDetailsActivity : AppCompatActivity() {
         binding.toolbarDetails.setNavigationOnClickListener { finish() }
     }
 
+    /**
+     * فحص ذكي لحالة التحميل الحالية من نظام أندرويد
+     */
+    @SuppressLint("Range")
+    private fun checkCurrentStatus(app: AppModel) {
+        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val query = DownloadManager.Query().setFilterByStatus(
+            DownloadManager.STATUS_RUNNING or DownloadManager.STATUS_PENDING or DownloadManager.STATUS_PAUSED
+        )
+        val cursor = manager.query(query)
+        
+        var activeDownloadId: Long = -1
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                val title = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_TITLE))
+                // نتحقق أن التحميل الجاري هو لهذا التطبيق تحديداً
+                if (title == app.name || title == app.getUniqueFileName()) {
+                    activeDownloadId = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_ID))
+                    break
+                }
+            }
+            cursor.close()
+        }
+
+        if (activeDownloadId != -1L) {
+            // يوجد تحميل جارٍ، أظهر شريط التقدم فوراً
+            isDownloading = true
+            binding.btnInstallLarge.visibility = View.GONE
+            binding.layoutDownloadProgress.visibility = View.VISIBLE
+            startTrackingProcess(activeDownloadId)
+        }
+    }
+
     private fun displayDetails(app: AppModel) {
         binding.apply {
             txtDetailsName.text = app.name
             txtDetailsDev.text = app.developer
             txtDescription.text = app.description ?: "لا يوجد وصف متاح لهذا التطبيق."
             
-            // تحديث حالة الزر بناءً على وجود الملف مسبقاً
-            val uniqueFileName = "${app.packageName}_v${app.versionCode}.apk"
-            val localFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), uniqueFileName)
+            // تحديث البطاقات (الإصدار والحجم)
+            badgeVersion.root.findViewById<TextView>(R.id.txtLabel)?.text = "الإصدار"
+            badgeVersion.root.findViewById<TextView>(R.id.txtValue)?.text = app.versionName
             
-            if (localFile.exists()) {
-                btnInstallLarge.text = "تثبيت الملف الآن"
-            }
-
-            try {
-                badgeVersion.root.findViewById<TextView>(R.id.txtValue)?.text = app.versionName
-                badgeVersion.root.findViewById<TextView>(R.id.txtLabel)?.text = "الإصدار"
-                
-                badgeSize.root.findViewById<TextView>(R.id.txtValue)?.text = app.getFormattedSize()
-                badgeSize.root.findViewById<TextView>(R.id.txtLabel)?.text = "الحجم"
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            badgeSize.root.findViewById<TextView>(R.id.txtLabel)?.text = "الحجم"
+            badgeSize.root.findViewById<TextView>(R.id.txtValue)?.text = app.getFormattedSize()
 
             Glide.with(this@AppDetailsActivity)
                 .load(app.iconUrl)
@@ -87,36 +110,42 @@ class AppDetailsActivity : AppCompatActivity() {
                 .transition(DrawableTransitionOptions.withCrossFade())
                 .into(imgDetailsIcon)
 
+            // منطق الضغط على الزر
             btnInstallLarge.setOnClickListener {
-                if (localFile.exists()) {
-                    installApk(localFile)
+                val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), app.getUniqueFileName())
+                
+                if (file.exists() && !isDownloading) {
+                    installApk(file)
                 } else if (!isDownloading) {
-                    startDownloadProcess(app, uniqueFileName)
+                    startNewDownload(app)
                 }
             }
         }
     }
 
-    private fun startDownloadProcess(app: AppModel, fileName: String) {
+    private fun startNewDownload(app: AppModel) {
         isDownloading = true
         binding.btnInstallLarge.visibility = View.GONE
         binding.layoutDownloadProgress.visibility = View.VISIBLE
 
-        val downloadId = downloadManager.enqueueDownload(app.downloadUrl, fileName)
+        val downloadId = downloadManager.enqueueDownload(app.downloadUrl, app.getUniqueFileName())
+        startTrackingProcess(downloadId)
+    }
 
+    private fun startTrackingProcess(downloadId: Long) {
         tracker.startTracking(downloadId) { progress, sizeLabel ->
             runOnUiThread {
                 binding.apply {
                     downloadProgress.progress = progress
                     txtDownloadPercent.text = "$progress%"
-                    txtDownloadSpeed.text = "جاري التحميل..." 
                     txtDownloadETA.text = sizeLabel
+                    txtDownloadSpeed.text = if (progress < 100) "جاري التحميل..." else "اكتمل التحميل"
                     
                     if (progress >= 100) {
                         isDownloading = false
-                        binding.btnInstallLarge.visibility = View.VISIBLE
-                        binding.layoutDownloadProgress.visibility = View.GONE
-                        binding.btnInstallLarge.text = "تثبيت الآن"
+                        layoutDownloadProgress.visibility = View.GONE
+                        btnInstallLarge.visibility = View.VISIBLE
+                        btnInstallLarge.text = "تثبيت الآن"
                     }
                 }
             }
@@ -133,14 +162,14 @@ class AppDetailsActivity : AppCompatActivity() {
             }
             startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(this, "خطأ في فتح ملف التثبيت", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "فشل فتح الملف، قد يكون تالفاً", Toast.LENGTH_SHORT).show()
+            file.delete() // حذف الملف التالف ليتسنى للمستخدم تحميله مجدداً
+            recreate() // إعادة إنعاش الصفحة لتحديث حالة الزر
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (::tracker.isInitialized) {
-            tracker.stopTracking()
-        }
+        if (::tracker.isInitialized) tracker.stopTracking()
     }
 }
