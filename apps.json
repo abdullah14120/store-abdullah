@@ -1,14 +1,14 @@
 [
   {
-    "packageName": "org.telegram.messenger99",
-    "name": "Telegram (Fix Edition)",
-    "versionName": "10.3.1",
-    "versionCode": 4120,
-    "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/512px-Telegram_logo.svg.png",
-    "downloadUrl": "https://telegram.org/dl/android/apk",
+    "packageName": "com.universe.messenger",
+    "name": "واتساب",
+    "versionName": "2.26.15.70",
+    "versionCode": 2147483647,
+    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon.png",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1znymauZQJfedbv2rXO8h1KxOH46SZWCs&export=download&confirm=t&uuid=e5a45cab-b767-4ca1-9091-c18a2f7fdfa1",
     "developer": "Telegram FZ-LLC",
-    "description": "تجربة تحميل تطبيق تليجرام الرسمي عبر متجر FIX ENGINE.",
-    "size": 72400000,
+    "description": "واتساب الأخضر رقم 2.",
+    "size": 140688765,
     "category": "Communication"
   }
 ]
