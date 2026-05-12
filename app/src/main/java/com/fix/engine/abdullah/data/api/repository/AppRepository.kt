@@ -7,32 +7,36 @@ import kotlinx.coroutines.withContext
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Data Repository
- * Purpose: Acts as a bridge between Remote API and ViewModel
+ * Project: Abdullah Store - Professional Data Repository
+ * Logic: Bridge between Remote API and ViewModel with Error Handling
  */
 class AppRepository {
 
-    // الوصول للمحرك عبر instance الذي أصلحناه في RetrofitClient
     private val apiService = RetrofitClient.instance
 
     /**
      * جلب قائمة التطبيقات من مستودع GitHub
-     * نستخدم Result لضمان سهولة التعامل مع النجاح والفشل في الـ ViewModel
+     * يدعم فحص حالة الاستجابة لضمان استقرار "متجر Abdullah"
      */
     suspend fun fetchApps(repoUrl: String): Result<List<AppModel>> {
-        return withContext(Dispatchers.IO) { // الانتقال لخييط الـ IO لعدم تعليق الواجهة
+        return withContext(Dispatchers.IO) {
             try {
-                // استدعاء الواجهة البرمجية
+                // استدعاء الواجهة البرمجية (التي تعيد الآن Response)
                 val response = apiService.getAppsList(repoUrl)
                 
-                if (response.isNotEmpty()) {
-                    Result.success(response)
+                if (response.isSuccessful) {
+                    val apps = response.body()
+                    if (!apps.isNullOrEmpty()) {
+                        Result.success(apps)
+                    } else {
+                        Result.failure(Exception("قائمة التطبيقات فارغة في الخادم"))
+                    }
                 } else {
-                    // في حال كان الملف فارغاً
-                    Result.failure(Exception("قائمة التطبيقات فارغة حالياً"))
+                    // التقاط أخطاء السيرفر (مثل 404 أو 500)
+                    Result.failure(Exception("خطأ في الاتصال بالمستودع: ${response.code()}"))
                 }
             } catch (e: Exception) {
-                // التقاط أخطاء الشبكة، انقطاع الاتصال، أو أخطاء الـ JSON
+                // التقاط أخطاء الشبكة العامة أو تحويل الـ JSON
                 Result.failure(e)
             }
         }
