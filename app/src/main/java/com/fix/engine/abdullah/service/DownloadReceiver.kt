@@ -11,6 +11,11 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import java.io.File
 
+/**
+ * Developed by: Abdullah Al-Tamimi
+ * Project: Abdullah Store - Auto Installer
+ * Feature: Secure FileProvider Integration & Public Path Handling
+ */
 class DownloadReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -31,26 +36,39 @@ class DownloadReceiver : BroadcastReceiver() {
             val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
             if (cursor.getInt(statusIndex) == DownloadManager.STATUS_SUCCESSFUL) {
                 
-                // الطريقة الأكثر أماناً لجلب الملف في الأنظمة الحديثة
-                val fileUriString = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI))
-                cursor.close() // نغلق الكرسي فوراً بعد جلب البيانات
+                // جلب المسار المحلي للملف من قاعدة بيانات التنزيلات
+                val localUriString = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI))
+                cursor.close()
 
-                fileUriString?.let { uriString ->
+                localUriString?.let { uriString ->
                     val fileUri = Uri.parse(uriString)
-                    // التحويل من Uri إلى File يحتاج معالجة للمسارات التي تبدأ بـ file://
                     val filePath = fileUri.path
+                    
                     if (filePath != null) {
-                        val file = File(filePath)
+                        // في بعض الأجهزة، المسار قد يحتوي على بادئة file://، نقوم بتنظيفها
+                        val cleanPath = filePath.replace("external_files", "storage/emulated/0")
+                        val file = File(cleanPath)
+                        
                         if (file.exists()) {
                             openInstaller(context, file)
                         } else {
-                            showToast(context, "لم يتم العثور على ملف APK")
+                            // محاولة بديلة: الوصول للملف عبر الـ Uri مباشرة
+                            handleLegacyFile(context, fileUri)
                         }
                     }
                 }
             } else {
                 cursor.close()
             }
+        }
+    }
+
+    private fun handleLegacyFile(context: Context, uri: Uri) {
+        val file = File(uri.path ?: "")
+        if (file.exists()) {
+            openInstaller(context, file)
+        } else {
+            showToast(context, "اكتمل التحميل، يرجى التثبيت من مدير الملفات")
         }
     }
 
@@ -66,20 +84,19 @@ class DownloadReceiver : BroadcastReceiver() {
                 setDataAndType(contentUri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                // إضافة flag إضافي لضمان الظهور فوق التطبيقات الأخرى
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
 
             context.startActivity(installIntent)
             
         } catch (e: Exception) {
-            showToast(context, "فشل التثبيت: تأكد من منح صلاحية تثبيت التطبيقات")
+            showToast(context, "فشل فتح المثبت: يرجى منح صلاحية تثبيت التطبيقات غير المعروفة")
         }
     }
 
     private fun showToast(context: Context, message: String) {
         Handler(Looper.getMainLooper()).post {
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
     }
 }
