@@ -1,14 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <external-files-path
-        name="my_downloads"
-        path="Download/" />
-    
-    <external-path
-        name="external_storage"
-        path="." />
-
-    <files-path
-        name="internal_files"
-        path="." />
+    <!-- مسار التنزيلات العام -->
+    <external-path name="my_downloads" path="Download/" />
+    <!-- مسار ملفات التطبيق الخاصة للضرورة -->
+    <external-files-path name="external_files" path="." />
 </paths>
