@@ -10,8 +10,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
+import android.text.Editable
+import android.text.TextWatcher
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -30,14 +30,15 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Enterprise Edition
- * Updates: No-Filter Mode, Update Dialog, and Background Notifications
+ * Project: Abdullah Store - Professional UI Edition
+ * Features: Live Search, Auto-Update Check, and Dynamic UI
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
     private lateinit var appAdapter: AppAdapter
+    private var fullList: List<com.fix.engine.abdullah.data.model.AppModel> = emptyList()
 
     private val downloadReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -51,22 +52,13 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setupToolbar()
         setupRecyclerView()
         setupObservers()
+        setupSearchLogic()
         registerDownloadReceiver()
         setupBackgroundWork()
 
-        handleIncomingDeepLink(intent)
         refreshData()
-    }
-
-    private fun setupToolbar() {
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.apply {
-            title = "متجر عبدالله التميمي"
-            subtitle = "مركز التحديثات والخدمات"
-        }
     }
 
     private fun setupRecyclerView() {
@@ -82,15 +74,35 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * منطق البحث المباشر (Live Search)
+     */
+    private fun setupSearchLogic() {
+        binding.etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                filterApps(s.toString())
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+    }
+
+    private fun filterApps(query: String) {
+        val filteredList = if (query.isEmpty()) {
+            fullList
+        } else {
+            fullList.filter { it.name.contains(query, ignoreCase = true) || it.developer.contains(query, ignoreCase = true) }
+        }
+        appAdapter.submitList(filteredList)
+    }
+
     private fun setupObservers() {
         viewModel.isLoading.observe(this) { binding.progressBar.isVisible = it }
 
         viewModel.appsList.observe(this) { apps ->
             if (!apps.isNullOrEmpty()) {
-                // تم تعطيل الفلترة الذكية بناءً على طلبك - عرض القائمة كاملة
+                fullList = apps
                 appAdapter.submitList(apps)
-                
-                // فحص التحديثات لإظهار الديالوج
                 checkForUpdates(apps)
             }
         }
@@ -98,9 +110,6 @@ class MainActivity : AppCompatActivity() {
         viewModel.errorMessage.observe(this) { it?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() } }
     }
 
-    /**
-     * فحص الإصدارات المثبتة ومقارنتها بالمستودع
-     */
     private fun checkForUpdates(apps: List<com.fix.engine.abdullah.data.model.AppModel>) {
         for (app in apps) {
             try {
@@ -114,56 +123,36 @@ class MainActivity : AppCompatActivity() {
 
                 if (app.versionCode > installedVersionCode) {
                     showUpdateDialog(app)
-                    break // إظهار ديالوج واحد فقط
+                    break 
                 }
-            } catch (e: PackageManager.NameNotFoundException) {
-                // التطبيق غير مثبت، نتجاهل الفحص له
-            }
+            } catch (e: PackageManager.NameNotFoundException) {}
         }
     }
 
     private fun showUpdateDialog(app: com.fix.engine.abdullah.data.model.AppModel) {
         MaterialAlertDialogBuilder(this)
-            .setTitle("تحديث جديد متاح!")
-            .setMessage("تم العثور على إصدار جديد لتطبيق ${app.name}. هل تود الانتقال لصفحة التحديث؟")
+            .setTitle("تحديث متاح")
+            .setMessage("هناك نسخة جديدة من ${app.name} جاهزة للتحميل. هل تريد التحديث؟")
             .setPositiveButton("تحديث الآن") { _, _ ->
                 val intent = Intent(this, AppDetailsActivity::class.java).apply {
                     putExtra("APP_DATA", app)
                 }
                 startActivity(intent)
             }
-            .setNegativeButton("ليس الآن", null)
+            .setNegativeButton("تجاهل", null)
             .show()
     }
 
-    /**
-     * إعداد فحص الخلفية للإشعارات كل 24 ساعة
-     */
     private fun setupBackgroundWork() {
         val updateRequest = PeriodicWorkRequestBuilder<UpdateWorker>(24, TimeUnit.HOURS)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "FixEngineUpdateCheck",
+            "AbdullahStoreUpdate",
             ExistingPeriodicWorkPolicy.KEEP,
             updateRequest
         )
-    }
-
-    private fun handleIncomingDeepLink(intent: Intent?) {
-        val uri: Uri? = intent?.data
-        if (uri != null && uri.scheme == "fixengine") {
-            val pkgName = uri.getQueryParameter("pkg")
-            pkgName?.let { pkg ->
-                viewModel.appsList.value?.find { it.packageName == pkg }?.let { app ->
-                    val detailsIntent = Intent(this, AppDetailsActivity::class.java).apply {
-                        putExtra("APP_DATA", app)
-                    }
-                    startActivity(detailsIntent)
-                }
-            }
-        }
     }
 
     private fun registerDownloadReceiver() {
@@ -200,7 +189,7 @@ class MainActivity : AppCompatActivity() {
             }
             startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(this, "فشل التثبيت: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "حدث خطأ أثناء التثبيت", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -212,15 +201,5 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         try { unregisterReceiver(downloadReceiver) } catch (e: Exception) {}
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.action_refresh) refreshData()
-        return super.onOptionsItemSelected(item)
     }
 }
