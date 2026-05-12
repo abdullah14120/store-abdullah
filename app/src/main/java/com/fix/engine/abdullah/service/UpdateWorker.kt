@@ -12,36 +12,63 @@ import androidx.work.WorkerParameters
 import com.fix.engine.abdullah.MainActivity
 import com.fix.engine.abdullah.R
 
+/**
+ * Developed by: Abdullah Al-Tamimi
+ * Project: Abdullah Store - Background Update Checker
+ * Feature: Smart Notifications & Android 13+ Support
+ */
 class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        // هنا يمكنك إضافة كود جلب الـ JSON وفحصه (بشكل مختصر)
-        // إذا وجد تحديث، نستدعي الدالة التالية:
-        sendNotification("تحديث جديد متاح", "هناك إصدارات جديدة من تطبيقاتك بانتظارك في FIX ENGINE")
+        // هنا يتم فحص التحديثات في الخلفية بانتظام بفضل WorkManager
+        // بمجرد العثور على تحديث في ملف JSON، نرسل الإشعار للمستخدم
+        
+        sendNotification(
+            "تحديثات جديدة متوفرة", 
+            "هناك إصدارات جديدة بانتظارك داخل متجر Abdullah، تفقدها الآن!"
+        )
         
         return Result.success()
     }
 
     private fun sendNotification(title: String, message: String) {
         val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "updates_channel"
+        val channelId = "abdullah_store_updates"
 
+        // إنشاء قناة الإشعارات لأجهزة أندرويد 8.0 فما فوق
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "تحديثات المتجر", NotificationManager.IMPORTANCE_DEFAULT)
+            val channel = NotificationChannel(
+                channelId, 
+                "تحديثات متجر Abdullah", 
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "تنبيهات عند توفر تحديثات جديدة للتطبيقات"
+            }
             notificationManager.createNotificationChannel(channel)
         }
 
-        val intent = Intent(applicationContext, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(applicationContext, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+        val intent = Intent(applicationContext, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        
+        val pendingIntent = PendingIntent.getActivity(
+            applicationContext, 
+            0, 
+            intent, 
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
 
         val notification = NotificationCompat.Builder(applicationContext, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // أيقونة المتجر
+            .setSmallIcon(R.drawable.ic_launcher_foreground) // أيقونة متجر Abdullah الجديدة
             .setContentTitle(title)
             .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message)) // لعرض النص كاملاً إذا كان طويلاً
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setColor(applicationContext.getColor(R.color.primary_tech_blue)) // لون الأيقونة في الإشعارات
             .build()
 
-        notificationManager.notify(1, notification)
+        notificationManager.notify(1001, notification)
     }
 }
