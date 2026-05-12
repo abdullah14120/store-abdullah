@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.apply {
-            title = "FIX ENGINE"
+            title = "متجر عبدالله التميمي"
             subtitle = "مركز التحديثات والخدمات"
         }
     }
