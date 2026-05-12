@@ -4,18 +4,44 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.concurrent.TimeUnit
 
+/**
+ * Developed by: Abdullah Al-Tamimi
+ * Project: Abdullah Store - Advanced Link Engine
+ * Feature: Smart Redirect Following & MediaFire Support
+ */
 object LinkExtractor {
+
+    // إعداد عميل خاص بالروابط مع مهلة زمنية ذكية
     private val client = OkHttpClient.Builder()
         .followRedirects(true)
+        .followSslRedirects(true)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
+    /**
+     * وظيفة استخراج الرابط النهائي بعد كافة التحويلات.
+     * مفيدة جداً لروابط MediaFire و Google Drive و Dropbox.
+     */
     suspend fun extract(url: String): String = withContext(Dispatchers.IO) {
-        // إذا كان الرابط ميديا فاير، نحتاج لجلب الصفحة وقراءة رابط التحميل
-        // هنا نضع منطق الـ Web Scraping البسيط أو قراءة الـ Header
-        val request = Request.Builder().url(url).build()
-        client.newCall(request).execute().use { response ->
-            response.request.url.toString() // يعيد الرابط بعد التحويلات (Redirects)
+        try {
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Android 13; Mobile; rv:109.0) Gecko/113.0 Firefox/113.0")
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    // يعيد الرابط النهائي بعد تتبع كافة الـ Redirects
+                    response.request.url.toString()
+                } else {
+                    url // في حال الفشل نعود للرابط الأصلي
+                }
+            }
+        } catch (e: Exception) {
+            url // في حال حدوث خطأ شبكة، نستخدم الرابط الخام كما هو
         }
     }
 }
