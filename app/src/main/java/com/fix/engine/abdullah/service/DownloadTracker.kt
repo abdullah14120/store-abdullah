@@ -10,8 +10,8 @@ import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE
- * Fix: Changed getInt to getLong for large APK support (>2GB).
+ * Project: Abdullah Store - Performance Tracker
+ * Feature: Large APK Support & Memory Optimization
  */
 class DownloadTracker(private val context: Context) {
 
@@ -25,47 +25,50 @@ class DownloadTracker(private val context: Context) {
 
         runnable = object : Runnable {
             override fun run() {
+                if (downloadId == -1L) return
+
                 val query = DownloadManager.Query().setFilterById(downloadId)
                 val cursor: Cursor? = downloadManager.query(query)
-                var shouldContinue = true // متغير للتحكم في استمرار الحلقة
+                var shouldContinue = true 
 
-                if (cursor != null && cursor.moveToFirst()) {
-                    val status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
-                    
-                    // استخدام getLong لدعم الملفات الكبيرة جداً
-                    val bytesDownloaded = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-                    val bytesTotal = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                try {
+                    if (cursor != null && cursor.moveToFirst()) {
+                        val status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
+                        val bytesDownloaded = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                        val bytesTotal = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
 
-                    when (status) {
-                        DownloadManager.STATUS_SUCCESSFUL -> {
-                            onProgress(100, "اكتمل التحميل")
-                            shouldContinue = false
-                            stopTracking()
-                        }
-                        DownloadManager.STATUS_FAILED -> {
-                            onProgress(0, "فشل التحميل")
-                            shouldContinue = false
-                            stopTracking()
-                        }
-                        DownloadManager.STATUS_RUNNING, DownloadManager.STATUS_PENDING -> {
-                            if (bytesTotal > 0) {
-                                val progress = ((bytesDownloaded * 100L) / bytesTotal).toInt()
-                                val sizeInMb = String.format(Locale.ENGLISH, "%.1f/%.1f MB", 
-                                    bytesDownloaded / 1024f / 1024f, 
-                                    bytesTotal / 1024f / 1024f)
-                                onProgress(progress, sizeInMb)
+                        when (status) {
+                            DownloadManager.STATUS_SUCCESSFUL -> {
+                                onProgress(100, "اكتمل التحميل")
+                                shouldContinue = false
+                            }
+                            DownloadManager.STATUS_FAILED -> {
+                                onProgress(0, "فشل في التحميل")
+                                shouldContinue = false
+                            }
+                            DownloadManager.STATUS_RUNNING, DownloadManager.STATUS_PENDING -> {
+                                if (bytesTotal > 0) {
+                                    val progress = ((bytesDownloaded * 100L) / bytesTotal).toInt()
+                                    val sizeInMb = String.format(Locale.ENGLISH, "%.1f/%.1f MB", 
+                                        bytesDownloaded / 1024f / 1024f, 
+                                        bytesTotal / 1024f / 1024f)
+                                    onProgress(progress, sizeInMb)
+                                } else {
+                                    onProgress(0, "جاري البدء...")
+                                }
                             }
                         }
+                    } else {
+                        shouldContinue = false
                     }
-                } else {
-                    // إذا لم يجد الكورسور الملف، نوقف التتبع
+                } catch (e: Exception) {
                     shouldContinue = false
+                } finally {
+                    cursor?.close()
                 }
-                cursor?.close()
 
-                // نرسل الطلب القادم فقط إذا كان التحميل مستمراً ولم يتم استدعاء stopTracking()
                 if (shouldContinue && runnable != null) {
-                    handler.postDelayed(this, 500)
+                    handler.postDelayed(this, 800) // زيادة المهلة قليلاً لتقليل استهلاك المعالج
                 }
             }
         }
