@@ -1,7 +1,9 @@
 package com.fix.engine.abdullah.ui.adapter
 
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Environment
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
@@ -13,11 +15,12 @@ import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.fix.engine.abdullah.R
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.databinding.ItemAppBinding
+import java.io.File
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: Abdullah Store - FIX ENGINE Edition
- * Feature: Real-time Update Detection & Identity Sync
+ * Feature: Smart Update Detection & Local File Sync
  */
 class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
     ListAdapter<AppModel, AppAdapter.AppViewHolder>(AppDiffCallback()) {
@@ -40,39 +43,58 @@ class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
                 txtAppName.text = app.name
                 txtDeveloper.text = app.developer
                 
-                // فحص حالة التحديث برمجياً
+                // 1. توليد اسم الملف الفريد (Package + Version)
+                val fileName = "${app.packageName}_v${app.versionCode}.apk"
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val localFile = File(downloadsDir, fileName)
+
+                // 2. فحص حالة التثبيت والتحديث
                 val isUpdateAvailable = checkUpdateStatus(app)
-                
-                if (isUpdateAvailable) {
-                    txtVersion.text = "تحديث متاح: ${app.versionName}"
-                    // استخدام اللون الجديد من ملف colors.xml الذي أنشأناه
-                    txtVersion.setTextColor(ContextCompat.getColor(context, R.color.secondary_cyan))
-                    btnDownload.text = "تحديث"
-                    btnDownload.setBackgroundColor(ContextCompat.getColor(context, R.color.primary_tech_blue))
-                } else {
-                    txtVersion.text = "الإصدار: ${app.versionName}"
-                    txtVersion.setTextColor(ContextCompat.getColor(context, android.R.color.darker_gray))
-                    btnDownload.text = "فتح"
-                    // لون افتراضي للأزرار العادية
-                    btnDownload.setBackgroundColor(ContextCompat.getColor(context, android.R.color.black))
+                val isDownloaded = localFile.exists()
+
+                // 3. منطق عرض الأزرار والحالات
+                when {
+                    isUpdateAvailable -> {
+                        txtVersion.text = "تحديث متاح: ${app.versionName}"
+                        txtVersion.setTextColor(ContextCompat.getColor(context, R.color.secondary_cyan))
+                        
+                        if (isDownloaded) {
+                            btnDownload.text = "تثبيت الآن"
+                            btnDownload.setBackgroundColor(ContextCompat.getColor(context, R.color.success_green))
+                        } else {
+                            btnDownload.text = "تحديث"
+                            btnDownload.setBackgroundColor(ContextCompat.getColor(context, R.color.primary_tech_blue))
+                        }
+                    }
+                    else -> {
+                        // إذا كان التطبيق غير مثبت أصلاً أو محدث لآخر إصدار
+                        txtVersion.text = "الإصدار: ${app.versionName}"
+                        txtVersion.setTextColor(ContextCompat.getColor(context, android.R.color.darker_gray))
+                        
+                        if (isDownloaded) {
+                            btnDownload.text = "تثبيت"
+                            btnDownload.setBackgroundColor(ContextCompat.getColor(context, R.color.success_green))
+                        } else {
+                            btnDownload.text = "فتح"
+                            btnDownload.setBackgroundColor(ContextCompat.getColor(context, android.R.color.black))
+                        }
+                    }
                 }
 
-                // تحميل أيقونة التطبيق باستخدام Glide
+                // تحميل أيقونة التطبيق
                 Glide.with(context)
                     .load(app.iconUrl)
-                    .placeholder(R.drawable.ic_launcher_foreground) // استخدام أيقونتك الجديدة كـ Placeholder
+                    .placeholder(R.drawable.ic_launcher_foreground)
                     .error(R.drawable.ic_launcher_foreground)
                     .transition(DrawableTransitionOptions.withCrossFade())
                     .into(imgAppIcon)
 
+                // تنفيذ الأكشن عند الضغط
                 root.setOnClickListener { onAppClick(app) }
                 btnDownload.setOnClickListener { onAppClick(app) }
             }
         }
 
-        /**
-         * دالة متطورة لمقارنة إصدار التطبيق المثبت مع بيانات المستودع (JSON)
-         */
         private fun checkUpdateStatus(app: AppModel): Boolean {
             return try {
                 val packageManager = binding.root.context.packageManager
@@ -90,10 +112,8 @@ class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
                     pInfo.versionCode.toLong()
                 }
 
-                // مقارنة VersionCode الخاص بالـ JSON مع المثبت فعلياً على الجهاز
                 app.versionCode > installedVersionCode
             } catch (e: PackageManager.NameNotFoundException) {
-                // إذا لم يتم العثور على التطبيق، نعتبره غير مثبت (وليس تحديثاً)
                 false 
             }
         }
@@ -103,7 +123,6 @@ class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
         override fun areItemsTheSame(oldItem: AppModel, newItem: AppModel): Boolean {
             return oldItem.packageName == newItem.packageName
         }
-
         override fun areContentsTheSame(oldItem: AppModel, newItem: AppModel): Boolean {
             return oldItem == newItem
         }
