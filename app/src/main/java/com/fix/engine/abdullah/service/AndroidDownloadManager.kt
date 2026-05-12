@@ -5,46 +5,34 @@ import android.content.Context
 import android.net.Uri
 import android.os.Environment
 import android.widget.Toast
-import java.io.File
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Download Core
- * Fix: Changed 'setAllowedInRoaming' to 'setAllowedOverRoaming'
+ * Project: Abdullah Store - Download Core
+ * Feature: Public Directory Storage & Unique Naming Support
  */
 class AndroidDownloadManager(private val context: Context) {
 
     private val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
     fun enqueueDownload(url: String, fileName: String): Long {
-        // تأكد من وجود المجلد أولاً لتجنب خطأ FileNotFound
-        val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-        if (downloadDir != null && !downloadDir.exists()) {
-            downloadDir.mkdirs()
-        }
-
-        val file = File(downloadDir, fileName)
-        
         return try {
             val request = DownloadManager.Request(Uri.parse(url))
-                .setTitle("FIX ENGINE")
+                .setTitle("متجر Abdullah")
                 .setDescription("جاري تحميل: $fileName")
                 
-                // إظهار الإشعار أثناء وبعد التحميل
+                // إظهار الإشعار أثناء وبعد التحميل لسهولة الوصول
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 
-                // تحديد المسار باستخدام Uri.fromFile
-                .setDestinationUri(Uri.fromFile(file))
+                // التخزين في مجلد التنزيلات العام ليكون مرئياً للمستخدم ولنظام التثبيت
+                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
                 
-                // السماح بالتحميل عبر بيانات الهاتف (مهم لمستخدمي الشبكات المتغيرة)
+                // السماح بالتحميل عبر كافة أنواع الشبكات (Wifi + Data)
                 .setAllowedOverMetered(true)
-                
-                // الإصلاح هنا: الدالة الصحيحة هي setAllowedOverRoaming
                 .setAllowedOverRoaming(true) 
 
             downloadManager.enqueue(request)
         } catch (e: Exception) {
-            // استخدام Handler لضمان ظهور التوست من أي Thread
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 Toast.makeText(context, "فشل بدء التحميل: ${e.message}", Toast.LENGTH_SHORT).show()
             }
