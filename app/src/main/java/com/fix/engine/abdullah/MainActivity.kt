@@ -56,50 +56,50 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showInstallPermissionDialog() {
-        // التأكد من أن النشاط لا يزال نشطاً قبل عرض الديالوج
-        if (isFinishing || isDestroyed) return 
+    if (isFinishing || isDestroyed) return 
 
-        try {
-            val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
-            
-            val dialog = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-                .setView(dialogView)
-                .setCancelable(false)
-                .create()
+    try {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
+        
+        // استخدام السياق الأساسي للتأكد من الظهور
+        val builder = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+        builder.setView(dialogView)
+        builder.setCancelable(false)
+        
+        val dialog = builder.create()
 
-            val txtTitle = dialogView.findViewById<TextView>(R.id.dialog_title)
-            val txtMessage = dialogView.findViewById<TextView>(R.id.dialog_message)
-            val btnPositive = dialogView.findViewById<MaterialButton>(R.id.btn_positive)
-            val btnNegative = dialogView.findViewById<MaterialButton>(R.id.btn_negative)
+        // ربط الأزرار
+        val btnPositive = dialogView.findViewById<MaterialButton>(R.id.btn_positive)
+        val btnNegative = dialogView.findViewById<MaterialButton>(R.id.btn_negative)
 
-            txtTitle?.text = "تفعيل التثبيت الآمن"
-            txtMessage?.text = "لضمان تحديث تطبيقاتك من FIX ENGINE بأمان، نحتاج منك منح المتجر إذن التثبيت."
-
-            btnPositive?.setOnClickListener {
-                try {
-                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                        data = Uri.parse("package:$packageName")
-                    }
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    Toast.makeText(this, "يرجى منح الإذن يدوياً من الإعدادات", Toast.LENGTH_LONG).show()
-                }
-                dialog.dismiss()
+        btnPositive?.setOnClickListener {
+            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                data = Uri.parse("package:$packageName")
             }
-
-            btnNegative?.setOnClickListener {
-                dialog.dismiss()
-            }
-
-            dialog.show()
-        } catch (e: Exception) {
-            // في حال فشل "نفخ" الديالوج لأي سبب، لن ينهار التطبيق
-            e.printStackTrace()
+            startActivity(intent)
+            dialog.dismiss()
         }
-    }
 
-    // ... باقي الدوال (setupTabs, setupObservers, إلخ) كما هي دون تغيير ...
-    
+        btnNegative?.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+        // Toast.makeText(this, "تم استدعاء إظهار الديالوج", Toast.LENGTH_SHORT).show()
+        
+    } catch (e: Exception) {
+        // إذا فشل الديالوج المخصص، نظهر ديالوج بسيط جداً لضمان عدم ضياع الإذن
+        MaterialAlertDialogBuilder(this)
+            .setTitle("تنبيه")
+            .setMessage("يرجى تفعيل إذن التثبيت من الإعدادات.")
+            .setPositiveButton("ذهاب") { _, _ ->
+                startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+            }
+            .show()
+    }
+}
+
+    // ... باقي الدوال (setupTabs, setupObservers, إلخ) كما هي دون تغيير ...  
     private fun setupTabs() {
         val pagerAdapter = MainPagerAdapter(this)
         binding.viewPagerMain.adapter = pagerAdapter
