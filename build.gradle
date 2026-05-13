@@ -11,8 +11,8 @@ buildscript {
 
 plugins {
     // إصدار AGP 8.3.2 ممتاز جداً مع Gradle 8.7
-    id 'com.android.application' version '8.3.2' apply false
-    id 'com.android.library' version '8.3.2' apply false
+    id 'com.android.application' version '8.4.2' apply false
+    id 'com.android.library' version '8.4.2' apply false
     
     // رفع إصدار Kotlin إلى 1.9.24 لحل خطأ HasConvention
     id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
