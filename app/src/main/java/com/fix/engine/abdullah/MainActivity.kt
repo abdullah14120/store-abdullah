@@ -77,8 +77,6 @@ class MainActivity : AppCompatActivity() {
         .setNegativeButton("لاحقاً", null)
         .show()
 }
-}
-
     // ... باقي الدوال (setupTabs, setupObservers, إلخ) كما هي دون تغيير ...  
     private fun setupTabs() {
         val pagerAdapter = MainPagerAdapter(this)
