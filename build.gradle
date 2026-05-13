@@ -5,24 +5,23 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // إضافة دعم لـ Navigation Safe Args إذا قررت استخدامه مستقبلاً
-        // classpath "androidx.navigation:navigation-safe-args-gradle-plugin:2.7.7"
+        // تم نقل التعريفات الأساسية لقسم plugins ليكون العمل أكثر حداثة واحترافية
     }
 }
 
 plugins {
-    // إصدار Android Gradle Plugin المستقر والمتوافق مع Gradle 8.2+
-    id 'com.android.application' version '8.2.0' apply false
-    id 'com.android.library' version '8.2.0' apply false
+    // إصدار AGP 8.2.2 هو الأكثر استقراراً حالياً مع Gradle 8.2+
+    id 'com.android.application' version '8.2.2' apply false
+    id 'com.android.library' version '8.2.2' apply false
     
-    // استخدام إصدار Kotlin 2.1.0 لضمان أداء أسرع وتوافق مع أندرويد 15
-    id 'org.jetbrains.kotlin.android' version '2.1.0' apply false
+    // ملاحظة هامة: Kotlin 2.1.0 حديث جداً، يفضل استخدام 1.9.20 لضمان استقرار مكتبة KAPT 
+    // مع Room و Glide في الوقت الحالي، إلا إذا كنت تستخدم أحدث نسخة من Android Studio
+    id 'org.jetbrains.kotlin.android' version '1.9.20' apply false
     
-    // إضافة KAPT لتمكين مكتبات Room و Glide من توليد الكود برمجياً
-    id 'org.jetbrains.kotlin.kapt' version '2.1.0' apply false
+    // يجب أن يتطابق إصدار KAPT تماماً مع إصدار Kotlin أعلاه
+    id 'org.jetbrains.kotlin.kapt' version '1.9.20' apply false
 }
 
 tasks.register('clean', Delete) {
-    delete rootProject.buildDir
+    delete rootProject.layout.buildDirectory
 }
-
