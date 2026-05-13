@@ -58,45 +58,25 @@ class MainActivity : AppCompatActivity() {
     private fun showInstallPermissionDialog() {
     if (isFinishing || isDestroyed) return 
 
-    try {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
-        
-        // استخدام السياق الأساسي للتأكد من الظهور
-        val builder = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-        builder.setView(dialogView)
-        builder.setCancelable(false)
-        
-        val dialog = builder.create()
-
-        // ربط الأزرار
-        val btnPositive = dialogView.findViewById<MaterialButton>(R.id.btn_positive)
-        val btnNegative = dialogView.findViewById<MaterialButton>(R.id.btn_negative)
-
-        btnPositive?.setOnClickListener {
-            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                data = Uri.parse("package:$packageName")
+    // خطة الطوارئ: بناء ديالوج نظامي خام بدون أي ملفات XML أو Styles مخصصة
+    // إذا نجح هذا، فالمشكلة في ملف mtrl_alert_dialog أو Theme_FixEngine_Dialog
+    MaterialAlertDialogBuilder(this)
+        .setTitle("تفعيل التثبيت الآمن")
+        .setMessage("عزيزي المستخدم، لضمان تحديث تطبيقاتك من FIX ENGINE بأمان، نحتاج منك منح المتجر إذن التثبيت.")
+        .setCancelable(false)
+        .setPositiveButton("منح الإذن") { _, _ ->
+            try {
+                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "يرجى منحه يدوياً من الإعدادات", Toast.LENGTH_LONG).show()
             }
-            startActivity(intent)
-            dialog.dismiss()
         }
-
-        btnNegative?.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        dialog.show()
-        // Toast.makeText(this, "تم استدعاء إظهار الديالوج", Toast.LENGTH_SHORT).show()
-        
-    } catch (e: Exception) {
-        // إذا فشل الديالوج المخصص، نظهر ديالوج بسيط جداً لضمان عدم ضياع الإذن
-        MaterialAlertDialogBuilder(this)
-            .setTitle("تنبيه")
-            .setMessage("يرجى تفعيل إذن التثبيت من الإعدادات.")
-            .setPositiveButton("ذهاب") { _, _ ->
-                startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
-            }
-            .show()
-    }
+        .setNegativeButton("لاحقاً", null)
+        .show()
+}
 }
 
     // ... باقي الدوال (setupTabs, setupObservers, إلخ) كما هي دون تغيير ...  
