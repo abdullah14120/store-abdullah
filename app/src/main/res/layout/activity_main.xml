@@ -5,16 +5,18 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/dark_background"
+    android:background="#0F172A"
     tools:context=".MainActivity">
 
+    <!-- الجزء العلوي المرن (يتفاعل مع التمرير) -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/dark_background"
+        android:background="#0F172A"
         app:elevation="0dp">
 
+        <!-- الهيدر القابل للطي -->
         <com.google.android.material.appbar.CollapsingToolbarLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -24,100 +26,107 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingTop="16dp"
-                android:paddingHorizontal="16dp">
+                android:paddingTop="24dp"
+                android:paddingHorizontal="20dp"
+                android:paddingBottom="12dp">
 
-                <!-- الهوية البصرية للمتجر -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="FIX ENGINE"
-                    android:textColor="@color/secondary_cyan"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    android:fontFamily="sans-serif-black" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="متجر عبدالله التميمي للبرمجيات"
-                    android:textColor="@color/gray_light"
-                    android:textSize="12sp"
-                    android:layout_marginBottom="16dp" />
-
-                <!-- شريط البحث -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/searchCard"
+                <RelativeLayout
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    app:cardBackgroundColor="#1F2937"
-                    app:cardCornerRadius="12dp"
-                    app:strokeWidth="0dp">
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="20dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="مرحباً بك في"
+                            android:textColor="#94A3B8"
+                            android:textSize="14sp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="FIX ENGINE"
+                            android:textColor="@color/secondary_cyan"
+                            android:textSize="26sp"
+                            android:fontFamily="sans-serif-black" />
+                    </LinearLayout>
+
+                    <!-- أيقونة بروفايل دائرية صغيرة تلميحاً للمستخدم -->
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:layout_width="45dp"
+                        android:layout_height="45dp"
+                        android:layout_alignParentEnd="true"
+                        android:src="@drawable/ic_launcher_foreground"
+                        android:background="#1E293B"
+                        android:padding="4dp"
+                        app:shapeAppearanceOverlay="@style/CircleImage" />
+                </RelativeLayout>
+
+                <!-- شريط البحث بتصميم زجاجي (Glassmorphism) -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="54dp"
+                    app:cardBackgroundColor="#1E293B"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="#334155"
+                    app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingHorizontal="12dp">
+                        android:paddingHorizontal="16dp">
 
                         <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
                             android:src="@android:drawable/ic_menu_search"
-                            app:tint="@color/secondary_cyan" />
+                            app:tint="#94A3B8" />
 
                         <EditText
                             android:id="@+id/etSearch"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:background="@android:color/transparent"
-                            android:hint="بحث عن تطبيقات..."
-                            android:textColorHint="@color/gray_light"
+                            android:hint="ابحث عن تطبيقات عبدالله..."
+                            android:textColorHint="#64748B"
                             android:textColor="@color/white"
-                            android:textSize="14sp"
-                            android:paddingHorizontal="10dp"
-                            android:imeOptions="actionSearch"
+                            android:textSize="15sp"
+                            android:paddingHorizontal="12dp"
                             android:inputType="text" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
-
-                <!-- نظام التبويبات (Tabs) الجديد -->
-                <com.google.android.material.tabs.TabLayout
-                    android:id="@+id/tabLayoutMain"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:background="@android:color/transparent"
-                    app:tabGravity="fill"
-                    app:tabMode="fixed"
-                    app:tabIndicatorColor="@color/secondary_cyan"
-                    app:tabIndicatorFullWidth="false"
-                    app:tabIndicatorHeight="3dp"
-                    app:tabSelectedTextColor="@color/secondary_cyan"
-                    app:tabTextColor="@color/gray_light"
-                    app:tabRippleColor="@android:color/transparent" />
-
             </LinearLayout>
-
         </com.google.android.material.appbar.CollapsingToolbarLayout>
+
+        <!-- التبويبات (تثبت في الأعلى عند التمرير) -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayoutMain"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="#0F172A"
+            app:tabIndicatorFullWidth="false"
+            app:tabIndicatorHeight="3dp"
+            app:tabIndicatorGravity="bottom"
+            app:tabIndicatorColor="@color/secondary_cyan"
+            app:tabSelectedTextColor="@color/secondary_cyan"
+            app:tabTextColor="#94A3B8"
+            app:tabTextAppearance="@style/CustomTabText"
+            app:tabRippleColor="@android:color/transparent"/>
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- حاوية المحتوى (التبديل بين التطبيقات والتحديثات) -->
+    <!-- المحتوى الفعلي (التطبيقات / التحديثات) -->
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPagerMain"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="#0F172A"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
-
-    <!-- مؤشر التحميل الرئيسي -->
-    <ProgressBar
-        android:id="@+id/progressBar"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_gravity="center"
-        android:indeterminateTint="@color/secondary_cyan"
-        android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
