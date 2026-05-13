@@ -85,5 +85,14 @@
     <item name="cornerSize">50%</item>
 </style>
 
+<style name="Theme.FixEngine.Dialog" parent="Theme.Material3.Dark.Dialog">
+    <!-- تخصيص شكل النافذة لتناسب FIX ENGINE -->
+    <item name="android:windowBackground">@android:color/transparent</item>
+    <item name="android:windowIsTranslucent">true</item>
+    <item name="android:windowContentOverlay">@null</item>
+    <item name="android:windowNoTitle">true</item>
+</style>
+
+    
 
 </resources>
