@@ -8,26 +8,33 @@ import android.widget.Toast
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Download Core
- * Feature: Public Directory Storage & Unique Naming Support
+ * Project: FIX ENGINE - Abdullah Store
+ * Feature: Temporary File Extension (.tmp) to avoid premature APK detection
  */
 class AndroidDownloadManager(private val context: Context) {
 
     private val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
+    /**
+     * يقوم ببدء عملية التحميل مع إضافة لاحقة مؤقتة لاسم الملف.
+     * سيتم تغيير الاسم لللاحقة الأصلية (.apk) عبر الـ DownloadReceiver عند الاكتمال.
+     */
     fun enqueueDownload(url: String, fileName: String): Long {
         return try {
+            // إضافة لاحقة مؤقتة لمنع اكتشاف الملف كـ APK جاهز قبل اكتماله
+            val tempFileName = "$fileName.tmp"
+
             val request = DownloadManager.Request(Uri.parse(url))
-                .setTitle("متجر Abdullah")
-                .setDescription("جاري تحميل: $fileName")
+                .setTitle(fileName) // العنوان الذي يظهر في الإشعارات
+                .setDescription("جاري تحميل التحديث عبر متجر عبدالله...")
                 
-                // إظهار الإشعار أثناء وبعد التحميل لسهولة الوصول
+                // إظهار الإشعار أثناء التحميل وعند الاكتمال
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 
-                // التخزين في مجلد التنزيلات العام ليكون مرئياً للمستخدم ولنظام التثبيت
-                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+                // التخزين في مجلد التنزيلات العام مع اللاحقة المؤقتة
+                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, tempFileName)
                 
-                // السماح بالتحميل عبر كافة أنواع الشبكات (Wifi + Data)
+                // إعدادات الاتصال الشاملة
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true) 
 
