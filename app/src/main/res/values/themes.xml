@@ -31,7 +31,7 @@
     <!-- +++++ ستايل الديالوج الاحترافي المخصص لطلب الأذونات +++++ -->
     <style name="Theme.FixEngine.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
         <!-- خلفية الديالوج المنحنية -->
-        <item name="viewBackground">@drawable/bg_dialog_rounded</item>
+        <item name="android:background">@drawable/bg_dialog_rounded</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         
         <!-- ألوان النصوص والأزرار داخل الديالوج -->
