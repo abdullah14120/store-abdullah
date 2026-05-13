@@ -1,10 +1,9 @@
 package com.fix.engine.abdullah.ui.adapter
 
-import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Environment
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
@@ -19,10 +18,10 @@ import java.io.File
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - FIX ENGINE Edition
- * Feature: Smart Update Detection & Local File Sync
+ * Project: FIX ENGINE - Global UI Edition
+ * Feature: Shared Elements Support & Name-Based Update Logic
  */
-class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
+class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
     ListAdapter<AppModel, AppAdapter.AppViewHolder>(AppDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AppViewHolder {
@@ -40,91 +39,69 @@ class AppAdapter(private val onAppClick: (AppModel) -> Unit) :
         fun bind(app: AppModel) {
             val context = binding.root.context
             binding.apply {
+                // تعيين اسم التطبيق والمطور
                 txtAppName.text = app.name
                 txtDeveloper.text = app.developer
-                
-                // 1. توليد اسم الملف الفريد (Package + Version)
-                val fileName = "${app.packageName}_v${app.versionCode}.apk"
+
+                // 1. تحديد مسار الملف المحلي (الـ APK الحقيقي فقط بدون .tmp)
+                val fileName = app.getUniqueFileName()
                 val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                 val localFile = File(downloadsDir, fileName)
 
-                // 2. فحص حالة التثبيت والتحديث
-                val isUpdateAvailable = checkUpdateStatus(app)
+                // 2. منطق عبدالله المحدث: فحص التحديث بناءً على الاسم (Version Name)
+                val isUpdateAvailable = checkUpdateStatusByName(app)
                 val isDownloaded = localFile.exists()
 
-                // 3. منطق عرض الأزرار والحالات
+                // 3. تنسيق الواجهة الاحترافية بناءً على الحالة
                 when {
                     isUpdateAvailable -> {
                         txtVersion.text = "تحديث متاح: ${app.versionName}"
                         txtVersion.setTextColor(ContextCompat.getColor(context, R.color.secondary_cyan))
-                        
-                        if (isDownloaded) {
-                            btnDownload.text = "تثبيت الآن"
-                            btnDownload.setBackgroundColor(ContextCompat.getColor(context, R.color.success_green))
-                        } else {
-                            btnDownload.text = "تحديث"
-                            btnDownload.setBackgroundColor(ContextCompat.getColor(context, R.color.primary_tech_blue))
-                        }
+                        btnDownload.text = if (isDownloaded) "تثبيت" else "تحديث"
+                        btnDownload.setBackgroundResource(R.drawable.bg_button_update) // ستايل مخصص
                     }
                     else -> {
-                        // إذا كان التطبيق غير مثبت أصلاً أو محدث لآخر إصدار
-                        txtVersion.text = "الإصدار: ${app.versionName}"
-                        txtVersion.setTextColor(ContextCompat.getColor(context, android.R.color.darker_gray))
-                        
-                        if (isDownloaded) {
-                            btnDownload.text = "تثبيت"
-                            btnDownload.setBackgroundColor(ContextCompat.getColor(context, R.color.success_green))
-                        } else {
-                            btnDownload.text = "فتح"
-                            btnDownload.setBackgroundColor(ContextCompat.getColor(context, android.R.color.black))
-                        }
+                        txtVersion.text = "الإصدار الحالي: ${app.versionName}"
+                        txtVersion.setTextColor(ContextCompat.getColor(context, R.color.gray_light))
+                        btnDownload.text = if (isDownloaded) "تثبيت" else "فتح"
+                        btnDownload.setBackgroundResource(R.drawable.bg_button_open)
                     }
                 }
 
-                // تحميل أيقونة التطبيق
+                // 4. تحميل الأيقونة مع دعم الـ Transition Name للانتقال العالمي
+                imgAppIcon.transitionName = "transition_app_icon_${app.packageName}" 
+                
                 Glide.with(context)
                     .load(app.iconUrl)
                     .placeholder(R.drawable.ic_launcher_foreground)
-                    .error(R.drawable.ic_launcher_foreground)
                     .transition(DrawableTransitionOptions.withCrossFade())
                     .into(imgAppIcon)
 
-                // تنفيذ الأكشن عند الضغط
-                root.setOnClickListener { onAppClick(app) }
-                btnDownload.setOnClickListener { onAppClick(app) }
+                // 5. تمرير الـ itemView بالكامل لتمكين حركة العناصر المشتركة
+                root.setOnClickListener { onAppClick(app, root) }
+                btnDownload.setOnClickListener { onAppClick(app, root) }
             }
         }
 
-        private fun checkUpdateStatus(app: AppModel): Boolean {
+        /**
+         * فحص التحديث بناءً على مقارنة نصية للـ Version Name لتجاوز قيود الـ Version Code
+         */
+        private fun checkUpdateStatusByName(app: AppModel): Boolean {
             return try {
-                val packageManager = binding.root.context.packageManager
-                val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    packageManager.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(0))
-                } else {
-                    @Suppress("DEPRECATION")
-                    packageManager.getPackageInfo(app.packageName, 0)
-                }
-
-                val installedVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    pInfo.longVersionCode
-                } else {
-                    @Suppress("DEPRECATION")
-                    pInfo.versionCode.toLong()
-                }
-
-                app.versionCode > installedVersionCode
+                val pm = binding.root.context.packageManager
+                val pInfo = pm.getPackageInfo(app.packageName, 0)
+                val installedVerName = pInfo.versionName ?: ""
+                
+                // مقارنة دقيقة للنصوص لإظهار التحديث
+                app.versionName.trim() != installedVerName.trim()
             } catch (e: PackageManager.NameNotFoundException) {
-                false 
+                false // التطبيق غير مثبت أصلاً
             }
         }
     }
 
     class AppDiffCallback : DiffUtil.ItemCallback<AppModel>() {
-        override fun areItemsTheSame(oldItem: AppModel, newItem: AppModel): Boolean {
-            return oldItem.packageName == newItem.packageName
-        }
-        override fun areContentsTheSame(oldItem: AppModel, newItem: AppModel): Boolean {
-            return oldItem == newItem
-        }
+        override fun areItemsTheSame(oldItem: AppModel, newItem: AppModel) = oldItem.packageName == newItem.packageName
+        override fun areContentsTheSame(oldItem: AppModel, newItem: AppModel) = oldItem == newItem
     }
 }
