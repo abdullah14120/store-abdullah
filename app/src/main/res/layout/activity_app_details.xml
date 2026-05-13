@@ -5,19 +5,20 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/dark_background">
+    android:background="#0F172A"> <!-- اللون الكحلي العميق الموحد -->
 
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/dark_background"
+        android:background="@android:color/transparent"
         app:elevation="0dp">
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbarDetails"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
-            app:navigationIconTint="@color/white" />
+            app:navigationIconTint="#F8FAFC" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
@@ -30,22 +31,25 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="24dp">
+            android:paddingHorizontal="24dp"
+            android:paddingTop="12dp">
 
-            <!-- القسم العلوي: الأيقونة والاسم -->
+            <!-- القسم العلوي: الأيقونة والهوية -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
+                <!-- الأيقونة المشتركة: المعرف هنا يجب أن يطابق الموجود في item_app -->
                 <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/imgDetailsIcon"
-                    android:layout_width="110dp"
-                    android:layout_height="110dp"
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:transitionName="transition_app_icon"
                     app:shapeAppearanceOverlay="@style/RoundedIcon"
-                    android:background="#1A222C"
-                    android:elevation="8dp"
+                    android:background="#1E293B"
+                    android:elevation="12dp"
                     android:scaleType="centerCrop"
                     tools:src="@tools:sample/avatars" />
 
@@ -53,68 +57,69 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:layout_marginStart="20dp">
+                    android:layout_marginStart="24dp">
 
                     <TextView
                         android:id="@+id/txtDetailsName"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:textSize="26sp"
+                        android:textSize="28sp"
                         android:textStyle="bold"
-                        android:textColor="@color/white"
+                        android:textColor="#F8FAFC"
                         android:fontFamily="sans-serif-black"
-                        tools:text="اسم التطبيق" />
+                        android:letterSpacing="-0.02"
+                        tools:text="FIX ENGINE" />
 
                     <TextView
                         android:id="@+id/txtDetailsDev"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:textSize="15sp"
-                        android:textColor="@color/secondary_cyan"
-                        android:textStyle="bold"
-                        tools:text="المطور المعتمد"
-                        android:layout_marginTop="6dp" />
+                        android:textColor="#22D3EE"
+                        android:fontFamily="sans-serif-medium"
+                        android:layout_marginTop="4dp"
+                        tools:text="بواسطة عبدالله التميمي" />
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- منطقة التفاعل: زر التثبيت أو شريط التحميل -->
+            <!-- منطقة التفاعل: أزرار النظام -->
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="36dp">
+                android:layout_marginTop="40dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnInstallLarge"
                     android:layout_width="match_parent"
-                    android:layout_height="62dp"
+                    android:layout_height="64dp"
                     android:text="تثبيت الآن"
-                    android:textSize="17sp"
+                    android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="@color/dark_background"
-                    app:backgroundTint="@color/secondary_cyan"
-                    app:cornerRadius="18dp"
-                    android:elevation="4dp"
-                    android:visibility="visible" />
+                    android:textColor="#0F172A"
+                    app:backgroundTint="#22D3EE"
+                    app:cornerRadius="20dp"
+                    android:elevation="6dp"
+                    android:stateListAnimator="@null" />
 
+                <!-- تصميم شريط التحميل "المدمج" المتقدم -->
                 <LinearLayout
                     android:id="@+id/layoutDownloadProgress"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:visibility="gone"
-                    android:background="#1A222C"
-                    android:padding="16dp"
-                    android:elevation="2dp">
+                    android:background="@drawable/bg_download_panel"
+                    android:padding="20dp">
 
                     <com.google.android.material.progressindicator.LinearProgressIndicator
                         android:id="@+id/downloadProgress"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        app:trackThickness="12dp"
-                        app:trackCornerRadius="6dp"
-                        android:progress="30"
-                        app:indicatorColor="@color/secondary_cyan"
-                        app:trackColor="#2D3748" />
+                        app:trackThickness="14dp"
+                        app:trackCornerRadius="10dp"
+                        app:indicatorColor="#22D3EE"
+                        app:trackColor="#334155"
+                        android:progress="0" />
 
                     <RelativeLayout
                         android:layout_width="match_parent"
@@ -125,78 +130,64 @@
                             android:id="@+id/txtDownloadSpeed"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:textSize="13sp"
-                            android:textColor="@color/gray_light"
-                            tools:text="جاري التجهيز..." />
-
-                        <TextView
-                            android:id="@+id/txtDownloadETA"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_centerHorizontal="true"
-                            android:textSize="13sp"
-                            android:textColor="@color/gray_light"
-                            tools:text="15.2 MB / 40 MB" />
+                            android:textSize="14sp"
+                            android:textColor="#94A3B8"
+                            tools:text="جاري التحميل..." />
 
                         <TextView
                             android:id="@+id/txtDownloadPercent"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_alignParentEnd="true"
-                            android:textSize="14sp"
+                            android:textSize="15sp"
                             android:textStyle="bold"
-                            android:textColor="@color/secondary_cyan"
-                            tools:text="30%" />
+                            android:textColor="#22D3EE"
+                            tools:text="0%" />
                     </RelativeLayout>
                 </LinearLayout>
             </FrameLayout>
 
-            <!-- كبسولات المعلومات (الإصدار والحجم) -->
+            <!-- كبسولات المعلومات (التصميم الزجاجي) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="36dp"
-                android:background="#121B26"
-                android:paddingVertical="16dp"
-                android:paddingHorizontal="8dp">
+                android:layout_marginTop="40dp"
+                android:background="@drawable/bg_info_capsule"
+                android:paddingVertical="18dp"
+                android:paddingHorizontal="12dp"
+                android:gravity="center">
 
                 <include layout="@layout/layout_info_badge" android:id="@+id/badgeVersion" />
-                <View android:layout_width="1dp" android:layout_height="35dp" android:background="#2D3748" android:layout_marginHorizontal="20dp"/>
+                <View android:layout_width="1dp" android:layout_height="40dp" android:background="#334155" android:layout_marginHorizontal="24dp"/>
                 <include layout="@layout/layout_info_badge" android:id="@+id/badgeSize" />
             </LinearLayout>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#2D3748"
-                android:layout_marginTop="36dp" />
-
-            <!-- وصف التطبيق -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="عن هذا التطبيق"
-                android:textSize="20sp"
+                android:textSize="22sp"
                 android:textStyle="bold"
-                android:textColor="@color/white"
-                android:layout_marginTop="28dp" />
+                android:textColor="#F8FAFC"
+                android:layout_marginTop="40dp"
+                android:fontFamily="sans-serif-black" />
 
             <TextView
                 android:id="@+id/txtDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="18dp"
                 android:textSize="16sp"
-                android:textColor="@color/gray_light"
-                android:lineSpacingExtra="10dp"
-                android:alpha="0.9"
-                tools:text="وصف التطبيق الاحترافي يظهر هنا بتنسيق مريح للعين يدعم النصوص الطويلة والشرح المفصل للمميزات التي يقدمها متجر عبدالله..." />
+                android:textColor="#94A3B8"
+                android:lineSpacingExtra="12dp"
+                android:fontFamily="sans-serif"
+                tools:text="وصف التطبيق الاحترافي من متجر عبدالله يظهر هنا بتنسيق عصري مريح للعين يدعم كافة المميزات التقنية..." />
 
-            <!-- تذييل الصفحة لإعطاء مساحة تنفس -->
+            <!-- تذييل الصفحة -->
             <View
                 android:layout_width="match_parent"
-                android:layout_height="100dp" />
+                android:layout_height="120dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
