@@ -2,32 +2,34 @@
 <com.google.android.material.card.MaterialCardView 
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootCard"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="12dp"
-    android:layout_marginVertical="6dp"
-    app:cardCornerRadius="20dp"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="24dp"
     app:cardElevation="0dp"
-    app:cardBackgroundColor="#1A222C"
-    app:strokeColor="#2D3748"
-    app:strokeWidth="1dp">
+    app:cardBackgroundColor="#1E293B"
+    app:strokeColor="#334155"
+    app:strokeWidth="1dp"
+    android:foreground="?attr/selectableItemBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="14dp"
+        android:padding="16dp"
         android:gravity="center_vertical">
 
-        <!-- أيقونة التطبيق مع تأثير الظل والزوايا -->
+        <!-- أيقونة التطبيق: مع الـ transitionName للحركة العالمية -->
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/imgAppIcon"
-            android:layout_width="68dp"
-            android:layout_height="68dp"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
             android:scaleType="centerCrop"
-            android:elevation="4dp"
+            android:transitionName="transition_app_icon"
             app:shapeAppearanceOverlay="@style/RoundedIcon"
-            android:background="#2D3748" />
+            android:background="#0F172A" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -41,10 +43,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="اسم التطبيق"
-                android:textColor="@color/white"
-                android:textSize="17sp"
+                android:textColor="#F8FAFC"
+                android:textSize="18sp"
                 android:textStyle="bold"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="sans-serif-black"
                 android:maxLines="1"
                 android:ellipsize="end"/>
 
@@ -52,41 +54,42 @@
                 android:id="@+id/txtDeveloper"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="اسم المطور"
-                android:textColor="@color/gray_light"
-                android:textSize="12sp"
+                android:text="بواسطة عبدالله التميمي"
+                android:textColor="#94A3B8"
+                android:textSize="13sp"
                 android:layout_marginTop="2dp"
-                android:alpha="0.8"/>
+                android:fontFamily="sans-serif-medium"/>
 
-            <!-- كبسولة الإصدار الملونة -->
+            <!-- كبسولة الإصدار: تم تحديث الألوان لتناسب الهوية الجديدة -->
             <TextView
                 android:id="@+id/txtVersion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="V 1.0.2"
-                android:textColor="@color/secondary_cyan"
-                android:textSize="10sp"
+                android:text="V 1.0.0"
+                android:textColor="#22D3EE"
+                android:textSize="11sp"
                 android:textStyle="bold"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_version_badge"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="3dp" />
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp" />
         </LinearLayout>
 
-        <!-- زر التثبيت العصري -->
+        <!-- زر التفاعل: يستخدم الستايلات التي صممناها للألوان المتغيرة -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDownload"
+            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="تثبيت"
-            android:textColor="@color/dark_background"
+            android:text="تحديث"
+            android:textColor="#0F172A"
             android:textSize="13sp"
             android:textStyle="bold"
-            app:cornerRadius="12dp"
-            android:minWidth="80dp"
-            android:paddingHorizontal="12dp"
-            app:backgroundTint="@color/secondary_cyan"
-            app:rippleColor="@color/white" />
+            android:minWidth="84dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:cornerRadius="20dp"
+            android:backgroundTint="@color/secondary_cyan" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
