@@ -1,5 +1,6 @@
 package com.fix.engine.abdullah.service
 
+import android.annotation.SuppressLint
 import android.app.DownloadManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -13,8 +14,8 @@ import java.io.File
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Auto Installer
- * Feature: Secure FileProvider Integration & Public Path Handling
+ * Project: FIX ENGINE - Auto Installer & File Renamer
+ * Feature: Automatic renaming from .tmp to .apk upon completion
  */
 class DownloadReceiver : BroadcastReceiver() {
 
@@ -22,38 +23,44 @@ class DownloadReceiver : BroadcastReceiver() {
         if (DownloadManager.ACTION_DOWNLOAD_COMPLETE == intent.action) {
             val downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
             if (downloadId != -1L) {
-                installDownloadedPackage(context, downloadId)
+                processDownloadedFile(context, downloadId)
             }
         }
     }
 
-    private fun installDownloadedPackage(context: Context, downloadId: Long) {
+    @SuppressLint("Range")
+    private fun processDownloadedFile(context: Context, downloadId: Long) {
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val query = DownloadManager.Query().setFilterById(downloadId)
         val cursor = downloadManager.query(query)
 
         if (cursor != null && cursor.moveToFirst()) {
-            val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-            if (cursor.getInt(statusIndex) == DownloadManager.STATUS_SUCCESSFUL) {
-                
-                // جلب المسار المحلي للملف من قاعدة بيانات التنزيلات
+            val status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
+            
+            if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                // جلب مسار الملف المؤقت الذي ينتهي بـ .tmp
                 val localUriString = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI))
                 cursor.close()
 
                 localUriString?.let { uriString ->
-                    val fileUri = Uri.parse(uriString)
-                    val filePath = fileUri.path
+                    val tempFile = File(Uri.parse(uriString).path ?: "")
                     
-                    if (filePath != null) {
-                        // في بعض الأجهزة، المسار قد يحتوي على بادئة file://، نقوم بتنظيفها
-                        val cleanPath = filePath.replace("external_files", "storage/emulated/0")
-                        val file = File(cleanPath)
-                        
-                        if (file.exists()) {
-                            openInstaller(context, file)
+                    if (tempFile.exists()) {
+                        // 1. منطق تغيير الاسم: تحويل الملف من مؤقت إلى APK حقيقي
+                        if (tempFile.name.endsWith(".tmp")) {
+                            val finalName = tempFile.name.removeSuffix(".tmp")
+                            val finalFile = File(tempFile.parent, finalName)
+                            
+                            if (tempFile.renameTo(finalFile)) {
+                                // 2. فتح المثبت للملف النهائي
+                                openInstaller(context, finalFile)
+                            } else {
+                                // في حال فشل تغيير الاسم، نحاول فتح الملف الحالي
+                                openInstaller(context, tempFile)
+                            }
                         } else {
-                            // محاولة بديلة: الوصول للملف عبر الـ Uri مباشرة
-                            handleLegacyFile(context, fileUri)
+                            // إذا كان الملف لا يحمل لاحقة مؤقتة، نثبته مباشرة
+                            openInstaller(context, tempFile)
                         }
                     }
                 }
@@ -63,17 +70,9 @@ class DownloadReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun handleLegacyFile(context: Context, uri: Uri) {
-        val file = File(uri.path ?: "")
-        if (file.exists()) {
-            openInstaller(context, file)
-        } else {
-            showToast(context, "اكتمل التحميل، يرجى التثبيت من مدير الملفات")
-        }
-    }
-
     private fun openInstaller(context: Context, file: File) {
         try {
+            // استخدام FileProvider للحصول على URI آمن للتثبيت
             val contentUri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.provider",
@@ -81,16 +80,16 @@ class DownloadReceiver : BroadcastReceiver() {
             )
 
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                // تحديد نوع الملف كحزمة أندرويد (APK)
                 setDataAndType(contentUri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
 
             context.startActivity(installIntent)
             
         } catch (e: Exception) {
-            showToast(context, "فشل فتح المثبت: يرجى منح صلاحية تثبيت التطبيقات غير المعروفة")
+            showToast(context, "اكتمل التحميل: يرجى الضغط على 'تثبيت الآن' من داخل المتجر")
         }
     }
 
