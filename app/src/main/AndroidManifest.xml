@@ -20,6 +20,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- صلاحية إضافية لإدارة التحميلات بشكل أفضل في الخلفية (أندرويد 14+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -44,7 +48,7 @@
             </intent-filter>
 
             <!-- دعم الروابط العميقة: fixengine://details?pkg=com.example.app -->
-            <intent-filter android:label="فتح في متجر عبدالله التميمي">
+            <intent-filter android:label="فتح في متجر Abdullah">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -55,11 +59,12 @@
             </intent-filter>
         </activity>
 
-        <!-- واجهة تفاصيل التطبيق -->
+        <!-- واجهة تفاصيل التطبيق: إضافة الحركة الاحترافية -->
         <activity
             android:name=".ui.details.AppDetailsActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.FixEngine" />
 
         <!-- مستقبل إشعارات اكتمال التحميل -->
         <receiver
