@@ -6,9 +6,13 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.LayoutInflater // تأكد من إضافة هذا الاستيراد
+import android.widget.TextView // تأكد من إضافة هذا الاستيراد
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -16,13 +20,13 @@ import androidx.core.view.isVisible
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.MainPagerAdapter
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
+import com.google.android.material.button.MaterialButton // تأكد من إضافة هذا الاستيراد
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Global Professional Hub
- * Features: ViewPager2, Advanced Search Animations, and Secure Install Logic
  */
 class MainActivity : AppCompatActivity() {
 
@@ -39,15 +43,14 @@ class MainActivity : AppCompatActivity() {
         setupSearchLogic()
         setupSearchAnimation()
         
-        // فحص إذن التثبيت عند فتح التطبيق لأول مرة
-        checkInstallPermission()
+        // تأخير الاستدعاء قليلاً لضمان استقرار النشاط (Activity)
+        Handler(Looper.getMainLooper()).postDelayed({
+            checkInstallPermission()
+        }, 1000)
         
         refreshData()
     }
 
-    /**
-     * دالة فحص إذن تثبيت التطبيقات غير المعروفة بأسلوب آمن
-     */
     private fun checkInstallPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!packageManager.canRequestPackageInstalls()) {
@@ -56,47 +59,49 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * إظهار نافذة منبثقة (Dialog) احترافية وموثوقة للمستخدم
-     */
     private fun showInstallPermissionDialog() {
-    if (isFinishing || isDestroyed) return 
+        if (isFinishing || isDestroyed) return 
 
-    try {
-        // استخدام السياق (Context) الخاص بالثيم المخصص بشكل مباشر
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
-        
-        // بناء الديالوج بدون تمرير الستايل في المحرك إذا كان يسبب انهياراً
-        // وسيعتمد على الستايل المعرف في ملف mtrl_alert_dialog.xml أو الثيم العام
-        val dialog = MaterialAlertDialogBuilder(this) 
-            .setView(dialogView)
-            .setCancelable(false)
-            .create()
+        try {
+            // استخدام LayoutInflater المرتبط بالسياق الحالي
+            val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
+            
+            val dialog = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+                .setView(dialogView)
+                .setCancelable(false)
+                .create()
+                
+            // ربط العناصر باستخدام Safe Access (?) لمنع الانهيار نهائياً
+            dialogView.findViewById<TextView>(R.id.dialog_title)?.text = "تفعيل التثبيت الآمن"
+            dialogView.findViewById<TextView>(R.id.dialog_message)?.text = 
+                "عزيزي المستخدم، لضمان تحديث تطبيقاتك من FIX ENGINE بأمان، نحتاج منك منح المتجر إذن التثبيت."
 
-        // ربط الأزرار (Safe Call)
-        dialogView.findViewById<MaterialButton>(R.id.btn_positive)?.setOnClickListener {
-            try {
-                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                    data = Uri.parse("package:$packageName")
+            dialogView.findViewById<MaterialButton>(R.id.btn_positive)?.setOnClickListener {
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(this, "يرجى منح الإذن يدوياً من الإعدادات", Toast.LENGTH_LONG).show()
                 }
-                startActivity(intent)
-            } catch (e: Exception) {
-                Toast.makeText(this, "يرجى منح الإذن من الإعدادات", Toast.LENGTH_LONG).show()
+                dialog.dismiss()
             }
-            dialog.dismiss()
-        }
 
-        dialogView.findViewById<MaterialButton>(R.id.btn_negative)?.setOnClickListener {
-            dialog.dismiss()
-        }
+            dialogView.findViewById<MaterialButton>(R.id.btn_negative)?.setOnClickListener {
+                dialog.dismiss()
+            }
 
-        dialog.show()
-        
-    } catch (e: Exception) {
-        // هذا الجزء لن يسمح للتطبيق بالانهيار مهما حدث في الديالوج المخصص
-        e.printStackTrace()
+            dialog.show()
+        } catch (e: Exception) {
+            // في حال فشل الديالوج المخصص، لا ينهار التطبيق
+            e.printStackTrace()
+        }
     }
-}
+
+    override fun onResume() {
+        super.onResume()
+    }
 
     private fun setupTabs() {
         val pagerAdapter = MainPagerAdapter(this)
@@ -153,7 +158,7 @@ class MainActivity : AppCompatActivity() {
                 if (app.versionName.trim() != installedVerName.trim()) {
                     updateCount++
                 }
-            } catch (e: PackageManager.NameNotFoundException) { }
+            } catch (e: Exception) { }
         }
 
         val updatesTab = binding.tabLayoutMain.getTabAt(1)
