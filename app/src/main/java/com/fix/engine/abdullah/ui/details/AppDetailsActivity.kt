@@ -11,7 +11,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
-import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.fix.engine.abdullah.R
@@ -21,6 +20,10 @@ import com.fix.engine.abdullah.service.AndroidDownloadManager
 import com.fix.engine.abdullah.service.DownloadTracker
 import java.io.File
 
+/**
+ * Developed by: Abdullah Al-Tamimi
+ * Feature: Smart APK Detection with Temp File Support (.tmp)
+ */
 class AppDetailsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAppDetailsBinding
@@ -42,7 +45,7 @@ class AppDetailsActivity : AppCompatActivity() {
 
         if (appData != null) {
             displayDetails(appData)
-            // فحص الحالة فور الدخول للصفحة
+            // فحص حالة التحميل الجاري فور الدخول لمنع تداخل الواجهات
             checkCurrentStatus(appData)
         } else {
             Toast.makeText(this, "بيانات التطبيق غير صالحة", Toast.LENGTH_SHORT).show()
@@ -57,9 +60,6 @@ class AppDetailsActivity : AppCompatActivity() {
         binding.toolbarDetails.setNavigationOnClickListener { finish() }
     }
 
-    /**
-     * فحص ذكي لحالة التحميل الحالية من نظام أندرويد
-     */
     @SuppressLint("Range")
     private fun checkCurrentStatus(app: AppModel) {
         val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
@@ -73,7 +73,7 @@ class AppDetailsActivity : AppCompatActivity() {
         if (cursor != null) {
             while (cursor.moveToNext()) {
                 val title = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_TITLE))
-                // نتحقق أن التحميل الجاري هو لهذا التطبيق تحديداً
+                // التحقق من العنوان لربط العملية الجارية بالواجهة
                 if (title == app.name || title == app.getUniqueFileName()) {
                     activeDownloadId = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_ID))
                     break
@@ -83,7 +83,6 @@ class AppDetailsActivity : AppCompatActivity() {
         }
 
         if (activeDownloadId != -1L) {
-            // يوجد تحميل جارٍ، أظهر شريط التقدم فوراً
             isDownloading = true
             binding.btnInstallLarge.visibility = View.GONE
             binding.layoutDownloadProgress.visibility = View.VISIBLE
@@ -97,7 +96,6 @@ class AppDetailsActivity : AppCompatActivity() {
             txtDetailsDev.text = app.developer
             txtDescription.text = app.description ?: "لا يوجد وصف متاح لهذا التطبيق."
             
-            // تحديث البطاقات (الإصدار والحجم)
             badgeVersion.root.findViewById<TextView>(R.id.txtLabel)?.text = "الإصدار"
             badgeVersion.root.findViewById<TextView>(R.id.txtValue)?.text = app.versionName
             
@@ -110,15 +108,28 @@ class AppDetailsActivity : AppCompatActivity() {
                 .transition(DrawableTransitionOptions.withCrossFade())
                 .into(imgDetailsIcon)
 
-            // منطق الضغط على الزر
+            // المنطق المحدث لفحص الملفات
             btnInstallLarge.setOnClickListener {
-                val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), app.getUniqueFileName())
-                
-                if (file.exists() && !isDownloading) {
-                    installApk(file)
-                } else if (!isDownloading) {
+                val fileName = app.getUniqueFileName()
+                // نبحث فقط عن الملف النهائي (.apk)
+                val finalFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName)
+                // نتحقق من وجود الملف المؤقت (.tmp)
+                val tempFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "$fileName.tmp")
+
+                if (finalFile.exists() && !isDownloading) {
+                    installApk(finalFile)
+                } else if (tempFile.exists() || isDownloading) {
+                    // إذا كان الملف المؤقت موجوداً، نمنع بدء تحميل جديد وننبه المستخدم
+                    Toast.makeText(this@AppDetailsActivity, "التحميل مستمر في الخلفية...", Toast.LENGTH_SHORT).show()
+                } else {
                     startNewDownload(app)
                 }
+            }
+            
+            // تحديث نص الزر عند الدخول إذا كان الملف مكتملاً تماماً
+            val checkFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), app.getUniqueFileName())
+            if (checkFile.exists() && !isDownloading) {
+                btnInstallLarge.text = "تثبيت الآن"
             }
         }
     }
@@ -128,6 +139,7 @@ class AppDetailsActivity : AppCompatActivity() {
         binding.btnInstallLarge.visibility = View.GONE
         binding.layoutDownloadProgress.visibility = View.VISIBLE
 
+        // استدعاء المانجر الذي يضيف لاحقة .tmp تلقائياً
         val downloadId = downloadManager.enqueueDownload(app.downloadUrl, app.getUniqueFileName())
         startTrackingProcess(downloadId)
     }
@@ -143,6 +155,8 @@ class AppDetailsActivity : AppCompatActivity() {
                     
                     if (progress >= 100) {
                         isDownloading = false
+                        // ملاحظة: لا نظهر زر التثبيت هنا فوراً لأن الـ Receiver يحتاج أجزاء من الثانية لتغيير اسم الملف
+                        // سيتغير الزر تلقائياً عند إعادة الدخول أو عبر بث محلي (LocalBroadcast) إذا أردت تطويره لاحقاً
                         layoutDownloadProgress.visibility = View.GONE
                         btnInstallLarge.visibility = View.VISIBLE
                         btnInstallLarge.text = "تثبيت الآن"
@@ -163,8 +177,8 @@ class AppDetailsActivity : AppCompatActivity() {
             startActivity(intent)
         } catch (e: Exception) {
             Toast.makeText(this, "فشل فتح الملف، قد يكون تالفاً", Toast.LENGTH_SHORT).show()
-            file.delete() // حذف الملف التالف ليتسنى للمستخدم تحميله مجدداً
-            recreate() // إعادة إنعاش الصفحة لتحديث حالة الزر
+            if (file.exists()) file.delete()
+            recreate()
         }
     }
 
