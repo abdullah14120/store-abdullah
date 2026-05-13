@@ -12,7 +12,7 @@
         android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
+        android:background="@color/dark_background"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.CollapsingToolbarLayout
@@ -24,34 +24,34 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:paddingTop="16dp"
+                android:paddingHorizontal="16dp">
 
-                <!-- اسم المتجر والشعار العلوي -->
+                <!-- الهوية البصرية للمتجر -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="متجر Abdullah"
-                    android:textColor="@color/white"
-                    android:textSize="28sp"
+                    android:text="FIX ENGINE"
+                    android:textColor="@color/secondary_cyan"
+                    android:textSize="24sp"
                     android:textStyle="bold"
                     android:fontFamily="sans-serif-black" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="استكشف أفضل التطبيقات المحدثة"
+                    android:text="متجر عبدالله التميمي للبرمجيات"
                     android:textColor="@color/gray_light"
-                    android:textSize="14sp"
+                    android:textSize="12sp"
                     android:layout_marginBottom="16dp" />
 
-                <!-- شريط البحث الاحترافي -->
+                <!-- شريط البحث -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/searchCard"
                     android:layout_width="match_parent"
-                    android:layout_height="50dp"
+                    android:layout_height="48dp"
                     app:cardBackgroundColor="#1F2937"
                     app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp"
                     app:strokeWidth="0dp">
 
                     <LinearLayout
@@ -62,8 +62,8 @@
                         android:paddingHorizontal="12dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
                             android:src="@android:drawable/ic_menu_search"
                             app:tint="@color/secondary_cyan" />
 
@@ -82,28 +82,40 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
+                <!-- نظام التبويبات (Tabs) الجديد -->
+                <com.google.android.material.tabs.TabLayout
+                    android:id="@+id/tabLayoutMain"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@android:color/transparent"
+                    app:tabGravity="fill"
+                    app:tabMode="fixed"
+                    app:tabIndicatorColor="@color/secondary_cyan"
+                    app:tabIndicatorFullWidth="false"
+                    app:tabIndicatorHeight="3dp"
+                    app:tabSelectedTextColor="@color/secondary_cyan"
+                    app:tabTextColor="@color/gray_light"
+                    app:tabRippleColor="@android:color/transparent" />
+
             </LinearLayout>
 
         </com.google.android.material.appbar.CollapsingToolbarLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- قائمة التطبيقات بتصميم شبكي أو قائمة -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerView"
+    <!-- حاوية المحتوى (التبديل بين التطبيقات والتحديثات) -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPagerMain"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:paddingHorizontal="8dp"
-        android:paddingBottom="16dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"
-        tools:listitem="@layout/item_app" />
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-    <!-- شاشة التحميل الجذابة -->
+    <!-- مؤشر التحميل الرئيسي -->
     <ProgressBar
         android:id="@+id/progressBar"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         android:layout_gravity="center"
         android:indeterminateTint="@color/secondary_cyan"
         android:visibility="gone" />
