@@ -30,22 +30,41 @@ class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+    super.onCreate(savedInstanceState)
+    binding = ActivityMainBinding.inflate(layoutInflater)
+    setContentView(binding.root)
 
-        setupTabs()
-        setupObservers()
-        setupSearchLogic()
-        setupSearchAnimation()
-        
-        // بدلاً من الاستدعاء المباشر، سنقوم بتأخير الفحص لضمان استقرار الواجهة
-        Handler(Looper.getMainLooper()).postDelayed({
-            checkInstallPermission()
-        }, 1500) // تأخير لمدة ثانية ونصف
-        
-        refreshData()
+    setupTabs()
+    setupObservers()
+    setupSearchLogic()
+    setupSearchAnimation()
+    
+    // 1. عطل الـ Handler مؤقتاً وجرب تشغيل التطبيق. 
+    // إذا لم ينهار، فالمشكلة كانت في توقيت الديالوج.
+    // checkInstallPermission() 
+
+    refreshData()
+}
+
+// 2. تعديل الـ Observer ليكون محمياً من البيانات الفارغة (Null Safe)
+private fun setupObservers() {
+    viewModel.isLoading.observe(this) { binding.progressBar.isVisible = it }
+    
+    viewModel.appsList.observe(this) { apps ->
+        // حماية: إذا كانت القائمة null أو حدث خطأ في البيانات لا تنهار
+        if (!apps.isNullOrEmpty()) {
+            try {
+                calculateUpdates(apps)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
+    
+    viewModel.errorMessage.observe(this) { error ->
+        error?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
+    }
+}
 
     private fun checkInstallPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
