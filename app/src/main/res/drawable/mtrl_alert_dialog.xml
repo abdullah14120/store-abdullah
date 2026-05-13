@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#1E293B"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- أيقونة التنبيه أو شعار المتجر -->
+    <ImageView
+        android:id="@+id/dialog_icon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center"
+        android:src="@drawable/ic_launcher_foreground"
+        app:tint="#22D3EE" />
+
+    <!-- عنوان الديالوج -->
+    <TextView
+        android:id="@+id/dialog_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:text="تنبيه النظام"
+        android:textColor="#F8FAFC"
+        android:textSize="20sp"
+        android:fontFamily="sans-serif-black" />
+
+    <!-- نص الرسالة (السطر 38 الذي سبب المشكلة سابقاً تم تأمينه هنا) -->
+    <TextView
+        android:id="@+id/dialog_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:text="جاري معالجة طلبك في متجر عبدالله..."
+        android:textColor="#94A3B8"
+        android:textSize="15sp"
+        android:lineSpacingExtra="4dp" />
+
+    <!-- شريط تقدم (اختياري يظهر عند التحديثات) -->
+    <ProgressBar
+        android:id="@+id/dialog_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginTop="20dp"
+        android:indeterminate="true"
+        android:visibility="gone"
+        android:indeterminateTint="#22D3EE" />
+
+    <!-- أزرار التحكم -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_negative"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="إلغاء"
+            android:textColor="#94A3B8" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_positive"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="موافق"
+            android:textColor="#0F172A"
+            app:backgroundTint="#22D3EE"
+            app:cornerRadius="12dp" />
+    </LinearLayout>
+
+</LinearLayout>
