@@ -1,8 +1,12 @@
 package com.fix.engine.abdullah
 
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.widget.Toast
@@ -12,12 +16,13 @@ import androidx.core.view.isVisible
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.MainPagerAdapter
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Global Professional Hub
- * Features: ViewPager2, Advanced Search Animations, and Dynamic Badge System
+ * Features: ViewPager2, Advanced Search Animations, and Secure Install Logic
  */
 class MainActivity : AppCompatActivity() {
 
@@ -32,14 +37,48 @@ class MainActivity : AppCompatActivity() {
         setupTabs()
         setupObservers()
         setupSearchLogic()
-        setupSearchAnimation() // اللمسة الاحترافية الجديدة
+        setupSearchAnimation()
+        
+        // فحص إذن التثبيت عند فتح التطبيق لأول مرة
+        checkInstallPermission()
         
         refreshData()
     }
 
     /**
-     * إعداد نظام التبويبات مع ViewPager2
+     * دالة فحص إذن تثبيت التطبيقات غير المعروفة بأسلوب آمن
      */
+    private fun checkInstallPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!packageManager.canRequestPackageInstalls()) {
+                showInstallPermissionDialog()
+            }
+        }
+    }
+
+    /**
+     * إظهار نافذة منبثقة (Dialog) احترافية وموثوقة للمستخدم
+     */
+    private fun showInstallPermissionDialog() {
+        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setTitle("تفعيل التثبيت الآمن")
+            .setMessage("عزيزي المستخدم، لضمان تحديث تطبيقاتك من متجر Abdullah Al-Tamimi (FIX ENGINE) بأمان وبضغطة واحدة، نحتاج منك منح المتجر إذن التثبيت. هذه الخطوة ضرورية لتجاوز قيود النظام وتوفير تجربة سلسة.")
+            .setPositiveButton("منح الإذن") { _, _ ->
+                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+            .setNegativeButton("لاحقاً", null)
+            .setCancelable(false)
+            .show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // في حال عاد المستخدم من الإعدادات بعد منح الإذن، يمكن القيام بإجراء هنا إذا لزم الأمر
+    }
+
     private fun setupTabs() {
         val pagerAdapter = MainPagerAdapter(this)
         binding.viewPagerMain.adapter = pagerAdapter
@@ -49,9 +88,6 @@ class MainActivity : AppCompatActivity() {
         }.attach()
     }
 
-    /**
-     * منطق البحث المباشر
-     */
     private fun setupSearchLogic() {
         binding.etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -62,25 +98,14 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    /**
-     * لمسة حركة البحث العالمية (Scale & Stroke Animation)
-     */
     private fun setupSearchAnimation() {
         binding.etSearch.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
-                binding.searchCard.animate()
-                    .scaleX(1.01f)
-                    .scaleY(1.01f)
-                    .setDuration(250)
-                    .start()
+                binding.searchCard.animate().scaleX(1.01f).scaleY(1.01f).setDuration(250).start()
                 binding.searchCard.strokeWidth = 2
-                binding.searchCard.strokeColor = Color.parseColor("#22D3EE") // لون السيان الخاص بك
+                binding.searchCard.strokeColor = Color.parseColor("#22D3EE")
             } else {
-                binding.searchCard.animate()
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .setDuration(250)
-                    .start()
+                binding.searchCard.animate().scaleX(1f).scaleY(1f).setDuration(250).start()
                 binding.searchCard.strokeWidth = 1
                 binding.searchCard.strokeColor = Color.parseColor("#334155")
             }
@@ -89,31 +114,23 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupObservers() {
         viewModel.isLoading.observe(this) { binding.progressBar.isVisible = it }
-
         viewModel.appsList.observe(this) { apps ->
             if (!apps.isNullOrEmpty()) {
                 calculateUpdates(apps)
             }
         }
-
         viewModel.errorMessage.observe(this) { 
             it?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() } 
         }
     }
 
-    /**
-     * تحديث شارة التنبيه (Badge) بناءً على المقارنة النصية للإصدار
-     */
     private fun calculateUpdates(apps: List<com.fix.engine.abdullah.data.model.AppModel>) {
         val pm = packageManager
         var updateCount = 0
-
         for (app in apps) {
             try {
                 val pInfo = pm.getPackageInfo(app.packageName, 0)
                 val installedVerName = pInfo.versionName ?: ""
-                
-                // منطق عبدالله: تجاوز قيود الـ VersionCode بمقارنة الـ VersionName
                 if (app.versionName.trim() != installedVerName.trim()) {
                     updateCount++
                 }
@@ -122,7 +139,6 @@ class MainActivity : AppCompatActivity() {
 
         val updatesTab = binding.tabLayoutMain.getTabAt(1)
         val badge = updatesTab?.orCreateBadge
-        
         if (updateCount > 0) {
             badge?.isVisible = true
             badge?.number = updateCount
