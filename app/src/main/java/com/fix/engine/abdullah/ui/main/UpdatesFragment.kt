@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.app.ActivityOptionsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -34,11 +35,20 @@ class UpdatesFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        appAdapter = AppAdapter { app ->
+        // تم التعديل هنا لاستقبال متغيرين (app, view) لحل خطأ الـ Compilation
+        appAdapter = AppAdapter { app, sharedView ->
             val intent = Intent(requireContext(), AppDetailsActivity::class.java).apply {
                 putExtra("APP_DATA", app)
             }
-            startActivity(intent)
+            
+            // إضافة دعم لحركة الانتقال الانسيابية (Shared Element Transition) للاحترافية
+            val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
+                requireActivity(),
+                sharedView,
+                "transition_app_icon"
+            )
+            
+            startActivity(intent, options.toBundle())
         }
         
         binding.rvUpdates.apply {
@@ -59,13 +69,13 @@ class UpdatesFragment : Fragment() {
                     // منطق عبدالله: المقارنة بالاسم لتجاوز سقف الـ VersionCode
                     app.versionName.trim() != installedVersion.trim()
                 } catch (e: PackageManager.NameNotFoundException) {
-                    false // التطبيق غير مثبت
+                    false 
                 }
             }
 
             appAdapter.submitList(updatesOnly)
             
-            // إظهار حالة "كل تطبيقاتك محدثة" إذا كانت القائمة فارغة
+            // إظهار واجهة "كل تطبيقاتك محدثة" إذا كانت القائمة فارغة
             binding.layoutAllUpdated.visibility = if (updatesOnly.isEmpty()) View.VISIBLE else View.GONE
         }
     }
