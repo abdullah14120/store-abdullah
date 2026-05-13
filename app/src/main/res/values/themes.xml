@@ -1,33 +1,51 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     
-    <!-- الثيم الرئيسي للمتجر -->
+    <!-- الثيم الرئيسي للمتجر (FIX ENGINE) -->
     <style name="Theme.FixEngine" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <!-- الألوان الأساسية: اعتماد الهوية البصرية لـ FIX ENGINE -->
-        <item name="colorPrimary">#22D3EE</item> <!-- Cyan الساطع للتركيز -->
+        <!-- الألوان الأساسية: اعتماد الهوية الرقمية المتقدمة -->
+        <item name="colorPrimary">#22D3EE</item> <!-- لون Cyan المميز -->
         <item name="colorPrimaryVariant">#0891B2</item>
-        <item name="colorOnPrimary">#0F172A</item> <!-- النص فوق السيان يكون كحلي غامق -->
+        <item name="colorOnPrimary">#0F172A</item>
 
         <!-- الألوان الثانوية والتباين -->
         <item name="colorSecondary">#38BDF8</item>
         <item name="colorSecondaryVariant">#0284C7</item>
         <item name="colorOnSecondary">#FFFFFF</item>
 
-        <!-- خلفية التطبيق: الكحلي العميق المستوحى من المتاجر العالمية -->
+        <!-- خلفية النظام: الكحلي العميق المستوحى من المتاجر العالمية -->
         <item name="android:windowBackground">#0F172A</item>
         <item name="android:statusBarColor">#0F172A</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item> <!-- لكي تكون أيقونات الساعة بيضاء -->
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item> 
         
-        <!-- تخصيص الأزرار لتكون بلمسة عصرية -->
+        <!-- تخصيص الأزرار والعناصر التفاعلية -->
         <item name="materialButtonStyle">@style/Widget.FixEngine.Button</item>
         
-        <!-- ألوان النصوص العامة -->
+        <!-- ألوان النصوص العامة المريحة للعين -->
         <item name="android:textColorPrimary">#F8FAFC</item>
         <item name="android:textColorSecondary">#94A3B8</item>
+
+        <!-- ربط الديالوج بالثيم العام لضمان التناسق -->
+        <item name="materialAlertDialogTheme">@style/Theme.FixEngine.Dialog</item>
     </style>
 
-    <!-- ستايل الأزرار: زوايا دائرية ولمسة "بريميوم" -->
+    <!-- +++++ ستايل الديالوج الاحترافي المخصص لطلب الأذونات +++++ -->
+    <style name="Theme.FixEngine.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <!-- خلفية الديالوج المنحنية -->
+        <item name="viewBackground">@drawable/bg_dialog_rounded</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        
+        <!-- ألوان النصوص والأزرار داخل الديالوج -->
+        <item name="colorPrimary">#22D3EE</item>
+        <item name="colorOnSurface">#F8FAFC</item>
+        <item name="android:textColorPrimary">#F8FAFC</item>
+        
+        <!-- ستايل العنوان والرسالة -->
+        <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.FixEngine.Toolbar</item>
+    </style>
+
+    <!-- ستايل الأزرار: زوايا دائرية عصرية (Premium Feel) -->
     <style name="Widget.FixEngine.Button" parent="Widget.MaterialComponents.Button.UnelevatedButton">
-        <item name="cornerRadius">12dp</item>
+        <item name="cornerRadius">16dp</item> <!-- زيادة الانحناء لمظهر أكثر حداثة -->
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
         <item name="android:textAllCaps">false</item>
@@ -43,14 +61,14 @@
         <item name="android:fontFamily">sans-serif-black</item>
     </style>
 
-    <!-- تصميم الأيقونات الدائرية المتقدمة (مثل آبل) -->
+    <!-- تصميم الأيقونات الدائرية المتقدمة (نمط Squircle) -->
     <style name="RoundedIcon">
-        <item name="cornerSize">22dp</item> <!-- انحناء ناعم جداً يشبه iOS -->
+        <item name="cornerSize">22dp</item>
     </style>
 
-    <!-- ستايل خاص للـ Badge (نقطة التحديثات الحمراء) -->
+    <!-- ستايل نقطة التحديثات (Badge) -->
     <style name="Widget.FixEngine.Badge" parent="Widget.MaterialComponents.Badge">
-        <item name="backgroundColor">#EF4444</item> <!-- أحمر صارخ للتنبيه -->
+        <item name="backgroundColor">#EF4444</item> <!-- الأحمر الصارخ للتنبيه -->
         <item name="badgeTextColor">#FFFFFF</item>
         <item name="badgeRadius">10dp</item>
     </style>
