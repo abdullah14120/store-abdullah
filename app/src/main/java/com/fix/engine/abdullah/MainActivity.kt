@@ -9,6 +9,8 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.LayoutInflater
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -16,6 +18,7 @@ import androidx.core.view.isVisible
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.MainPagerAdapter
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
 
@@ -59,50 +62,48 @@ class MainActivity : AppCompatActivity() {
     /**
      * إظهار نافذة منبثقة (Dialog) احترافية وموثوقة للمستخدم
      */
-  private fun showInstallPermissionDialog() {
-    if (isFinishing || isDestroyed) return 
+    private fun showInstallPermissionDialog() {
+        // فحص حالة النشاط لتجنب الانهيار في حال كان التطبيق مغلقاً
+        if (isFinishing || isDestroyed) return 
 
-    // تأكد من استخدام ملف التصميم الذي أنشأناه (mtrl_alert_dialog)
-    // بدلاً من استخدام layoutInflater العادي، استخدم هذا السطر:
-val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null, false)
-    
-    val dialog = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-        .setView(dialogView)
-        .setCancelable(false)
-        .create()
+        // استخدام LayoutInflater المرتبط بالسياق الحالي لضمان الوصول للموارد بشكل صحيح
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
+        
+        val dialog = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
 
-    // الحل الجذري: استخدام "safe access" مع findViewById لتجنب الانهيار إذا كان المعرف خاطئاً
-    val title = dialogView.findViewById<android.widget.TextView>(R.id.dialog_title)
-    val message = dialogView.findViewById<android.widget.TextView>(R.id.dialog_message)
-    val btnPositive = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_positive)
-    val btnNegative = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_negative)
+        // ربط العناصر باستخدام Safe Access (?) لمنع الـ NullPointerException نهائياً
+        val txtTitle = dialogView.findViewById<TextView>(R.id.dialog_title)
+        val txtMessage = dialogView.findViewById<TextView>(R.id.dialog_message)
+        val btnPositive = dialogView.findViewById<MaterialButton>(R.id.btn_positive)
+        val btnNegative = dialogView.findViewById<MaterialButton>(R.id.btn_negative)
 
-    // تعيين النصوص فقط إذا تم العثور على العناصر
-    title?.text = "تفعيل التثبيت الآمن"
-    message?.text = "عزيزي المستخدم، لضمان تحديث تطبيقاتك من FIX ENGINE بأمان، نحتاج منك منح المتجر إذن التثبيت."
+        txtTitle?.text = "تفعيل التثبيت الآمن"
+        txtMessage?.text = "عزيزي المستخدم، لضمان تحديث تطبيقاتك من FIX ENGINE بأمان وبضغطة واحدة، نحتاج منك منح المتجر إذن التثبيت."
 
-    btnPositive?.setOnClickListener {
-        try {
-            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                data = Uri.parse("package:$packageName")
+        btnPositive?.setOnClickListener {
+            try {
+                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "تعذر فتح الإعدادات، يرجى منح الإذن يدوياً", Toast.LENGTH_LONG).show()
             }
-            startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(this, "يرجى منح الإذن من إعدادات الجهاز", Toast.LENGTH_LONG).show()
+            dialog.dismiss()
         }
-        dialog.dismiss()
-    }
 
-    btnNegative?.setOnClickListener {
-        dialog.dismiss()
-    }
+        btnNegative?.setOnClickListener {
+            dialog.dismiss()
+        }
 
-    dialog.show()
-}
+        dialog.show()
+    }
 
     override fun onResume() {
         super.onResume()
-        // في حال عاد المستخدم من الإعدادات بعد منح الإذن، يمكن القيام بإجراء هنا إذا لزم الأمر
     }
 
     private fun setupTabs() {
