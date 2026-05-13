@@ -1,28 +1,65 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+    
+    <!-- الثيم الرئيسي للمتجر -->
     <style name="Theme.FixEngine" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">#00796B</item>
-        <item name="colorPrimaryVariant">#004D40</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        
-        <item name="colorSecondary">#26A69A</item>
-        <item name="colorSecondaryVariant">#00897B</item>
+        <!-- الألوان الأساسية: اعتماد الهوية البصرية لـ FIX ENGINE -->
+        <item name="colorPrimary">#22D3EE</item> <!-- Cyan الساطع للتركيز -->
+        <item name="colorPrimaryVariant">#0891B2</item>
+        <item name="colorOnPrimary">#0F172A</item> <!-- النص فوق السيان يكون كحلي غامق -->
+
+        <!-- الألوان الثانوية والتباين -->
+        <item name="colorSecondary">#38BDF8</item>
+        <item name="colorSecondaryVariant">#0284C7</item>
         <item name="colorOnSecondary">#FFFFFF</item>
 
-        <item name="android:windowBackground">#FAFAFA</item>
-        <item name="android:statusBarColor">#FFFFFF</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <!-- خلفية التطبيق: الكحلي العميق المستوحى من المتاجر العالمية -->
+        <item name="android:windowBackground">#0F172A</item>
+        <item name="android:statusBarColor">#0F172A</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item> <!-- لكي تكون أيقونات الساعة بيضاء -->
         
-        <item name="materialButtonStyle">@style/Widget.MaterialComponents.Button.UnelevatedButton</item>
+        <!-- تخصيص الأزرار لتكون بلمسة عصرية -->
+        <item name="materialButtonStyle">@style/Widget.FixEngine.Button</item>
+        
+        <!-- ألوان النصوص العامة -->
+        <item name="android:textColorPrimary">#F8FAFC</item>
+        <item name="android:textColorSecondary">#94A3B8</item>
     </style>
 
+    <!-- ستايل الأزرار: زوايا دائرية ولمسة "بريميوم" -->
+    <style name="Widget.FixEngine.Button" parent="Widget.MaterialComponents.Button.UnelevatedButton">
+        <item name="cornerRadius">12dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.03</item>
+    </style>
+
+    <!-- ستايل نصوص التولبار والتبويبات -->
     <style name="TextAppearance.FixEngine.Toolbar" parent="TextAppearance.MaterialComponents.Headline6">
-        <item name="android:textSize">18sp</item>
+        <item name="android:textSize">20sp</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:textColor">#212121</item>
-        <item name="android:letterSpacing">0.02</item>
+        <item name="android:textColor">#F8FAFC</item>
+        <item name="android:fontFamily">sans-serif-black</item>
     </style>
 
+    <!-- تصميم الأيقونات الدائرية المتقدمة (مثل آبل) -->
     <style name="RoundedIcon">
-        <item name="cornerSize">25%</item>
+        <item name="cornerSize">22dp</item> <!-- انحناء ناعم جداً يشبه iOS -->
     </style>
+
+    <!-- ستايل خاص للـ Badge (نقطة التحديثات الحمراء) -->
+    <style name="Widget.FixEngine.Badge" parent="Widget.MaterialComponents.Badge">
+        <item name="backgroundColor">#EF4444</item> <!-- أحمر صارخ للتنبيه -->
+        <item name="badgeTextColor">#FFFFFF</item>
+        <item name="badgeRadius">10dp</item>
+    </style>
+
+    <!-- ستايل الخطوط للتبويبات (Tabs) -->
+    <style name="CustomTabText">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
 </resources>
