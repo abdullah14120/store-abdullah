@@ -1,76 +1,68 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     
     <!-- الثيم الرئيسي للمتجر (FIX ENGINE) -->
-    <style name="Theme.FixEngine" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <!-- الألوان الأساسية: اعتماد الهوية الرقمية المتقدمة -->
-        <item name="colorPrimary">#22D3EE</item> <!-- لون Cyan المميز -->
-        <item name="colorPrimaryVariant">#0891B2</item>
+    <style name="Theme.FixEngine" parent="Theme.Material3.Dark.NoActionBar"> <!-- الترقية لـ Material3 ضرورية لـ SDK 35 -->
+        <!-- الألوان الأساسية -->
+        <item name="colorPrimary">#22D3EE</item> 
         <item name="colorOnPrimary">#0F172A</item>
+        <item name="containerColor">#1E293B</item>
 
-        <!-- الألوان الثانوية والتباين -->
-        <item name="colorSecondary">#38BDF8</item>
-        <item name="colorSecondaryVariant">#0284C7</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
-
-        <!-- خلفية النظام: الكحلي العميق المستوحى من المتاجر العالمية -->
+        <!-- خلفية النظام -->
         <item name="android:windowBackground">#0F172A</item>
         <item name="android:statusBarColor">#0F172A</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item> 
+        <item name="android:navigationBarColor">#0F172A</item>
+        <item name="android:windowLightStatusBar">false</item> 
         
-        <!-- تخصيص الأزرار والعناصر التفاعلية -->
+        <!-- تخصيص العناصر التفاعلية -->
         <item name="materialButtonStyle">@style/Widget.FixEngine.Button</item>
         
-        <!-- ألوان النصوص العامة المريحة للعين -->
+        <!-- ألوان النصوص -->
         <item name="android:textColorPrimary">#F8FAFC</item>
         <item name="android:textColorSecondary">#94A3B8</item>
 
-        <!-- ربط الديالوج بالثيم العام لضمان التناسق -->
+        <!-- الربط الصحيح للديالوج لمنع الانهيار -->
         <item name="materialAlertDialogTheme">@style/Theme.FixEngine.Dialog</item>
     </style>
 
-    <!-- +++++ ستايل الديالوج الاحترافي المخصص لطلب الأذونات +++++ -->
-    <style name="Theme.FixEngine.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
-        <!-- خلفية الديالوج المنحنية -->
-        <item name="android:background">@drawable/bg_dialog_rounded</item>
+    <!-- +++++ ستايل الديالوج المحدث (حل مشكلة الانهيار) +++++ -->
+    <style name="Theme.FixEngine.Dialog" parent="Theme.Material3.Dark.Dialog.Alert">
+        <!-- تأمين الخلفية والأبعاد لمنع خطأ supply a layout_width -->
         <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
         
-        <!-- ألوان النصوص والأزرار داخل الديالوج -->
-        <item name="colorPrimary">#22D3EE</item>
+        <!-- ألوان المحتوى -->
         <item name="colorOnSurface">#F8FAFC</item>
         <item name="android:textColorPrimary">#F8FAFC</item>
-        
-        <!-- ستايل العنوان والرسالة -->
-        <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.FixEngine.Toolbar</item>
     </style>
 
-    <!-- ستايل الأزرار: زوايا دائرية عصرية (Premium Feel) -->
-    <style name="Widget.FixEngine.Button" parent="Widget.MaterialComponents.Button.UnelevatedButton">
-        <item name="cornerRadius">16dp</item> <!-- زيادة الانحناء لمظهر أكثر حداثة -->
-        <item name="android:insetTop">0dp</item>
-        <item name="android:insetBottom">0dp</item>
+    <!-- ستايل الأزرار (Premium Feel) -->
+    <style name="Widget.FixEngine.Button" parent="Widget.Material3.Button.UnelevatedButton">
+        <item name="shapeAppearanceOverlay">@style/ButtonRounded</item>
         <item name="android:textAllCaps">false</item>
         <item name="android:fontFamily">sans-serif-medium</item>
-        <item name="android:letterSpacing">0.03</item>
     </style>
 
-    <!-- ستايل نصوص التولبار والتبويبات -->
-    <style name="TextAppearance.FixEngine.Toolbar" parent="TextAppearance.MaterialComponents.Headline6">
+    <style name="ButtonRounded">
+        <item name="cornerSize">16dp</item>
+    </style>
+
+    <!-- ستايل نصوص التولبار -->
+    <style name="TextAppearance.FixEngine.Toolbar" parent="TextAppearance.Material3.HeadlineSmall">
         <item name="android:textSize">20sp</item>
-        <item name="android:textStyle">bold</item>
         <item name="android:textColor">#F8FAFC</item>
         <item name="android:fontFamily">sans-serif-black</item>
     </style>
 
-    <!-- تصميم الأيقونات الدائرية المتقدمة (نمط Squircle) -->
+    <!-- تصميم الأيقونات (نمط Squircle) -->
     <style name="RoundedIcon">
         <item name="cornerSize">22dp</item>
     </style>
 
-    <!-- ستايل نقطة التحديثات (Badge) -->
-    <style name="Widget.FixEngine.Badge" parent="Widget.MaterialComponents.Badge">
-        <item name="backgroundColor">#EF4444</item> <!-- الأحمر الصارخ للتنبيه -->
-        <item name="badgeTextColor">#FFFFFF</item>
-        <item name="badgeRadius">10dp</item>
+    <!-- ستايل الصور الدائرية -->
+    <style name="CircleImage">
+        <item name="cornerSize">50%</item>
     </style>
 
     <!-- ستايل الخطوط للتبويبات (Tabs) -->
@@ -79,20 +71,5 @@
         <item name="android:textStyle">bold</item>
         <item name="android:fontFamily">sans-serif-medium</item>
     </style>
-
-    <!-- ستايل الصور الدائرية المتقدمة لمتجر عبدالله -->
-<style name="CircleImage">
-    <item name="cornerSize">50%</item>
-</style>
-
-<style name="Theme.FixEngine.Dialog" parent="Theme.Material3.Dark.Dialog">
-    <!-- تخصيص شكل النافذة لتناسب FIX ENGINE -->
-    <item name="android:windowBackground">@android:color/transparent</item>
-    <item name="android:windowIsTranslucent">true</item>
-    <item name="android:windowContentOverlay">@null</item>
-    <item name="android:windowNoTitle">true</item>
-</style>
-
-    
 
 </resources>
