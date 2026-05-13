@@ -60,19 +60,33 @@ class MainActivity : AppCompatActivity() {
      * إظهار نافذة منبثقة (Dialog) احترافية وموثوقة للمستخدم
      */
     private fun showInstallPermissionDialog() {
-        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-            .setTitle("تفعيل التثبيت الآمن")
-            .setMessage("عزيزي المستخدم، لضمان تحديث تطبيقاتك من متجر Abdullah Al-Tamimi (FIX ENGINE) بأمان وبضغطة واحدة، نحتاج منك منح المتجر إذن التثبيت. هذه الخطوة ضرورية لتجاوز قيود النظام وتوفير تجربة سلسة.")
-            .setPositiveButton("منح الإذن") { _, _ ->
-                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                    data = Uri.parse("package:$packageName")
-                }
-                startActivity(intent)
-            }
-            .setNegativeButton("لاحقاً", null)
-            .setCancelable(false)
-            .show()
+    // 1. استخدام التنسيق الاحترافي الذي أنشأناه لمتجر عبدالله
+    val dialogView = layoutInflater.inflate(R.layout.mtrl_alert_dialog, null)
+    
+    val dialog = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+        .setView(dialogView)
+        .setCancelable(false)
+        .create()
+
+    // 2. ربط العناصر داخل التصميم الجديد لمنع الـ NullPointerException
+    dialogView.findViewById<android.widget.TextView>(R.id.dialog_title).text = "تفعيل التثبيت الآمن"
+    dialogView.findViewById<android.widget.TextView>(R.id.dialog_message).text = 
+        "عزيزي المستخدم، لضمان تحديث تطبيقاتك من FIX ENGINE بأمان، نحتاج منك منح المتجر إذن التثبيت."
+
+    dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_positive).setOnClickListener {
+        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+            data = Uri.parse("package:$packageName")
+        }
+        startActivity(intent)
+        dialog.dismiss()
     }
+
+    dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_negative).setOnClickListener {
+        dialog.dismiss()
+    }
+
+    dialog.show()
+}
 
     override fun onResume() {
         super.onResume()
