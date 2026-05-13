@@ -59,28 +59,33 @@ class MainActivity : AppCompatActivity() {
     /**
      * إظهار نافذة منبثقة (Dialog) احترافية وموثوقة للمستخدم
      */
-    private fun showInstallPermissionDialog() {
-    // 1. استخدام التنسيق الاحترافي الذي أنشأناه لمتجر عبدالله
+  private fun showInstallPermissionDialog() {
+    // إضافة فحص: إذا كان الـ Activity في طور الإنهاء، لا تظهر الديالوج لتجنب الانهيار
+    if (isFinishing || isDestroyed) return 
+
     val dialogView = layoutInflater.inflate(R.layout.mtrl_alert_dialog, null)
     
     val dialog = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
         .setView(dialogView)
         .setCancelable(false)
         .create()
-
+        
     // 2. ربط العناصر داخل التصميم الجديد لمنع الـ NullPointerException
     dialogView.findViewById<android.widget.TextView>(R.id.dialog_title).text = "تفعيل التثبيت الآمن"
     dialogView.findViewById<android.widget.TextView>(R.id.dialog_message).text = 
         "عزيزي المستخدم، لضمان تحديث تطبيقاتك من FIX ENGINE بأمان، نحتاج منك منح المتجر إذن التثبيت."
 
     dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_positive).setOnClickListener {
+    try {
         val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
             data = Uri.parse("package:$packageName")
         }
         startActivity(intent)
-        dialog.dismiss()
+    } catch (e: Exception) {
+        Toast.makeText(this, "تعذر فتح الإعدادات يدوياً، يرجى منح الإذن من إعدادات الهاتف", Toast.LENGTH_LONG).show()
     }
-
+    dialog.dismiss()
+}
     dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_negative).setOnClickListener {
         dialog.dismiss()
     }
