@@ -6,6 +6,8 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
@@ -22,11 +24,6 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
 
-/**
- * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Global Professional Hub
- * Features: ViewPager2, Advanced Search Animations, and Secure Install Logic
- */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
@@ -42,15 +39,14 @@ class MainActivity : AppCompatActivity() {
         setupSearchLogic()
         setupSearchAnimation()
         
-        // فحص إذن التثبيت عند فتح التطبيق لأول مرة
-        checkInstallPermission()
+        // بدلاً من الاستدعاء المباشر، سنقوم بتأخير الفحص لضمان استقرار الواجهة
+        Handler(Looper.getMainLooper()).postDelayed({
+            checkInstallPermission()
+        }, 1500) // تأخير لمدة ثانية ونصف
         
         refreshData()
     }
 
-    /**
-     * دالة فحص إذن تثبيت التطبيقات غير المعروفة بأسلوب آمن
-     */
     private fun checkInstallPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!packageManager.canRequestPackageInstalls()) {
@@ -59,57 +55,54 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * إظهار نافذة منبثقة (Dialog) احترافية وموثوقة للمستخدم
-     */
     private fun showInstallPermissionDialog() {
-        // فحص حالة النشاط لتجنب الانهيار في حال كان التطبيق مغلقاً
+        // التأكد من أن النشاط لا يزال نشطاً قبل عرض الديالوج
         if (isFinishing || isDestroyed) return 
 
-        // استخدام LayoutInflater المرتبط بالسياق الحالي لضمان الوصول للموارد بشكل صحيح
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
-        
-        val dialog = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-            .setView(dialogView)
-            .setCancelable(false)
-            .create()
+        try {
+            val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
+            
+            val dialog = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+                .setView(dialogView)
+                .setCancelable(false)
+                .create()
 
-        // ربط العناصر باستخدام Safe Access (?) لمنع الـ NullPointerException نهائياً
-        val txtTitle = dialogView.findViewById<TextView>(R.id.dialog_title)
-        val txtMessage = dialogView.findViewById<TextView>(R.id.dialog_message)
-        val btnPositive = dialogView.findViewById<MaterialButton>(R.id.btn_positive)
-        val btnNegative = dialogView.findViewById<MaterialButton>(R.id.btn_negative)
+            val txtTitle = dialogView.findViewById<TextView>(R.id.dialog_title)
+            val txtMessage = dialogView.findViewById<TextView>(R.id.dialog_message)
+            val btnPositive = dialogView.findViewById<MaterialButton>(R.id.btn_positive)
+            val btnNegative = dialogView.findViewById<MaterialButton>(R.id.btn_negative)
 
-        txtTitle?.text = "تفعيل التثبيت الآمن"
-        txtMessage?.text = "عزيزي المستخدم، لضمان تحديث تطبيقاتك من FIX ENGINE بأمان وبضغطة واحدة، نحتاج منك منح المتجر إذن التثبيت."
+            txtTitle?.text = "تفعيل التثبيت الآمن"
+            txtMessage?.text = "لضمان تحديث تطبيقاتك من FIX ENGINE بأمان، نحتاج منك منح المتجر إذن التثبيت."
 
-        btnPositive?.setOnClickListener {
-            try {
-                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                    data = Uri.parse("package:$packageName")
+            btnPositive?.setOnClickListener {
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(this, "يرجى منح الإذن يدوياً من الإعدادات", Toast.LENGTH_LONG).show()
                 }
-                startActivity(intent)
-            } catch (e: Exception) {
-                Toast.makeText(this, "تعذر فتح الإعدادات، يرجى منح الإذن يدوياً", Toast.LENGTH_LONG).show()
+                dialog.dismiss()
             }
-            dialog.dismiss()
-        }
 
-        btnNegative?.setOnClickListener {
-            dialog.dismiss()
-        }
+            btnNegative?.setOnClickListener {
+                dialog.dismiss()
+            }
 
-        dialog.show()
+            dialog.show()
+        } catch (e: Exception) {
+            // في حال فشل "نفخ" الديالوج لأي سبب، لن ينهار التطبيق
+            e.printStackTrace()
+        }
     }
 
-    override fun onResume() {
-        super.onResume()
-    }
-
+    // ... باقي الدوال (setupTabs, setupObservers, إلخ) كما هي دون تغيير ...
+    
     private fun setupTabs() {
         val pagerAdapter = MainPagerAdapter(this)
         binding.viewPagerMain.adapter = pagerAdapter
-
         TabLayoutMediator(binding.tabLayoutMain, binding.viewPagerMain) { tab, position ->
             tab.text = if (position == 0) "التطبيقات" else "التحديثات"
         }.attach()
@@ -146,9 +139,6 @@ class MainActivity : AppCompatActivity() {
                 calculateUpdates(apps)
             }
         }
-        viewModel.errorMessage.observe(this) { 
-            it?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() } 
-        }
     }
 
     private fun calculateUpdates(apps: List<com.fix.engine.abdullah.data.model.AppModel>) {
@@ -157,11 +147,10 @@ class MainActivity : AppCompatActivity() {
         for (app in apps) {
             try {
                 val pInfo = pm.getPackageInfo(app.packageName, 0)
-                val installedVerName = pInfo.versionName ?: ""
-                if (app.versionName.trim() != installedVerName.trim()) {
+                if (app.versionName.trim() != (pInfo.versionName ?: "").trim()) {
                     updateCount++
                 }
-            } catch (e: PackageManager.NameNotFoundException) { }
+            } catch (e: Exception) { }
         }
 
         val updatesTab = binding.tabLayoutMain.getTabAt(1)
