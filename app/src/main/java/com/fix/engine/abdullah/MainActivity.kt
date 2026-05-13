@@ -16,8 +16,8 @@ import com.google.android.material.tabs.TabLayoutMediator
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Professional Tabbed UI
- * Features: ViewPager2, Smart Badge Updates, and Name-Based Comparison
+ * Project: FIX ENGINE - Global Professional Hub
+ * Features: ViewPager2, Advanced Search Animations, and Dynamic Badge System
  */
 class MainActivity : AppCompatActivity() {
 
@@ -32,25 +32,25 @@ class MainActivity : AppCompatActivity() {
         setupTabs()
         setupObservers()
         setupSearchLogic()
+        setupSearchAnimation() // اللمسة الاحترافية الجديدة
         
         refreshData()
     }
 
     /**
-     * إعداد نظام التبويبات (ViewPager2 + TabLayout)
+     * إعداد نظام التبويبات مع ViewPager2
      */
     private fun setupTabs() {
         val pagerAdapter = MainPagerAdapter(this)
         binding.viewPagerMain.adapter = pagerAdapter
 
-        // ربط التبويبات بالعناوين: التطبيقات (يمين) والتحديثات (يسار)
         TabLayoutMediator(binding.tabLayoutMain, binding.viewPagerMain) { tab, position ->
             tab.text = if (position == 0) "التطبيقات" else "التحديثات"
         }.attach()
     }
 
     /**
-     * منطق البحث المباشر (سيقوم بتصفية القائمة في الـ ViewModel لكي تظهر النتائج في الـ Fragment)
+     * منطق البحث المباشر
      */
     private fun setupSearchLogic() {
         binding.etSearch.addTextChangedListener(object : TextWatcher {
@@ -62,22 +62,47 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    /**
+     * لمسة حركة البحث العالمية (Scale & Stroke Animation)
+     */
+    private fun setupSearchAnimation() {
+        binding.etSearch.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                binding.searchCard.animate()
+                    .scaleX(1.01f)
+                    .scaleY(1.01f)
+                    .setDuration(250)
+                    .start()
+                binding.searchCard.strokeWidth = 2
+                binding.searchCard.strokeColor = Color.parseColor("#22D3EE") // لون السيان الخاص بك
+            } else {
+                binding.searchCard.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(250)
+                    .start()
+                binding.searchCard.strokeWidth = 1
+                binding.searchCard.strokeColor = Color.parseColor("#334155")
+            }
+        }
+    }
+
     private fun setupObservers() {
-        // مراقبة حالة التحميل
         viewModel.isLoading.observe(this) { binding.progressBar.isVisible = it }
 
-        // مراقبة عدد التحديثات المتاحة لإظهار النقطة الحمراء (Badge)
         viewModel.appsList.observe(this) { apps ->
             if (!apps.isNullOrEmpty()) {
                 calculateUpdates(apps)
             }
         }
 
-        viewModel.errorMessage.observe(this) { it?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() } }
+        viewModel.errorMessage.observe(this) { 
+            it?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() } 
+        }
     }
 
     /**
-     * حساب عدد التحديثات بناءً على الـ versionName وإظهار الـ Badge
+     * تحديث شارة التنبيه (Badge) بناءً على المقارنة النصية للإصدار
      */
     private fun calculateUpdates(apps: List<com.fix.engine.abdullah.data.model.AppModel>) {
         val pm = packageManager
@@ -88,16 +113,13 @@ class MainActivity : AppCompatActivity() {
                 val pInfo = pm.getPackageInfo(app.packageName, 0)
                 val installedVerName = pInfo.versionName ?: ""
                 
-                // المقارنة النصية بناءً على طلبك يا عبدالله لتجاوز سقف الـ VersionCode
+                // منطق عبدالله: تجاوز قيود الـ VersionCode بمقارنة الـ VersionName
                 if (app.versionName.trim() != installedVerName.trim()) {
                     updateCount++
                 }
-            } catch (e: PackageManager.NameNotFoundException) {
-                // التطبيق غير مثبت
-            }
+            } catch (e: PackageManager.NameNotFoundException) { }
         }
 
-        // تحديث شارة الإشعار (Badge) فوق تبويب التحديثات
         val updatesTab = binding.tabLayoutMain.getTabAt(1)
         val badge = updatesTab?.orCreateBadge
         
@@ -105,14 +127,12 @@ class MainActivity : AppCompatActivity() {
             badge?.isVisible = true
             badge?.number = updateCount
             badge?.backgroundColor = Color.RED
-            badge?.badgeTextColor = Color.WHITE
         } else {
             badge?.isVisible = false
         }
     }
 
     private fun refreshData() {
-        // الرابط الخاص بمستودعك على GitHub
         val repoUrl = "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/apps.json"
         viewModel.loadApps(repoUrl)
     }
