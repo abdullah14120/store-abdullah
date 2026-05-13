@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        // المستودعات الأساسية لإضافات Gradle
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -7,22 +8,23 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    // PREFER_SETTINGS هي الأسلوب الاحترافي لمنع تعارض المستودعات في المشاريع الكبيرة
+    // PREFER_SETTINGS تضمن أن هذه الإعدادات تطبق على جميع الموديولات وتمنع التعارض
     repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     
     repositories {
+        // مستودعات جوجل و Maven تحتوي على 99% من المكتبات التي نحتاجها الآن
         google()
         mavenCentral()
         
-        // تعديل JitPack ليكون أكثر أماناً وتوافقاً مع Gradle 8+
+        // أبقينا JitPack فقط من أجل مكتبة Glide إذا لم يجدها في Maven
         maven { 
-            url = uri("https://jitpack.io") 
+            url 'https://jitpack.io' 
         }
     }
 }
 
-// اسم المشروع العالمي الخاص بك
+// اسم المشروع
 rootProject.name = "FIX ENGINE"
 
-// تضمين الموديول الرئيسي
+// تضمين موديول التطبيق
 include ':app'
