@@ -10,16 +10,13 @@ buildscript {
 }
 
 plugins {
-    // إصدار AGP 8.2.2 هو الأكثر استقراراً حالياً مع Gradle 8.2+
-    id 'com.android.application' version '8.2.2' apply false
-    id 'com.android.library' version '8.2.2' apply false
+    // إصدار AGP 8.3.2 ممتاز جداً مع Gradle 8.7
+    id 'com.android.application' version '8.3.2' apply false
+    id 'com.android.library' version '8.3.2' apply false
     
-    // ملاحظة هامة: Kotlin 2.1.0 حديث جداً، يفضل استخدام 1.9.20 لضمان استقرار مكتبة KAPT 
-    // مع Room و Glide في الوقت الحالي، إلا إذا كنت تستخدم أحدث نسخة من Android Studio
-    id 'org.jetbrains.kotlin.android' version '1.9.20' apply false
-    
-    // يجب أن يتطابق إصدار KAPT تماماً مع إصدار Kotlin أعلاه
-    id 'org.jetbrains.kotlin.kapt' version '1.9.20' apply false
+    // رفع إصدار Kotlin إلى 1.9.24 لحل خطأ HasConvention
+    id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
+    id 'org.jetbrains.kotlin.kapt' version '1.9.24' apply false
 }
 
 tasks.register('clean', Delete) {
