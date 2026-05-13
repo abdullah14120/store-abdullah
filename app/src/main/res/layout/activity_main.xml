@@ -49,12 +49,12 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="FIX ENGINE"
-                            android:textColor="@color/secondary_cyan"
+                            android:textColor="#22D3EE"
                             android:textSize="26sp"
                             android:fontFamily="sans-serif-black" />
                     </LinearLayout>
 
-                    <!-- أيقونة بروفايل دائرية صغيرة تلميحاً للمستخدم -->
+                    <!-- أيقونة بروفايل دائرية - تستخدم ستايل CircleImage المضاف لـ themes.xml -->
                     <com.google.android.material.imageview.ShapeableImageView
                         android:layout_width="45dp"
                         android:layout_height="45dp"
@@ -65,8 +65,9 @@
                         app:shapeAppearanceOverlay="@style/CircleImage" />
                 </RelativeLayout>
 
-                <!-- شريط البحث بتصميم زجاجي (Glassmorphism) -->
+                <!-- شريط البحث - تمت إضافة ID: searchCard لحل خطأ Unresolved reference -->
                 <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/searchCard"
                     android:layout_width="match_parent"
                     android:layout_height="54dp"
                     app:cardBackgroundColor="#1E293B"
@@ -95,7 +96,7 @@
                             android:background="@android:color/transparent"
                             android:hint="ابحث عن تطبيقات عبدالله..."
                             android:textColorHint="#64748B"
-                            android:textColor="@color/white"
+                            android:textColor="#F8FAFC"
                             android:textSize="15sp"
                             android:paddingHorizontal="12dp"
                             android:inputType="text" />
@@ -113,11 +114,21 @@
             app:tabIndicatorFullWidth="false"
             app:tabIndicatorHeight="3dp"
             app:tabIndicatorGravity="bottom"
-            app:tabIndicatorColor="@color/secondary_cyan"
-            app:tabSelectedTextColor="@color/secondary_cyan"
+            app:tabIndicatorColor="#22D3EE"
+            app:tabSelectedTextColor="#22D3EE"
             app:tabTextColor="#94A3B8"
             app:tabTextAppearance="@style/CustomTabText"
             app:tabRippleColor="@android:color/transparent"/>
+
+        <!-- إضافة شريط تقدم (ProgressBar) لحل خطأ MainActivity المفقود -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:indeterminate="true"
+            android:visibility="gone"
+            android:indeterminateTint="#22D3EE" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
