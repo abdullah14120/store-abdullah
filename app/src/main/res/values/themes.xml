@@ -2,51 +2,44 @@
     
     <!-- الثيم الرئيسي للمتجر (FIX ENGINE) -->
     <style name="Theme.FixEngine" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <!-- الألوان الأساسية: اعتماد الهوية الرقمية المتقدمة -->
-        <item name="colorPrimary">#22D3EE</item> <!-- لون Cyan المميز -->
+        <item name="colorPrimary">#22D3EE</item>
         <item name="colorPrimaryVariant">#0891B2</item>
         <item name="colorOnPrimary">#0F172A</item>
 
-        <!-- الألوان الثانوية والتباين -->
         <item name="colorSecondary">#38BDF8</item>
         <item name="colorSecondaryVariant">#0284C7</item>
         <item name="colorOnSecondary">#FFFFFF</item>
 
-        <!-- خلفية النظام: الكحلي العميق المستوحى من المتاجر العالمية -->
         <item name="android:windowBackground">#0F172A</item>
         <item name="android:statusBarColor">#0F172A</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">false</item> 
         
-        <!-- تخصيص الأزرار والعناصر التفاعلية -->
         <item name="materialButtonStyle">@style/Widget.FixEngine.Button</item>
         
-        <!-- ألوان النصوص العامة المريحة للعين -->
         <item name="android:textColorPrimary">#F8FAFC</item>
         <item name="android:textColorSecondary">#94A3B8</item>
 
-        <!-- ربط الديالوج بالثيم العام لضمان التناسق -->
         <item name="materialAlertDialogTheme">@style/Theme.FixEngine.Dialog</item>
     </style>
 
-    <!-- +++++ ستايل الديالوج الاحترافي: تم إضافة خصائص الأمان لمنع الانهيار +++++ -->
+    <!-- +++++ ستايل الديالوج المحدث: تم إضافة windowIsFloating لمنع الانهيار +++++ -->
     <style name="Theme.FixEngine.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
-        <!-- خصائص الأمان لمنع خطأ layout_width و NullPointer -->
+        <!-- السطر التالي هو الحل النهائي للانهيار الظاهر في الصورة 1003860380.jpg -->
+        <item name="android:windowIsFloating">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:windowNoTitle">true</item>
 
-        <!-- ألوان المحتوى المنسجمة مع الستايل الداكن -->
         <item name="colorPrimary">#22D3EE</item>
         <item name="colorOnSurface">#F8FAFC</item>
         <item name="android:textColorPrimary">#F8FAFC</item>
         <item name="android:textColorSecondary">#94A3B8</item>
         
-        <!-- ستايل العنوان والرسالة -->
         <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.FixEngine.Toolbar</item>
     </style>
 
-    <!-- ستايل الأزرار: زوايا دائرية عصرية (Premium Feel) -->
+    <!-- ستايل الأزرار -->
     <style name="Widget.FixEngine.Button" parent="Widget.MaterialComponents.Button.UnelevatedButton">
         <item name="cornerRadius">16dp</item>
         <item name="android:insetTop">0dp</item>
@@ -56,7 +49,7 @@
         <item name="android:letterSpacing">0.03</item>
     </style>
 
-    <!-- ستايل نصوص التولبار والتبويبات -->
+    <!-- ستايل نصوص التولبار -->
     <style name="TextAppearance.FixEngine.Toolbar" parent="TextAppearance.MaterialComponents.Headline6">
         <item name="android:textSize">20sp</item>
         <item name="android:textStyle">bold</item>
@@ -64,26 +57,22 @@
         <item name="android:fontFamily">sans-serif-black</item>
     </style>
 
-    <!-- تصميم الأيقونات الدائرية المتقدمة (نمط Squircle) -->
     <style name="RoundedIcon">
         <item name="cornerSize">22dp</item>
     </style>
 
-    <!-- ستايل نقطة التحديثات (Badge) -->
     <style name="Widget.FixEngine.Badge" parent="Widget.MaterialComponents.Badge">
         <item name="backgroundColor">#EF4444</item>
         <item name="badgeTextColor">#FFFFFF</item>
         <item name="badgeRadius">10dp</item>
     </style>
 
-    <!-- ستايل الخطوط للتبويبات (Tabs) -->
     <style name="CustomTabText">
         <item name="android:textSize">15sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 
-    <!-- ستايل الصور الدائرية المتقدمة لمتجر عبدالله -->
     <style name="CircleImage">
         <item name="cornerSize">50%</item>
     </style> 
