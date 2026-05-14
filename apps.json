@@ -2,14 +2,14 @@
   {
     "id": 1,
     "name": "ABWhatsApp",
-    "packageName": "com.fix.engine.whatsapp",
-    "versionName": "2.26.7.7",
+    "packageName": "com.whatsapp",
+    "versionName": "2.26.17.73",
     "versionCode": 2147483647,
     "developer": "عبدالله التميمي",
     "iconUrl": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icon3nabi.png",
     "downloadUrl": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/main/apks/ABWhatsApp.apk",
-    "size": "152845",
-    "description": "نسخة واتساب معدلة بمميزات حصرية، تدعم التخصيص الكامل وخصوصية فائقة للمستخدم."
+    "size": "125263449",
+    "description": "نسخة واتساب عبدالله التميمي اللون العنابي | تحديث جديد الإصدار V33."
   },
   {
     "id": 2,
