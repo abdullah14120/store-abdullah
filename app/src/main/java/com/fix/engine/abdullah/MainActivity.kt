@@ -51,9 +51,12 @@ class MainActivity : AppCompatActivity() {
         refreshData()
     }
 
-    private fun checkInstallPermission() {
+        private fun checkInstallPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!packageManager.canRequestPackageInstalls()) {
+            val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
+            val isDialogShown = prefs.getBoolean("install_dialog_shown", false)
+
+            if (!packageManager.canRequestPackageInstalls() && !isDialogShown) {
                 showInstallPermissionDialog()
             }
         }
@@ -62,41 +65,38 @@ class MainActivity : AppCompatActivity() {
     private fun showInstallPermissionDialog() {
         if (isFinishing || isDestroyed) return 
 
-        try {
-            // استخدام LayoutInflater المرتبط بالسياق الحالي
-            val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
+        val dialog = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+
+        dialogView.findViewById<MaterialButton>(R.id.btn_positive)?.setOnClickListener {
+            // حفظ أن المستخدم شاهد الرسالة
+            markDialogAsShown()
             
-            val dialog = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-                .setView(dialogView)
-                .setCancelable(false)
-                .create()
-                
-            // ربط العناصر باستخدام Safe Access (?) لمنع الانهيار نهائياً
-            dialogView.findViewById<TextView>(R.id.dialog_title)?.text = "تفعيل التثبيت الآمن"
-            dialogView.findViewById<TextView>(R.id.dialog_message)?.text = 
-                "عزيزي المستخدم، لضمان تحديث تطبيقاتك من FIX ENGINE بأمان، نحتاج منك منح المتجر إذن التثبيت."
-
-            dialogView.findViewById<MaterialButton>(R.id.btn_positive)?.setOnClickListener {
-                try {
-                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                        data = Uri.parse("package:$packageName")
-                    }
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    Toast.makeText(this, "يرجى منح الإذن يدوياً من الإعدادات", Toast.LENGTH_LONG).show()
-                }
-                dialog.dismiss()
+            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                data = Uri.parse("package:$packageName")
             }
-
-            dialogView.findViewById<MaterialButton>(R.id.btn_negative)?.setOnClickListener {
-                dialog.dismiss()
-            }
-
-            dialog.show()
-        } catch (e: Exception) {
-            // في حال فشل الديالوج المخصص، لا ينهار التطبيق
-            e.printStackTrace()
+            startActivity(intent)
+            dialog.dismiss()
         }
+
+        dialogView.findViewById<MaterialButton>(R.id.btn_negative)?.setOnClickListener {
+            // حفظ حتى لو ألغى، لكي لا تظهر له فوراً مرة أخرى (اختياري)
+            markDialogAsShown()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    // دالة مساعدة لحفظ الحالة
+    private fun markDialogAsShown() {
+        getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
+            .edit()
+            .putBoolean("install_dialog_shown", true)
+            .apply()
     }
 
     override fun onResume() {
