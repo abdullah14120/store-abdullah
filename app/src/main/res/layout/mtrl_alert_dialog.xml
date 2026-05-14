@@ -22,7 +22,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:gravity="center"
-        android:text="تنبيه النظام"
+        android:text="عزيزي المستخدم، لضمان تحديث تطبيقاتك من متجر Abdullah بأمان، نحتاج منك منح المتجر إذن التثبيت."
         android:textColor="#F8FAFC"
         android:textSize="20sp"
         android:fontFamily="sans-serif-black" />
