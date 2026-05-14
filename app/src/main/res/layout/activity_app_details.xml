@@ -81,22 +81,47 @@
             </LinearLayout>
 
             <!-- منطقة التفاعل: أزرار النظام وشريط التحميل المدمج -->
+                        <!-- منطقة التفاعل: أزرار النظام وشريط التحميل المدمج -->
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnInstallLarge"
+                <LinearLayout
+                    android:id="@+id/layoutActionButtons"
                     android:layout_width="match_parent"
-                    android:layout_height="60dp"
-                    android:text="تثبيت الآن"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#0F172A"
-                    app:backgroundTint="#22D3EE"
-                    app:cornerRadius="16dp" />
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnInstallLarge"
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:text="تنزيل الآن" 
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#0F172A"
+                        app:iconGravity="textStart"
+                        app:iconPadding="8dp"
+                        app:backgroundTint="#22D3EE"
+                        app:cornerRadius="16dp" />
+
+                    <!-- زر الفتح يظهر فقط إذا كان التطبيق مثبتاً وأحدث نسخة -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnOpenApp"
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:layout_marginTop="8dp"
+                        android:text="فتح التطبيق"
+                        android:visibility="gone"
+                        android:textColor="#F8FAFC"
+                        app:strokeColor="#334155"
+                        app:strokeWidth="1dp"
+                        app:backgroundTint="@android:color/transparent"
+                        app:cornerRadius="16dp" />
+                </LinearLayout>
+
+                <!-- شريط التحميل (يظهر أثناء عملية التنزيل فقط) -->
                 <LinearLayout
                     android:id="@+id/layoutDownloadProgress"
                     android:layout_width="match_parent"
@@ -105,7 +130,7 @@
                     android:visibility="gone"
                     android:background="@drawable/bg_download_panel"
                     android:padding="16dp">
-
+                
                     <com.google.android.material.progressindicator.LinearProgressIndicator
                         android:id="@+id/downloadProgress"
                         android:layout_width="match_parent"
