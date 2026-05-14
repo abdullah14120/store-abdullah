@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Environment
 import android.view.View
@@ -22,7 +23,8 @@ import java.io.File
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Feature: Smart APK Detection with Temp File Support (.tmp)
+ * Project: FIX ENGINE - Abdullah Store
+ * Feature: Smart Logic (Download, Update, Install, Open)
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -45,6 +47,8 @@ class AppDetailsActivity : AppCompatActivity() {
 
         if (appData != null) {
             displayDetails(appData)
+            // تحديد حالة الزر بناءً على ذكاء المتجر
+            setupLogic(appData)
             // فحص حالة التحميل الجاري فور الدخول لمنع تداخل الواجهات
             checkCurrentStatus(appData)
         } else {
@@ -60,6 +64,50 @@ class AppDetailsActivity : AppCompatActivity() {
         binding.toolbarDetails.setNavigationOnClickListener { finish() }
     }
 
+    private fun setupLogic(app: AppModel) {
+        val pm = packageManager
+        val fileName = app.getUniqueFileName()
+        val downloadFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val finalFile = File(downloadFolder, fileName)
+
+        // 1. الحالة الأولى: إذا كان ملف الـ APK محمل مسبقاً في التنزيلات
+        if (finalFile.exists()) {
+            binding.btnInstallLarge.text = "تثبيت الآن"
+            binding.btnInstallLarge.visibility = View.VISIBLE
+            binding.btnOpenApp.visibility = View.GONE
+            binding.btnInstallLarge.setOnClickListener { installApk(finalFile) }
+            return
+        }
+
+        try {
+            // 2. الحالة الثانية: فحص هل التطبيق مثبت للمقارنة بين الإصدارات
+            val pInfo = pm.getPackageInfo(app.packageName, 0)
+            val installedVer = pInfo.versionName ?: ""
+
+            if (app.versionName.trim() != installedVer.trim()) {
+                // توفر تحديث جديد
+                binding.btnInstallLarge.text = "تحديث الآن"
+                binding.btnInstallLarge.visibility = View.VISIBLE
+                binding.btnOpenApp.visibility = View.GONE
+                binding.btnInstallLarge.setOnClickListener { startNewDownload(app) }
+            } else {
+                // التطبيق مثبت ومحدث بالكامل
+                binding.btnInstallLarge.visibility = View.GONE
+                binding.btnOpenApp.visibility = View.VISIBLE
+                binding.btnOpenApp.setOnClickListener { 
+                    val launchIntent = pm.getLaunchIntentForPackage(app.packageName)
+                    launchIntent?.let { startActivity(it) }
+                }
+            }
+        } catch (e: PackageManager.NameNotFoundException) {
+            // 3. الحالة الثالثة: التطبيق غير موجود نهائياً على الجهاز
+            binding.btnInstallLarge.text = "تنزيل الآن"
+            binding.btnInstallLarge.visibility = View.VISIBLE
+            binding.btnOpenApp.visibility = View.GONE
+            binding.btnInstallLarge.setOnClickListener { startNewDownload(app) }
+        }
+    }
+
     @SuppressLint("Range")
     private fun checkCurrentStatus(app: AppModel) {
         val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
@@ -73,7 +121,6 @@ class AppDetailsActivity : AppCompatActivity() {
         if (cursor != null) {
             while (cursor.moveToNext()) {
                 val title = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_TITLE))
-                // التحقق من العنوان لربط العملية الجارية بالواجهة
                 if (title == app.name || title == app.getUniqueFileName()) {
                     activeDownloadId = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_ID))
                     break
@@ -85,6 +132,7 @@ class AppDetailsActivity : AppCompatActivity() {
         if (activeDownloadId != -1L) {
             isDownloading = true
             binding.btnInstallLarge.visibility = View.GONE
+            binding.btnOpenApp.visibility = View.GONE
             binding.layoutDownloadProgress.visibility = View.VISIBLE
             startTrackingProcess(activeDownloadId)
         }
@@ -107,39 +155,15 @@ class AppDetailsActivity : AppCompatActivity() {
                 .placeholder(R.drawable.ic_launcher_foreground)
                 .transition(DrawableTransitionOptions.withCrossFade())
                 .into(imgDetailsIcon)
-
-            // المنطق المحدث لفحص الملفات
-            btnInstallLarge.setOnClickListener {
-                val fileName = app.getUniqueFileName()
-                // نبحث فقط عن الملف النهائي (.apk)
-                val finalFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName)
-                // نتحقق من وجود الملف المؤقت (.tmp)
-                val tempFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "$fileName.tmp")
-
-                if (finalFile.exists() && !isDownloading) {
-                    installApk(finalFile)
-                } else if (tempFile.exists() || isDownloading) {
-                    // إذا كان الملف المؤقت موجوداً، نمنع بدء تحميل جديد وننبه المستخدم
-                    Toast.makeText(this@AppDetailsActivity, "التحميل مستمر في الخلفية...", Toast.LENGTH_SHORT).show()
-                } else {
-                    startNewDownload(app)
-                }
-            }
-            
-            // تحديث نص الزر عند الدخول إذا كان الملف مكتملاً تماماً
-            val checkFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), app.getUniqueFileName())
-            if (checkFile.exists() && !isDownloading) {
-                btnInstallLarge.text = "تثبيت الآن"
-            }
         }
     }
 
     private fun startNewDownload(app: AppModel) {
         isDownloading = true
         binding.btnInstallLarge.visibility = View.GONE
+        binding.btnOpenApp.visibility = View.GONE
         binding.layoutDownloadProgress.visibility = View.VISIBLE
 
-        // استدعاء المانجر الذي يضيف لاحقة .tmp تلقائياً
         val downloadId = downloadManager.enqueueDownload(app.downloadUrl, app.getUniqueFileName())
         startTrackingProcess(downloadId)
     }
@@ -155,11 +179,12 @@ class AppDetailsActivity : AppCompatActivity() {
                     
                     if (progress >= 100) {
                         isDownloading = false
-                        // ملاحظة: لا نظهر زر التثبيت هنا فوراً لأن الـ Receiver يحتاج أجزاء من الثانية لتغيير اسم الملف
-                        // سيتغير الزر تلقائياً عند إعادة الدخول أو عبر بث محلي (LocalBroadcast) إذا أردت تطويره لاحقاً
                         layoutDownloadProgress.visibility = View.GONE
                         btnInstallLarge.visibility = View.VISIBLE
                         btnInstallLarge.text = "تثبيت الآن"
+                        // إعادة ربط الزر بملف التثبيت بعد اكتمال التحميل
+                        val fileName = app.getUniqueFileName() // نحتاج للوصول لبيانات التطبيق هنا
+                        // ملاحظة: يفضل تحديث الواجهة بالكامل عند اكتمال التحميل
                     }
                 }
             }
@@ -167,49 +192,26 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     private fun installApk(file: File) {
-    if (!file.exists()) {
-        Toast.makeText(this, "الملف غير موجود!", Toast.LENGTH_SHORT).show()
-        return
-    }
-
-    try {
-        // إنشاء الـ Intent أولاً
-        val intent = Intent(Intent.ACTION_VIEW)
-        
-        // تحويل الملف إلى URI آمن باستخدام FileProvider
-        val uri = FileProvider.getUriForFile(
-            this, 
-            "$packageName.provider", 
-            file
-        )
-
-        // تحديد نوع البيانات (APK) وربط الـ URI
-        intent.setDataAndType(uri, "application/vnd.android.package-archive")
-        
-        // الأعلام (Flags) هما سر النجاح هنا:
-        // 1. منح إذن القراءة للـ URI (إلزامي لأندرويد 7 فما فوق)
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        // 2. تشغيل التثبيت في مهمة جديدة لضمان عدم تأثر التطبيق
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        // 3. منع الاحتفاظ بالـ Intent في السجل (اختياري لزيادة الأمان)
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-
-        startActivity(intent)
-        
-    } catch (e: Exception) {
-        // في حال فشل التحليل، غالباً ما يكون الملف ناقصاً أو غير مكتمل
-        Toast.makeText(this, "حدث خطأ في تحليل الحزمة، جرب إعادة التحميل", Toast.LENGTH_LONG).show()
-        
-        // إذا أردت حذف الملف التالف ليتيح للمستخدم التحميل مجدداً
-        if (file.exists()) {
-            file.delete()
+        if (!file.exists()) {
+            Toast.makeText(this, "المعذرة، الملف غير موجود!", Toast.LENGTH_SHORT).show()
+            return
         }
-        
-        // إعادة إنعاش الواجهة لتحديث حالة الأزرار
-        recreate()
-    }
-}
 
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "فشل تحليل الحزمة، قد يكون الملف غير مكتمل", Toast.LENGTH_LONG).show()
+            if (file.exists()) file.delete()
+            recreate()
+        }
+    }
 
     override fun onDestroy() {
         super.onDestroy()
