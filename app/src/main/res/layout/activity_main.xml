@@ -42,13 +42,13 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="مرحباً بك في"
+                            android:text="مرحبًا بكم، هنا ستجد جميع التطبيقات المعدلة"
                             android:textColor="#94A3B8"
                             android:textSize="14sp" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="FIX ENGINE"
+                            android:text="متجر Abdullah"
                             android:textColor="#22D3EE"
                             android:textSize="26sp"
                             android:fontFamily="sans-serif-black" />
@@ -94,7 +94,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:background="@android:color/transparent"
-                            android:hint="ابحث عن تطبيقات عبدالله..."
+                            android:hint="ابحث عن التطبيقات هنا .."
                             android:textColorHint="#64748B"
                             android:textColor="#F8FAFC"
                             android:textSize="15sp"
