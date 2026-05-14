@@ -10,35 +10,36 @@ import java.util.Locale
  * Feature: Smart Size Formatting & Unique File Identity
  */
 data class AppModel(
-    @SerializedName("packageName") 
-    val packageName: String,
-    
+    @SerializedName("id") 
+    val id: String,
+
     @SerializedName("name") 
     val name: String,
+    
+    @SerializedName("packageName") 
+    val packageName: String,
     
     @SerializedName("versionName") 
     val versionName: String,
     
     @SerializedName("versionCode") 
-    val versionCode: Long, // تم التحويل لـ Long لدعم التوافقية العالية
+    val versionCode: String, // تم التحويل لـ Long لدعم التوافقية العالية
+    
+    @SerializedName("developer") 
+    val developer: String,
     
     @SerializedName("icon") 
     val iconUrl: String,
     
     @SerializedName("downloadUrl") 
-    val downloadUrl: String,
-    
-    @SerializedName("developer") 
-    val developer: String = "مطور معتمد",
+    val downloadUrl: String = "مطور معتمد",
+
+    @SerializedName("size") 
+    val size: Long = 0, // الحجم بالبايت (Bytes)
     
     @SerializedName("description") 
     val description: String? = "لا يوجد وصف متاح لهذا التطبيق حالياً.",
     
-    @SerializedName("size") 
-    val size: Long = 0, // الحجم بالبايت (Bytes)
-    
-    @SerializedName("category")
-    val category: String = "عام"
 
 ) : Serializable {
     
@@ -47,7 +48,7 @@ data class AppModel(
      * يضمن عدم تداخل الملفات المحملة.
      */
     fun getUniqueFileName(): String {
-        return "${packageName}_v${versionCode}.apk"
+        return "${packageName}_v${versionName}.apk"
     }
 
     /**
