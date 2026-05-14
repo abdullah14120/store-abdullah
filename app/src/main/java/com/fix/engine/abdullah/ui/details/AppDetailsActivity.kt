@@ -167,20 +167,49 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     private fun installApk(file: File) {
-        try {
-            val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(this, "فشل فتح الملف، قد يكون تالفاً", Toast.LENGTH_SHORT).show()
-            if (file.exists()) file.delete()
-            recreate()
-        }
+    if (!file.exists()) {
+        Toast.makeText(this, "الملف غير موجود!", Toast.LENGTH_SHORT).show()
+        return
     }
+
+    try {
+        // إنشاء الـ Intent أولاً
+        val intent = Intent(Intent.ACTION_VIEW)
+        
+        // تحويل الملف إلى URI آمن باستخدام FileProvider
+        val uri = FileProvider.getUriForFile(
+            this, 
+            "$packageName.provider", 
+            file
+        )
+
+        // تحديد نوع البيانات (APK) وربط الـ URI
+        intent.setDataAndType(uri, "application/vnd.android.package-archive")
+        
+        // الأعلام (Flags) هما سر النجاح هنا:
+        // 1. منح إذن القراءة للـ URI (إلزامي لأندرويد 7 فما فوق)
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // 2. تشغيل التثبيت في مهمة جديدة لضمان عدم تأثر التطبيق
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // 3. منع الاحتفاظ بالـ Intent في السجل (اختياري لزيادة الأمان)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+
+        startActivity(intent)
+        
+    } catch (e: Exception) {
+        // في حال فشل التحليل، غالباً ما يكون الملف ناقصاً أو غير مكتمل
+        Toast.makeText(this, "حدث خطأ في تحليل الحزمة، جرب إعادة التحميل", Toast.LENGTH_LONG).show()
+        
+        // إذا أردت حذف الملف التالف ليتيح للمستخدم التحميل مجدداً
+        if (file.exists()) {
+            file.delete()
+        }
+        
+        // إعادة إنعاش الواجهة لتحديث حالة الأزرار
+        recreate()
+    }
+}
+
 
     override fun onDestroy() {
         super.onDestroy()
