@@ -32,6 +32,7 @@ class AppDetailsActivity : AppCompatActivity() {
     private lateinit var downloadManager: AndroidDownloadManager
     private lateinit var tracker: DownloadTracker
     private var isDownloading = false
+    private var currentApp: AppModel? = null // تم إضافة هذا المتغير لحل خطأ النطاق
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,10 +47,9 @@ class AppDetailsActivity : AppCompatActivity() {
         val appData = intent.getSerializableExtra("APP_DATA") as? AppModel
 
         if (appData != null) {
+            currentApp = appData // تخزين البيانات للاستخدام العام داخل الكلاس
             displayDetails(appData)
-            // تحديد حالة الزر بناءً على ذكاء المتجر
             setupLogic(appData)
-            // فحص حالة التحميل الجاري فور الدخول لمنع تداخل الواجهات
             checkCurrentStatus(appData)
         } else {
             Toast.makeText(this, "بيانات التطبيق غير صالحة", Toast.LENGTH_SHORT).show()
@@ -70,7 +70,6 @@ class AppDetailsActivity : AppCompatActivity() {
         val downloadFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val finalFile = File(downloadFolder, fileName)
 
-        // 1. الحالة الأولى: إذا كان ملف الـ APK محمل مسبقاً في التنزيلات
         if (finalFile.exists()) {
             binding.btnInstallLarge.text = "تثبيت الآن"
             binding.btnInstallLarge.visibility = View.VISIBLE
@@ -80,18 +79,15 @@ class AppDetailsActivity : AppCompatActivity() {
         }
 
         try {
-            // 2. الحالة الثانية: فحص هل التطبيق مثبت للمقارنة بين الإصدارات
             val pInfo = pm.getPackageInfo(app.packageName, 0)
             val installedVer = pInfo.versionName ?: ""
 
             if (app.versionName.trim() != installedVer.trim()) {
-                // توفر تحديث جديد
                 binding.btnInstallLarge.text = "تحديث الآن"
                 binding.btnInstallLarge.visibility = View.VISIBLE
                 binding.btnOpenApp.visibility = View.GONE
                 binding.btnInstallLarge.setOnClickListener { startNewDownload(app) }
             } else {
-                // التطبيق مثبت ومحدث بالكامل
                 binding.btnInstallLarge.visibility = View.GONE
                 binding.btnOpenApp.visibility = View.VISIBLE
                 binding.btnOpenApp.setOnClickListener { 
@@ -100,7 +96,6 @@ class AppDetailsActivity : AppCompatActivity() {
                 }
             }
         } catch (e: PackageManager.NameNotFoundException) {
-            // 3. الحالة الثالثة: التطبيق غير موجود نهائياً على الجهاز
             binding.btnInstallLarge.text = "تنزيل الآن"
             binding.btnInstallLarge.visibility = View.VISIBLE
             binding.btnOpenApp.visibility = View.GONE
@@ -182,9 +177,12 @@ class AppDetailsActivity : AppCompatActivity() {
                         layoutDownloadProgress.visibility = View.GONE
                         btnInstallLarge.visibility = View.VISIBLE
                         btnInstallLarge.text = "تثبيت الآن"
-                        // إعادة ربط الزر بملف التثبيت بعد اكتمال التحميل
-                        val fileName = app.getUniqueFileName() // نحتاج للوصول لبيانات التطبيق هنا
-                        // ملاحظة: يفضل تحديث الواجهة بالكامل عند اكتمال التحميل
+                        
+                        // استخدام currentApp بأمان لتحديث سطر الاستماع
+                        currentApp?.let { app ->
+                            val finalFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), app.getUniqueFileName())
+                            btnInstallLarge.setOnClickListener { installApk(finalFile) }
+                        }
                     }
                 }
             }
