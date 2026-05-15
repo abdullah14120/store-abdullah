@@ -16,6 +16,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.MainPagerAdapter
@@ -39,6 +40,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupTabs()
+        setupNavigationDrawer()
         setupObservers()
         setupSearchLogic()
         setupSearchAnimation()
@@ -49,6 +51,45 @@ class MainActivity : AppCompatActivity() {
         }, 1000)
         
         refreshData()
+    }
+
+    private fun setupNavigationDrawer() {
+        // ربط الزر العلوي btnMenu بفتح القائمة الجانبية
+        binding.btnMenu.setOnClickListener {
+            binding.drawerLayout.openDrawer(GravityCompat.START)
+        }
+
+        // معالجة الضغطات على عناصر القائمة
+        binding.navView.setNavigationItemSelectedListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.nav_settings -> {
+                    Toast.makeText(this, "الإعدادات قريباً", Toast.LENGTH_SHORT).show()
+                }
+                R.id.nav_dev_about -> {
+                    showAboutDeveloperDialog()
+                }
+                R.id.nav_add_app -> {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/abdullah_dev"))
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "تطبيق تليجرام غير مثبت", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+            true
+        }
+    }
+
+    private fun showAboutDeveloperDialog() {
+        if (isFinishing || isDestroyed) return
+
+        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setTitle("حول المطور")
+            .setMessage("تم تطوير FIX ENGINE بواسطة م/ عبدالله التميمي.\nنهدف إلى تقديم تجربة فريدة، آمنة واحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
+            .setPositiveButton("حسناً", null)
+            .show()
     }
 
     private fun checkInstallPermission() {
