@@ -11,8 +11,8 @@ import android.os.Looper
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.LayoutInflater // تأكد من إضافة هذا الاستيراد
-import android.widget.TextView // تأكد من إضافة هذا الاستيراد
+import android.view.LayoutInflater 
+import android.widget.TextView 
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -20,7 +20,7 @@ import androidx.core.view.isVisible
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.MainPagerAdapter
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
-import com.google.android.material.button.MaterialButton // تأكد من إضافة هذا الاستيراد
+import com.google.android.material.button.MaterialButton 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
 
@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity() {
         refreshData()
     }
 
-        private fun checkInstallPermission() {
+    private fun checkInstallPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
             val isDialogShown = prefs.getBoolean("install_dialog_shown", false)
@@ -72,9 +72,7 @@ class MainActivity : AppCompatActivity() {
             .create()
 
         dialogView.findViewById<MaterialButton>(R.id.btn_positive)?.setOnClickListener {
-            // حفظ أن المستخدم شاهد الرسالة
             markDialogAsShown()
-            
             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                 data = Uri.parse("package:$packageName")
             }
@@ -83,7 +81,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         dialogView.findViewById<MaterialButton>(R.id.btn_negative)?.setOnClickListener {
-            // حفظ حتى لو ألغى، لكي لا تظهر له فوراً مرة أخرى (اختياري)
             markDialogAsShown()
             dialog.dismiss()
         }
@@ -91,12 +88,46 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // دالة مساعدة لحفظ الحالة
     private fun markDialogAsShown() {
         getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
             .edit()
             .putBoolean("install_dialog_shown", true)
             .apply()
+    }
+
+    private fun checkMandatoryUpdate(apps: List<com.fix.engine.abdullah.data.model.AppModel>) {
+        val storeApp = apps.find { it.packageName == packageName } ?: return
+
+        try {
+            val pInfo = packageManager.getPackageInfo(packageName, 0)
+            val installedVersion = pInfo.versionName ?: ""
+
+            if (storeApp.versionName.trim() != installedVersion.trim()) {
+                showMandatoryUpdateDialog(storeApp)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun showMandatoryUpdateDialog(storeApp: com.fix.engine.abdullah.data.model.AppModel) {
+        if (isFinishing || isDestroyed) return
+
+        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setTitle("تحديث إجباري!")
+            .setMessage("يوجد إصدار جديد من متجر Abdullah يحل بعض المشاكل التقنية. يرجى التحديث للمتابعة.")
+            .setCancelable(false)
+            .setPositiveButton("تحديث الآن") { _, _ ->
+                val intent = Intent(this, com.fix.engine.abdullah.ui.details.AppDetailsActivity::class.java).apply {
+                    putExtra("APP_DATA", storeApp)
+                }
+                startActivity(intent)
+                finish()
+            }
+            .setNegativeButton("خروج") { _, _ ->
+                finishAffinity()
+            }
+            .show()
     }
 
     override fun onResume() {
@@ -140,6 +171,7 @@ class MainActivity : AppCompatActivity() {
         viewModel.isLoading.observe(this) { binding.progressBar.isVisible = it }
         viewModel.appsList.observe(this) { apps ->
             if (!apps.isNullOrEmpty()) {
+                checkMandatoryUpdate(apps)
                 calculateUpdates(apps)
             }
         }
