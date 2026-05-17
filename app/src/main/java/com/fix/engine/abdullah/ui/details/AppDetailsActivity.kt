@@ -5,6 +5,7 @@ import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.view.View
@@ -24,7 +25,7 @@ import java.io.File
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Feature: Smart Logic (Download, Update, Install, Open)
+ * Feature: Smart Logic (Download, Update, Install, Open) with Runtime Permissions Support
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -86,7 +87,7 @@ class AppDetailsActivity : AppCompatActivity() {
                 binding.btnInstallLarge.text = "تحديث الآن"
                 binding.btnInstallLarge.visibility = View.VISIBLE
                 binding.btnOpenApp.visibility = View.GONE
-                binding.btnInstallLarge.setOnClickListener { startNewDownload(app) }
+                binding.btnInstallLarge.setOnClickListener { checkStoragePermissionAndDownload(app) }
             } else {
                 binding.btnInstallLarge.visibility = View.GONE
                 binding.btnOpenApp.visibility = View.VISIBLE
@@ -99,7 +100,30 @@ class AppDetailsActivity : AppCompatActivity() {
             binding.btnInstallLarge.text = "تنزيل الآن"
             binding.btnInstallLarge.visibility = View.VISIBLE
             binding.btnOpenApp.visibility = View.GONE
-            binding.btnInstallLarge.setOnClickListener { startNewDownload(app) }
+            binding.btnInstallLarge.setOnClickListener { checkStoragePermissionAndDownload(app) }
+        }
+    }
+
+    private fun checkStoragePermissionAndDownload(app: AppModel) {
+        // أندرويد 10 (API 29) فما فوق لا يحتاج إلى إذن كتابة خارجي للمجلدات العامة عند تهيئة المانجر بشكل صحيح
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startNewDownload(app)
+        } else {
+            // الأنظمة القديمة (أندرويد 9 وأقل) تحتاج لطلب الإذن بشكل صريح في الوقت الفعلي
+            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                startNewDownload(app)
+            } else {
+                requestPermissions(arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE), 101)
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 101 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            currentApp?.let { startNewDownload(it) }
+        } else {
+            Toast.makeText(this, "عذراً، يجب السماح بصلاحية التخزين لبدء تحميل التطبيق", Toast.LENGTH_LONG).show()
         }
     }
 
