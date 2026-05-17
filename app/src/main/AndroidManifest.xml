@@ -2,27 +2,27 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- الوصول للإنترنت وحالة الشبكة -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
-    <!-- صلاحيات التخزين للأنظمة القديمة والحديثة -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     
-    <!-- الصلاحية الأهم: السماح للمتجر بتثبيت حزم APK -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
-    <!-- صلاحية الإشعارات لأندرويد 13 فما فوق -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- للسماح بالتحميل المستقر في الخلفية -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- صلاحية إضافية لإدارة التحميلات بشكل أفضل في الخلفية (أندرويد 14+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="true"
@@ -36,7 +36,6 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="35">
 
-        <!-- الواجهة الرئيسية للمتجر -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -47,7 +46,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- دعم الروابط العميقة: fixengine://details?pkg=com.example.app -->
             <intent-filter android:label="فتح في متجر Abdullah">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -59,14 +57,12 @@
             </intent-filter>
         </activity>
 
-        <!-- واجهة تفاصيل التطبيق: إضافة الحركة الاحترافية -->
         <activity
             android:name=".ui.details.AppDetailsActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.FixEngine" />
 
-        <!-- مستقبل إشعارات اكتمال التحميل -->
         <receiver
             android:name=".service.DownloadReceiver"
             android:exported="true">
@@ -75,7 +71,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- موفر الملفات: ضروري لمشاركة الـ APK مع مثبت النظام -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -86,7 +81,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- تعريف خدمة WorkManager لضمان عمل التحديثات في الخلفية -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
