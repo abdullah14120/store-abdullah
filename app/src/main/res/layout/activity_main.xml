@@ -58,19 +58,18 @@
                         </LinearLayout>
 
                         <com.google.android.material.imageview.ShapeableImageView
-    android:id="@+id/btnMenu"
-    android:layout_width="45dp"
-    android:layout_height="45dp"
-    android:layout_alignParentEnd="true"
-    android:src="@drawable/ic_menu"
-    android:background="#1E293B"
-    android:padding="10dp"
-    android:clickable="true"
-    android:focusable="true"
-    android:foreground="?attr/selectableItemBackgroundBorderless"
-    app:shapeAppearanceOverlay="@style/CircleImage"
-    tools:ignore="ContentDescription" />
-
+                            android:id="@+id/btnMenu"
+                            android:layout_width="45dp"
+                            android:layout_height="45dp"
+                            android:layout_alignParentEnd="true"
+                            android:src="@drawable/ic_menu"
+                            android:background="#1E293B"
+                            android:padding="10dp"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:foreground="?attr/selectableItemBackgroundBorderless"
+                            app:shapeAppearanceOverlay="@style/CircleImage"
+                            tools:ignore="ContentDescription" />
                     </RelativeLayout>
 
                     <com.google.android.material.card.MaterialCardView
@@ -152,6 +151,7 @@
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:background="#1E293B"
+        android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
         app:itemTextColor="#F8FAFC"
         app:itemIconTint="#22D3EE"
         app:menu="@menu/drawer_menu" />
