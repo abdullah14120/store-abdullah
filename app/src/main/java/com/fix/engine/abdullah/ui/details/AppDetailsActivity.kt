@@ -1,5 +1,7 @@
 package com.fix.engine.abdullah.ui.details
 
+import android.view.View
+import com.google.android.material.coordinatorlayout.widget.CoordinatorLayout
 import android.annotation.SuppressLint
 import android.app.DownloadManager
 import android.content.Context
