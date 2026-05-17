@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout 
+<com.google.android.material.coordinatorlayout.widget.CoordinatorLayout 
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -35,7 +35,6 @@
             android:paddingHorizontal="24dp"
             android:paddingTop="12dp">
 
-            <!-- القسم العلوي: الأيقونة والهوية -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -44,27 +43,23 @@
 
                 <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/imgDetailsIcon"
-                    android:layout_width="110dp"
-                    android:layout_height="110dp"
-                    android:transitionName="transition_app_icon"
-                    app:shapeAppearanceOverlay="@style/CircleImage"
-                    android:background="#1E293B"
-                    android:elevation="8dp"
-                    android:scaleType="centerCrop"
-                    tools:src="@tools:sample/avatars" />
+                    android:layout_width="85dp" android:layout_height="85dp"
+                    android:scaleType="centerCrop" android:transitionName="transition_app_icon"
+                    app:shapeAppearanceOverlay="@style/RoundedIcon" android:background="#1E293B"
+                    android:elevation="4dp"
+                    tools:src="@tools/sample/avatars" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:layout_marginStart="20dp">
+                    android:layout_marginStart="18dp">
 
                     <TextView
                         android:id="@+id/txtDetailsName"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:textSize="24sp"
-                        android:textStyle="bold"
+                        android:textSize="20sp" android:textStyle="bold"
                         android:textColor="#F8FAFC"
                         android:fontFamily="sans-serif-black"
                         tools:text="FIX ENGINE" />
@@ -73,19 +68,16 @@
                         android:id="@+id/txtDetailsDev"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:textSize="14sp"
-                        android:textColor="#22D3EE"
-                        android:layout_marginTop="4dp"
+                        android:textSize="12sp" android:textColor="#22D3EE"
+                        android:layout_marginTop="2dp"
                         tools:text="بواسطة عبدالله التميمي" />
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- منطقة التفاعل: أزرار النظام وشريط التحميل المدمج -->
-                        <!-- منطقة التفاعل: أزرار النظام وشريط التحميل المدمج -->
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="32dp">
+                android:layout_marginTop="24dp">
 
                 <LinearLayout
                     android:id="@+id/layoutActionButtons"
@@ -96,32 +88,28 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnInstallLarge"
                         android:layout_width="match_parent"
-                        android:layout_height="60dp"
-                        android:text="تنزيل الآن" 
-                        android:textSize="16sp"
-                        android:textStyle="bold"
+                        android:layout_height="48dp" android:text="تنزيل الآن" 
+                        android:textSize="14sp" android:textStyle="bold"
                         android:textColor="#0F172A"
                         app:iconGravity="textStart"
                         app:iconPadding="8dp"
                         app:backgroundTint="#22D3EE"
-                        app:cornerRadius="16dp" />
+                        app:cornerRadius="14dp" />
 
-                    <!-- زر الفتح يظهر فقط إذا كان التطبيق مثبتاً وأحدث نسخة -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnOpenApp"
                         android:layout_width="match_parent"
-                        android:layout_height="60dp"
-                        android:layout_marginTop="8dp"
+                        android:layout_height="48dp" android:layout_marginTop="8dp"
                         android:text="فتح التطبيق"
+                        android:textSize="14sp"
                         android:visibility="gone"
                         android:textColor="#F8FAFC"
                         app:strokeColor="#334155"
                         app:strokeWidth="1dp"
                         app:backgroundTint="@android:color/transparent"
-                        app:cornerRadius="16dp" />
+                        app:cornerRadius="14dp" />
                 </LinearLayout>
 
-                <!-- شريط التحميل (يظهر أثناء عملية التنزيل فقط) -->
                 <LinearLayout
                     android:id="@+id/layoutDownloadProgress"
                     android:layout_width="match_parent"
@@ -129,14 +117,13 @@
                     android:orientation="vertical"
                     android:visibility="gone"
                     android:background="@drawable/bg_download_panel"
-                    android:padding="16dp">
+                    android:padding="14dp">
                 
                     <com.google.android.material.progressindicator.LinearProgressIndicator
                         android:id="@+id/downloadProgress"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        app:trackThickness="10dp"
-                        app:trackCornerRadius="8dp"
+                        app:trackThickness="8dp" app:trackCornerRadius="6dp"
                         app:indicatorColor="#22D3EE"
                         app:trackColor="#334155"
                         android:progress="0" />
@@ -144,7 +131,7 @@
                     <RelativeLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp">
+                        android:layout_marginTop="10dp">
 
                         <LinearLayout
                             android:layout_width="wrap_content"
@@ -155,16 +142,15 @@
                                 android:id="@+id/txtDownloadSpeed"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:textSize="13sp"
+                                android:textSize="12sp"
                                 android:textColor="#94A3B8"
                                 tools:text="جاري البدء..." />
 
-                            <!-- حل خطأ Unresolved reference: txtDownloadETA -->
                             <TextView
                                 android:id="@+id/txtDownloadETA"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:textSize="11sp"
+                                android:textSize="10sp"
                                 android:textColor="#64748B"
                                 android:layout_marginTop="2dp"
                                 tools:text="متبقي: دقيقتان" />
@@ -176,7 +162,7 @@
                             android:layout_height="wrap_content"
                             android:layout_alignParentEnd="true"
                             android:layout_centerVertical="true"
-                            android:textSize="16sp"
+                            android:textSize="14sp"
                             android:textStyle="bold"
                             android:textColor="#22D3EE"
                             tools:text="0%" />
@@ -184,18 +170,17 @@
                 </LinearLayout>
             </FrameLayout>
 
-            <!-- كبسولات المعلومات -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="32dp"
+                android:layout_marginTop="24dp"
                 android:background="@drawable/bg_info_capsule"
-                android:paddingVertical="16dp"
+                android:paddingVertical="12dp"
                 android:gravity="center">
 
                 <include layout="@layout/layout_info_badge" android:id="@+id/badgeVersion" />
-                <View android:layout_width="1dp" android:layout_height="30dp" android:background="#334155" android:layout_marginHorizontal="20dp"/>
+                <View android:layout_width="1dp" android:layout_height="24dp" android:background="#334155" android:layout_marginHorizontal="16dp"/>
                 <include layout="@layout/layout_info_badge" android:id="@+id/badgeSize" />
             </LinearLayout>
 
@@ -203,25 +188,23 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="عن التطبيق"
-                android:textSize="20sp"
-                android:textStyle="bold"
+                android:textSize="16sp" android:textStyle="bold"
                 android:textColor="#F8FAFC"
-                android:layout_marginTop="32dp" />
+                android:layout_marginTop="24dp" />
 
             <TextView
                 android:id="@+id/txtDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:textSize="15sp"
-                android:textColor="#94A3B8"
-                android:lineSpacingExtra="8dp"
+                android:layout_marginTop="10dp"
+                android:textSize="13sp" android:textColor="#94A3B8"
+                android:lineSpacingExtra="6dp"
                 tools:text="وصف التطبيق يظهر هنا..." />
 
             <View
                 android:layout_width="match_parent"
-                android:layout_height="80dp" />
+                android:layout_height="60dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</com.google.android.material.coordinatorlayout.widget.CoordinatorLayout>
