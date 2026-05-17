@@ -1,5 +1,9 @@
 package com.fix.engine.abdullah
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -16,6 +20,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
@@ -28,6 +33,7 @@ import com.google.android.material.tabs.TabLayoutMediator
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Global Professional Hub
+ * Feature: Automatic Runtime Notification Support & Smart Update Push
  */
 class MainActivity : AppCompatActivity() {
 
@@ -44,6 +50,9 @@ class MainActivity : AppCompatActivity() {
         setupObservers()
         setupSearchLogic()
         setupSearchAnimation()
+        
+        // طلب صلاحيات الإشعارات فوراً لأندرويد 13 فما فوق لتأمين استقبال التحديثات
+        checkNotificationPermission()
         
         // تأخير الاستدعاء قليلاً لضمان استقرار النشاط (Activity)
         Handler(Looper.getMainLooper()).postDelayed({
@@ -70,7 +79,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.nav_add_app -> {
                     try {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/abdullah_dev"))
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/abdullahtamemi"))
                         startActivity(intent)
                     } catch (e: Exception) {
                         Toast.makeText(this, "تطبيق تليجرام غير مثبت", Toast.LENGTH_SHORT).show()
@@ -87,9 +96,17 @@ class MainActivity : AppCompatActivity() {
 
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
             .setTitle("حول المطور")
-            .setMessage("تم تطوير FIX ENGINE بواسطة م/ عبدالله التميمي.\nنهدف إلى تقديم تجربة فريدة، آمنة واحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
+            .setMessage("تم تطوير المتجر بواسطة م/ عبدالله التميمي.\nنهدف إلى تقديم تجربة فريدة، آمنة واحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
             .setPositiveButton("حسناً", null)
             .show()
+    }
+
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 102)
+            }
+        }
     }
 
     private fun checkInstallPermission() {
@@ -171,8 +188,45 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    override fun onResume() {
-        super.onResume()
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelId = "store_updates_channel"
+            val channelName = "تحديثات المتجر"
+            val descriptionText = "تنبيهات تلقائية عند توفر تحديثات جديدة للتطبيقات المثبتة"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            
+            val channel = NotificationChannel(channelId, channelName, importance).apply {
+                description = descriptionText
+            }
+            
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun sendUpdateNotification(updatesCount: Int) {
+        createNotificationChannel()
+
+        val channelId = "store_updates_channel"
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+        )
+
+        val builder = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(android.R.drawable.stat_notify_sync) 
+            .setContentTitle("تحديثات متوفرة لـ تطبيقاتك! 🚀")
+            .setContentText("يوجد عدد ($updatesCount) من تطبيقاتك تمتلك إصدارات محدثة، قم بتثبيتها الآن.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(1001, builder.build())
     }
 
     private fun setupTabs() {
@@ -240,6 +294,9 @@ class MainActivity : AppCompatActivity() {
             badge?.isVisible = true
             badge?.number = updateCount
             badge?.backgroundColor = Color.RED
+            
+            // حقن استدعاء الإشعار المنبثق بنجاح عند وجود تحديثات
+            sendUpdateNotification(updateCount)
         } else {
             badge?.isVisible = false
         }
