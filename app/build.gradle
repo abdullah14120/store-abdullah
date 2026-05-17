@@ -100,6 +100,10 @@ dependencies {
 
     // 10. MultiDex لضمان عدم توقف التطبيق عند زيادة الدوال
     implementation 'androidx.multidex:multidex:2.0.1'
+    // ... المكتبات الحالية لديك
+    
+    // إضافة مكتبة الـ CoordinatorLayout لحل خطأ الكومبايلر
+    implementation "androidx.coordinatorlayout:coordinatorlayout:1.2.0"
 
     // الاختبارات
     testImplementation 'junit:junit:4.13.2'
