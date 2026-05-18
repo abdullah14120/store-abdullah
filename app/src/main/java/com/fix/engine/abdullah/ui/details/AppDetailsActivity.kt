@@ -2,11 +2,10 @@ package com.fix.engine.abdullah.ui.details
 
 import android.annotation.SuppressLint
 import android.app.DownloadManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -14,12 +13,12 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.fix.engine.abdullah.R
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.databinding.ActivityAppDetailsBinding
-import com.fix.engine.abdullah.installer.SessionInstaller
 import com.fix.engine.abdullah.service.AndroidDownloadManager
 import com.fix.engine.abdullah.service.DownloadTracker
 import com.google.firebase.database.DataSnapshot
@@ -32,29 +31,17 @@ import kotlin.concurrent.thread
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Feature: Optimized Session Installer UI Flow & Firebase Statistics
+ * Feature: Legacy FileProvider Installer with Advanced Interactive Progress UI Flow
  */
 class AppDetailsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAppDetailsBinding
     private lateinit var downloadManager: AndroidDownloadManager
     private lateinit var tracker: DownloadTracker
-    private lateinit var sessionInstaller: SessionInstaller
     private var isDownloading = false
     private var currentApp: AppModel? = null
     
     private val databaseRef = FirebaseDatabase.getInstance().getReference("download_stats")
-
-    // مستقبل داخلي مخصص لإغلاق شريط التقدم وإعادة تفعيل الأزرار فور انتهاء التثبيت النهائي
-    private val installUiReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            runOnUiThread {
-                binding.layoutDownloadProgress.visibility = View.GONE
-                binding.btnInstallLarge.visibility = View.VISIBLE
-                binding.btnInstallLarge.text = "تثبيت الآن"
-            }
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,7 +51,6 @@ class AppDetailsActivity : AppCompatActivity() {
 
         downloadManager = AndroidDownloadManager(this)
         tracker = DownloadTracker(this)
-        sessionInstaller = SessionInstaller(this)
 
         setupToolbar()
 
@@ -79,14 +65,6 @@ class AppDetailsActivity : AppCompatActivity() {
         } else {
             Toast.makeText(this, "بيانات التطبيق غير صالحة", Toast.LENGTH_SHORT).show()
             finish()
-        }
-
-        // تسجيل مستقبل تحديث الواجهة عند الإقلاع
-        val filter = IntentFilter("com.fix.engine.abdullah.UPDATE_INSTALL_UI")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(installUiReceiver, filter, RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(installUiReceiver, filter)
         }
     }
 
@@ -107,7 +85,7 @@ class AppDetailsActivity : AppCompatActivity() {
             binding.btnInstallLarge.text = "تثبيت الآن"
             binding.btnInstallLarge.visibility = View.VISIBLE
             binding.btnOpenApp.visibility = View.GONE
-            binding.btnInstallLarge.setOnClickListener { installApkWithSession(finalFile, app.packageName) }
+            binding.btnInstallLarge.setOnClickListener { installApkLegacy(finalFile) }
             return
         }
 
@@ -265,7 +243,7 @@ class AppDetailsActivity : AppCompatActivity() {
                         
                         currentApp?.let { app ->
                             val finalFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), app.getUniqueFileName())
-                            btnInstallLarge.setOnClickListener { installApkWithSession(finalFile, app.packageName) }
+                            btnInstallLarge.setOnClickListener { installApkLegacy(finalFile) }
                         }
                     }
                 }
@@ -273,40 +251,65 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    private fun installApkWithSession(file: File, packageName: String) {
+    /**
+     * تشغيل مثبت النظام التقليدي الآمن مع محاكاة نصوص التحميل التفاعلية للحفاظ على جمالية التصميم
+     */
+    private fun installApkLegacy(file: File) {
         if (!file.exists()) {
             Toast.makeText(this, "المعذرة، ملف الـ APK غير موجود!", Toast.LENGTH_SHORT).show()
             return
         }
 
+        // تحويل أزرار الواجهة وعرض نصوص المحاكاة التفاعلية لشريط التقدم
         runOnUiThread {
             binding.btnInstallLarge.visibility = View.GONE
             binding.layoutDownloadProgress.visibility = View.VISIBLE
-            binding.downloadProgress.progress = 0
-            binding.txtDownloadPercent.text = "0%"
-            binding.txtDownloadSpeed.text = "جاري تحضير ملفات التثبيت الذكي..."
+            binding.downloadProgress.progress = 20
+            binding.txtDownloadPercent.text = "20%"
+            binding.txtDownloadSpeed.text = "جاري تحضير ملفات التثبيت..."
             binding.txtDownloadETA.text = "يرجى الانتظار"
         }
 
         thread {
-            val success = sessionInstaller.installApk(file, packageName) { progress ->
+            try {
+                // محاكاة سريعة في الخلفية لإعطاء المستخدم إحساساً باستجابة المتجر والتحضير
+                Thread.sleep(600)
                 runOnUiThread {
-                    binding.downloadProgress.progress = progress
-                    binding.txtDownloadPercent.text = "$progress%"
-                    // عند اكتمال الـ Stream بنسبة 100%، نثبت النص ليعرف المستخدم أن الهاتف يقوم بالتثبيت الفعلي الآن
-                    if (progress >= 100) {
-                        binding.txtDownloadSpeed.text = "جاري التثبيت النهائي في النظام... 🚀"
-                    } else {
-                        binding.txtDownloadSpeed.text = "جاري حَقن حزم التطبيق داخل النظام..."
-                    }
+                    binding.downloadProgress.progress = 75
+                    binding.txtDownloadPercent.text = "75%"
+                    binding.txtDownloadSpeed.text = "جاري التثبيت النهائي في النظام... 🚀"
                 }
-            }
+                Thread.sleep(500)
+                runOnUiThread {
+                    binding.downloadProgress.progress = 100
+                    binding.txtDownloadPercent.text = "100%"
+                }
+                Thread.sleep(200)
 
-            if (!success) {
+                // تحضير الـ Uri الآمن وإطلاق المثبت الرسمي للأندرويد
+                val providerAuthority = "$packageName.provider"
+                val uri: Uri = FileProvider.getUriForFile(this@AppDetailsActivity, providerAuthority, file)
+                
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
+                startActivity(intent)
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                runOnUiThread {
+                    Toast.makeText(this@AppDetailsActivity, "فشل تحليل الحزمة، قد يكون الملف غير مكتمل", Toast.LENGTH_LONG).show()
+                    if (file.exists()) file.delete()
+                }
+            } finally {
+                // إرجاع الواجهة لوضعها الطبيعي لكي يتمكن المستخدم من الضغط مجدداً إذا ألغى التثبيت يدوياً
                 runOnUiThread {
                     binding.layoutDownloadProgress.visibility = View.GONE
                     binding.btnInstallLarge.visibility = View.VISIBLE
-                    Toast.makeText(this@AppDetailsActivity, "فشل بدء جلسة التثبيت الذكي يرجى المحاولة لاحقاً", Toast.LENGTH_LONG).show()
+                    binding.btnInstallLarge.text = "تثبيت الآن"
                 }
             }
         }
@@ -315,8 +318,5 @@ class AppDetailsActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         if (::tracker.isInitialized) tracker.stopTracking()
-        try {
-            unregisterReceiver(installUiReceiver)
-        } catch (e: Exception) {}
     }
 }
