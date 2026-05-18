@@ -118,7 +118,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showInstallPermissionDialog() {
+        private fun showInstallPermissionDialog() {
         if (isFinishing || isDestroyed) return 
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
@@ -128,7 +128,9 @@ class MainActivity : AppCompatActivity() {
             .create()
 
         dialogView.findViewById<MaterialButton>(R.id.btn_positive)?.setOnClickListener {
-            markDialogAsShown()
+            // 🛠️ تم التعديل هنا: حفظ الحالة مباشرة داخل الـ SharedPreferences لمنع خطأ Unresolved reference
+            getSharedPreferences("FixEnginePrefs", MODE_PRIVATE).edit().putBoolean("install_dialog_shown", true).apply()
+            
             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                 data = Uri.parse("package:$packageName")
             }
@@ -137,13 +139,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         dialogView.findViewById<MaterialButton>(R.id.btn_negative)?.setOnClickListener {
-            markDialogAsShown()
+            // 🛠️ تم التعديل هنا أيضاً لنفس السبب
+            getSharedPreferences("FixEnginePrefs", MODE_PRIVATE).edit().putBoolean("install_dialog_shown", true).apply()
             dialog.dismiss()
         }
 
         dialog.show()
     }
-
+        
     private fun checkMandatoryUpdate(apps: List<com.fix.engine.abdullah.data.model.AppModel>) {
         val storeApp = apps.find { it.packageName == packageName } ?: return
 
