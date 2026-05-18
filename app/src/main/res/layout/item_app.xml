@@ -7,10 +7,10 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="16dp"
     android:layout_marginVertical="6dp"
-    app:cardCornerRadius="20dp"
+    app:cardCornerRadius="@dimen/shape_large_corner"
     app:cardElevation="0dp"
-    app:cardBackgroundColor="#1E293B"
-    app:strokeColor="#334155"
+    app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+    app:strokeColor="?attr/colorOutlineVariant"
     app:strokeWidth="1dp"
     android:foreground="?attr/selectableItemBackground">
 
@@ -29,8 +29,8 @@
             android:adjustViewBounds="true"
             android:clipToOutline="true" 
             android:transitionName="transition_app_icon"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Medium"
-            android:background="#0F172A" />
+            app:shapeAppearanceOverlay="@style/Shape.Medium"
+            android:background="?attr/colorSurfaceVariant" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -43,55 +43,52 @@
                 android:id="@+id/txtAppName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="اسم التطبيق"
-                android:textColor="#F8FAFC"
+                android:textColor="?attr/colorOnSurface"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:fontFamily="sans-serif-black"
                 android:maxLines="1"
-                android:ellipsize="end"/>
+                android:ellipsize="end" />
 
             <TextView
                 android:id="@+id/txtDeveloper"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="بواسطة عبدالله التميمي"
-                android:textColor="#94A3B8"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
-                android:ellipsize="end"/>
+                android:ellipsize="end" />
 
             <TextView
                 android:id="@+id/txtVersion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="V 1.0.0"
-                android:textColor="#22D3EE"
+                android:textColor="?attr/colorPrimary"
                 android:textSize="10sp"
                 android:textStyle="bold"
                 android:layout_marginTop="6dp"
                 android:background="@drawable/bg_version_badge"
+                android:backgroundTint="?attr/colorSurfaceVariant"
                 android:paddingHorizontal="8dp"
                 android:paddingVertical="3dp" />
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDownload"
-            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+            style="@style/Widget.Material3.Button.UnelevatedButton"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:text="تحديث"
-            android:textColor="#0F172A"
+            android:textColor="?attr/colorOnPrimary"
             android:textSize="12sp"
             android:textStyle="bold"
             android:minWidth="76dp"
             android:paddingHorizontal="12dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            app:cornerRadius="14dp"
-            android:backgroundTint="@color/secondary_cyan" />
+            app:cornerRadius="12dp"
+            android:backgroundTint="?attr/colorPrimary" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
