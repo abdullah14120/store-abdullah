@@ -1,29 +1,37 @@
 package com.fix.engine.abdullah.ui.viewmodel
 
 import android.app.Application
+import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.data.repository.AppRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Pro View Model
- * Logic: Handles Live Search and Multi-Fragment Data Distribution
+ * Project: FIX ENGINE - Pro View Model (Material 3 Dynamic Edition)
+ * Logic: Handles Independent Multi-Fragment Search & Secure Data Distribution
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AppRepository()
+    private val packageManager: PackageManager = application.packageManager
     
-    // القائمة الأصلية القادمة من السيرفر
-    private var fullList: List<AppModel> = emptyList()
+    // حفظ النسخ الأصلية المستقرة القادمة من السيرفر لمنع تداخل الواجهات
+    private var fullAppsList: List<AppModel> = emptyList()
+    private var fullUpdatesList: List<AppModel> = emptyList()
 
-    // القائمة التي تراقبها الواجهات (Fragments)
+    // 🟢 1. مسار مراقبة صفحة "كل التطبيقات"
     private val _appsList = MutableLiveData<List<AppModel>>()
     val appsList: LiveData<List<AppModel>> get() = _appsList
+
+    // 🔵 2. مسار مراقبة صفحة "التحديثات" (فصل مستقل تماماً لحل مشكلة اختفاء التحديثات)
+    private val _updatesList = MutableLiveData<List<AppModel>>()
+    val updatesList: LiveData<List<AppModel>> get() = _updatesList
 
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> get() = _isLoading
@@ -32,54 +40,71 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val errorMessage: LiveData<String?> get() = _errorMessage
 
     /**
-     * جلب التطبيقات وتحديث القائمة الرئيسية
+     * جلب التطبيقات وفرزها في الخلفية بتوزيع متوازٍ
      */
     fun loadApps(repoUrl: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _errorMessage.value = null
+        viewModelScope.launch(Dispatchers.IO) { // 🚨 تحويل العمليات الثقيلة لـ Dispatchers.IO لحماية سرعة واجهة المتجر
+            _isLoading.postValue(true)
+            _errorMessage.postValue(null)
             
             val result = repository.fetchApps(repoUrl)
             
             result.onSuccess { list ->
-                fullList = list // حفظ النسخة الأصلية للبحث
-                _appsList.value = list
-                _isLoading.value = false
+                fullAppsList = list
+                
+                // حساب وتصفية التطبيقات التي تمتلك تحديثات برمجية فوراً وتخزينها كنسخة مستقلة
+                fullUpdatesList = list.filter { app ->
+                    try {
+                        val pInfo = packageManager.getPackageInfo(app.packageName, 0)
+                        val installedVer = pInfo.versionName ?: ""
+                        app.versionName.trim() != installedVer.trim()
+                    } catch (e: PackageManager.NameNotFoundException) {
+                        false
+                    }
+                }
+
+                // ضخ البيانات لكل واجهة بشكل آمن وفي نفس اللحظة
+                _appsList.postValue(fullAppsList)
+                _updatesList.postValue(fullUpdatesList)
+                _isLoading.postValue(false)
+                
             }.onFailure { exception ->
-                _errorMessage.value = "فشل في جلب البيانات: ${exception.localizedMessage}"
-                _isLoading.value = false
+                _errorMessage.postValue("فشل في جلب البيانات: ${exception.localizedMessage}")
+                _isLoading.postValue(false)
             }
         }
     }
 
     /**
-     * دالة البحث المباشر: تقوم بتصفية القائمة بناءً على الاسم أو المطور
-     * ويتم تحديث الـ LiveData تلقائياً لتراها الـ Fragments
+     * دالة البحث المباشر الذكية والمزدوجة: تقوم بتصفية تبويب التطبيقات 
+     * وتبويب التحديثات معاً دون أن يختفي محتوى أي واجهة منهما!
      */
     fun filterApps(query: String) {
-        if (query.isEmpty()) {
-            _appsList.value = fullList
+        if (query.isBlank()) {
+            _appsList.value = fullAppsList
+            _updatesList.value = fullUpdatesList
         } else {
-            val filtered = fullList.filter { 
+            // تصفية ذكية لصفحة التطبيقات بناءً على الاسم أو المطور
+            val filteredApps = fullAppsList.filter { 
                 it.name.contains(query, ignoreCase = true) || 
                 it.developer.contains(query, ignoreCase = true)
             }
-            _appsList.value = filtered
+            
+            // تصفية موازية ومستقلة لشاشة التحديثات المتاحة لتظل النتائج متناسقة
+            val filteredUpdates = fullUpdatesList.filter { 
+                it.name.contains(query, ignoreCase = true) || 
+                it.developer.contains(query, ignoreCase = true)
+            }
+
+            _appsList.value = filteredApps
+            _updatesList.value = filteredUpdates
         }
     }
 
     /**
-     * حساب عدد التحديثات المتاحة (يستخدم للـ Badge في MainActivity)
+     * حساب دقيق وسريع لعدد التحديثات المتاحة دون استهلاك موارد المعالج
      */
-    fun getUpdatesCount(packageManager: android.content.pm.PackageManager): Int {
-        return fullList.count { app ->
-            try {
-                val installedVer = packageManager.getPackageInfo(app.packageName, 0).versionName
-                // المقارنة النصية بناءً على طلبك لتجاوز الـ VersionCode
-                app.versionName.trim() != installedVer?.trim()
-            } catch (e: Exception) {
-                false
-            }
-        }
+    fun getUpdatesCount(): Int {
+        return fullUpdatesList.size
     }
 }
