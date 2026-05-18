@@ -105,6 +105,11 @@ dependencies {
     // إضافة مكتبة الـ CoordinatorLayout لحل خطأ الكومبايلر
     implementation "androidx.coordinatorlayout:coordinatorlayout:1.2.0"
 
+    // ... المكتبات الحالية لديك
+    
+    // مكتبة قاعدة بيانات الفايربيس اللحظية
+    implementation "com.google.firebase:firebase-database-ktx:20.3.1"
+    
     // الاختبارات
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
