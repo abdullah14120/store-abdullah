@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "315827933589",
+    "firebase_url": "https://banproject-2f9c6-default-rtdb.firebaseio.com",
+    "project_id": "banproject-2f9c6",
+    "storage_bucket": "banproject-2f9c6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:315827933589:android:dcd57d8fcf1ed4fa52a69c",
+        "android_client_info": {
+          "package_name": "com.cdma.gsm.call"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4-M0BDpQupuA4S31GjJ_fYcHTEaAEjU0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:315827933589:android:7151f1e110709ffc52a69c",
+        "android_client_info": {
+          "package_name": "com.fix.engine.abdullah"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4-M0BDpQupuA4S31GjJ_fYcHTEaAEjU0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
