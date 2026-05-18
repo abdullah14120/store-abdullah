@@ -35,6 +35,9 @@
         android:theme="@style/Theme.FixEngine"
         android:usesCleartextTraffic="true"
         tools:targetApi="35">
+        
+    <application
+        android:name=".FixEngineApplication"
 
         <activity
             android:name=".MainActivity"
@@ -96,9 +99,6 @@
         <action android:name="com.fix.engine.abdullah.COMMIT_INSTALL" />
     </intent-filter>
 </receiver>
-
-        <application
-    android:name=".FixEngineApplication"
 
     </application>
 
