@@ -171,18 +171,26 @@
             </FrameLayout>
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="24dp"
-                android:background="@drawable/bg_info_capsule"
-                android:paddingVertical="12dp"
-                android:gravity="center">
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:layout_marginTop="24dp"
+    android:background="@drawable/bg_info_capsule"
+    android:paddingVertical="12dp"
+    android:gravity="center">
 
-                <include layout="@layout/layout_info_badge" android:id="@+id/badgeVersion" />
-                <View android:layout_width="1dp" android:layout_height="24dp" android:background="#334155" android:layout_marginHorizontal="16dp"/>
-                <include layout="@layout/layout_info_badge" android:id="@+id/badgeSize" />
-            </LinearLayout>
+    <include layout="@layout/layout_info_badge" android:id="@+id/badgeVersion" />
+    
+    <View android:layout_width="1dp" android:layout_height="24dp" android:background="#334155" android:layout_marginHorizontal="12dp"/>
+    
+    <include layout="@layout/layout_info_badge" android:id="@+id/badgeSize" />
+    
+    <View android:layout_width="1dp" android:layout_height="24dp" android:background="#334155" android:layout_marginHorizontal="12dp"/>
+    
+    <include layout="@layout/layout_info_badge" android:id="@+id/badgeDownloads" />
+    
+</LinearLayout>
+
 
             <TextView
                 android:layout_width="match_parent"
