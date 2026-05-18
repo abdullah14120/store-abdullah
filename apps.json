@@ -85,15 +85,15 @@
   },
   {
     "id": 8,
-    "name": "Proxy IP Finder",
-    "packageName": "com.fix.proxy.finder",
-    "versionName": "1.0.5",
+    "name": "OBWhatsApp",
+    "packageName": "com.obwhatsapp",
+    "versionName": "2.26.7.744",
     "versionCode": 2147483647,
-    "developer": "Fix Engine Dev",
-    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icon.png",
-    "downloadUrl": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/main/apks/ProxyFinder.apk",
+    "developer": "عمر باذيب",
+    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconob.png",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1mcacGbH0BiYO0O5_aPI9EnCEUltj9jSA&export=download&confirm=t&uuid=af815a8f-4fbc-482d-8902-7eecfaf661b9",
     "size": "152845",
-    "description": "أداة لجلب بروكسيات Cloudflare العاملة لتحسين اتصال VLESS."
+    "description": "تحديث جديد واتساب عمر العنابي."
   },
   {
     "id": 9,
