@@ -6,7 +6,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -21,6 +20,7 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
@@ -33,7 +33,7 @@ import com.google.android.material.tabs.TabLayoutMediator
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Global Professional Hub
- * Feature: Automatic Runtime Notification Support & Smart Update Push
+ * Feature: Automatic Runtime Notification Support & Smart Update Push (Material 3 Dynamic Style)
  */
 class MainActivity : AppCompatActivity() {
 
@@ -63,12 +63,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupNavigationDrawer() {
-        // ربط الزر العلوي btnMenu بفتح القائمة الجانبية
         binding.btnMenu.setOnClickListener {
             binding.drawerLayout.openDrawer(GravityCompat.START)
         }
 
-        // معالجة الضغطات على عناصر القائمة
         binding.navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.nav_settings -> {
@@ -146,13 +144,6 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun markDialogAsShown() {
-        getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
-            .edit()
-            .putBoolean("install_dialog_shown", true)
-            .apply()
-    }
-
     private fun checkMandatoryUpdate(apps: List<com.fix.engine.abdullah.data.model.AppModel>) {
         val storeApp = apps.find { it.packageName == packageName } ?: return
 
@@ -217,8 +208,9 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
         )
 
+        // تكييف الأيقونة لتعمل بشكل أحادي متوافق مع شريط إشعارات أندرويد 13+
         val builder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(android.R.drawable.stat_notify_sync) 
+            .setSmallIcon(R.drawable.ic_menu) // يفضل لاحقاً استبدالها بأيقونة متجرك الرسمية بصيغة شفافة Vector
             .setContentTitle("تحديثات متوفرة لـ تطبيقاتك! 🚀")
             .setContentText("يوجد عدد ($updatesCount) من تطبيقاتك تمتلك إصدارات محدثة، قم بتثبيتها الآن.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -249,15 +241,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSearchAnimation() {
+        // سحب ألوان الهوية الزيتية الحية ديناميكياً من محرك الثيم الموحد للـ Material 3 لمنع تشوه الحدود
+        val colorPrimary = ContextCompat.getColor(this, R.color.md_theme_d_primary)
+        val colorOutlineVariant = ContextCompat.getColor(this, R.color.md_theme_d_outlineVariant)
+
         binding.etSearch.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
                 binding.searchCard.animate().scaleX(1.01f).scaleY(1.01f).setDuration(250).start()
                 binding.searchCard.strokeWidth = 2
-                binding.searchCard.strokeColor = Color.parseColor("#22D3EE")
+                binding.searchCard.strokeColor = colorPrimary
             } else {
                 binding.searchCard.animate().scaleX(1f).scaleY(1f).setDuration(250).start()
                 binding.searchCard.strokeWidth = 1
-                binding.searchCard.strokeColor = Color.parseColor("#334155")
+                binding.searchCard.strokeColor = colorOutlineVariant
             }
         }
     }
@@ -293,9 +289,10 @@ class MainActivity : AppCompatActivity() {
         if (updateCount > 0) {
             badge?.isVisible = true
             badge?.number = updateCount
-            badge?.backgroundColor = Color.RED
             
-            // حقن استدعاء الإشعار المنبثق بنجاح عند وجود تحديثات
+            // إلغاء تعيين لون أحمر صلب، وجعله يعتمد على لون الخطأ المدمج بالثيم ليتماشى مع لغة Material 3
+            badge?.backgroundColor = ContextCompat.getColor(this, R.color.md_theme_l_error)
+            
             sendUpdateNotification(updateCount)
         } else {
             badge?.isVisible = false
