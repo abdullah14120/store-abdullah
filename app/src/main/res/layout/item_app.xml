@@ -26,8 +26,10 @@
             android:layout_width="60dp"
             android:layout_height="60dp"
             android:scaleType="centerCrop"
-            android:clipToOutline="true" android:transitionName="transition_app_icon"
-            app:shapeAppearanceOverlay="@style/RoundedIcon"
+            android:adjustViewBounds="true"
+            android:clipToOutline="true" 
+            android:transitionName="transition_app_icon"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Medium"
             android:background="#0F172A" />
 
         <LinearLayout
