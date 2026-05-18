@@ -90,6 +90,12 @@
                 android:name="androidx.work.WorkManagerInitializer"
                 android:value="androidx.startup" />
         </provider>
+        
+<receiver android:name=".installer.InstallStatusReceiver" android:exported="false">
+    <intent-filter>
+        <action android:name="com.fix.engine.abdullah.COMMIT_INSTALL" />
+    </intent-filter>
+</receiver>
 
     </application>
 
