@@ -174,23 +174,48 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:layout_marginTop="24dp"
+    android:layout_marginTop="20dp"
     android:background="@drawable/bg_info_capsule"
-    android:paddingVertical="12dp"
+    android:paddingVertical="10dp"
+    android:paddingHorizontal="4dp"
+    android:weightSum="3"
     android:gravity="center">
 
-    <include layout="@layout/layout_info_badge" android:id="@+id/badgeVersion" />
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center">
+        <include layout="@layout/layout_info_badge" android:id="@+id/badgeVersion" />
+    </LinearLayout>
     
-    <View android:layout_width="1dp" android:layout_height="24dp" android:background="#334155" android:layout_marginHorizontal="12dp"/>
+    <View 
+        android:layout_width="1dp" 
+        android:layout_height="20dp" 
+        android:background="#334155" />
     
-    <include layout="@layout/layout_info_badge" android:id="@+id/badgeSize" />
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center">
+        <include layout="@layout/layout_info_badge" android:id="@+id/badgeSize" />
+    </LinearLayout>
     
-    <View android:layout_width="1dp" android:layout_height="24dp" android:background="#334155" android:layout_marginHorizontal="12dp"/>
+    <View 
+        android:layout_width="1dp" 
+        android:layout_height="20dp" 
+        android:background="#334155" />
     
-    <include layout="@layout/layout_info_badge" android:id="@+id/badgeDownloads" />
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center">
+        <include layout="@layout/layout_info_badge" android:id="@+id/badgeDownloads" />
+    </LinearLayout>
     
 </LinearLayout>
-
 
             <TextView
                 android:layout_width="match_parent"
