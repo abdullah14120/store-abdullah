@@ -97,6 +97,9 @@
     </intent-filter>
 </receiver>
 
+        <application
+    android:name=".FixEngineApplication"
+
     </application>
 
 </manifest>
