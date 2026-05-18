@@ -191,13 +191,18 @@ private val databaseRef = FirebaseDatabase.getInstance("https://abdullah-store-a
     }
 
     private fun loadDownloadsCount(packageName: String) {
-    val safeKey = packageName.replace(".", "_")
+    // تحويل الأحرف كلها إلى صغيرة (lowercase) وتغيير النقاط لضمان التطابق التام في السيرفر
+    val safeKey = packageName.trim().lowercase().replace(".", "_")
     
     thread {
-        // استخدام addListenerForSingleValueEvent لجلب الرقم الحالي مرة واحدة بانتظام دون تذبذب
         databaseRef.child(safeKey).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val count = if (snapshot.exists()) snapshot.getValue(Long::class.java) ?: 0L else 0L
+                // الفحص الذكي: إذا كان المسار موجوداً نأخذ القيمة، وإذا لم يكن موجوداً نضع 0 بدلاً من النقاط المعلقة
+                val count = if (snapshot.exists()) {
+                    snapshot.getValue(Long::class.java) ?: 0L
+                } else {
+                    0L
+                }
                 
                 runOnUiThread {
                     binding.badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = formatDownloads(count)
@@ -206,19 +211,22 @@ private val databaseRef = FirebaseDatabase.getInstance("https://abdullah-store-a
 
             override fun onCancelled(error: DatabaseError) {
                 runOnUiThread {
+                    // في حال فشل الاتصال المؤقت، نظهر 0 لكي لا تبقى النقاط معلقة
                     binding.badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = "0"
                 }
             }
         })
     }
 }
+
+private fun incrementDownloadCount(packageName: String) {
+    // استخدام نفس الصيغة النظيفة (lowercase) لضمان الزيادة في نفس مكان القراءة تماماً
+    val safeKey = packageName.trim().lowercase().replace(".", "_")
     
-    private fun incrementDownloadCount(packageName: String) {
-    val safeKey = packageName.replace(".", "_")
     thread {
         databaseRef.child(safeKey).setValue(com.google.firebase.database.ServerValue.increment(1))
             .addOnFailureListener { e ->
-                e.printStackTrace() // لطباعة سبب الفشل في الـ Logcat إذا رفض السيرفر الزيادة
+                e.printStackTrace()
             }
     }
 }
