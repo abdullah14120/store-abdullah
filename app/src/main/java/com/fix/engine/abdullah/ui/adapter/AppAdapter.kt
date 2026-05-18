@@ -11,7 +11,6 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.fix.engine.abdullah.R
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.databinding.ItemAppBinding
@@ -20,7 +19,7 @@ import java.io.File
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Global UI Edition
- * Feature: Shared Elements Support, Strict 4-State Button Logic & Material 3 Colors
+ * Feature: Shared Elements Support, Strict 4-State Button Logic, Material 3 Colors & Fixed Glide Masking
  */
 class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
     ListAdapter<AppModel, AppAdapter.AppViewHolder>(AppDiffCallback()) {
@@ -75,7 +74,7 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
 
                 // 3. منطق الألوان والحالات الأربع الذكي المتطابق مع لغة تصاميم جوجل الحديثة
                 when {
-                    // الحالة أ: الملف محمل مسبقاً وجاهز للتثبيت السريع (يأخذ اللون الأساسي النشط للثيم لسرعة لفت الانتباه)
+                    // الحالة أ: الملف محمل مسبقاً وجاهز للتثبيت السريع
                     isDownloaded -> {
                         txtVersion.text = "ملف APK جاهز للتثبيت فوراً"
                         txtVersion.setTextColor(colorPrimary)
@@ -84,7 +83,7 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorPrimary)
                     }
                     
-                    // الحالة ب: التطبيق مثبت ولكن يوجد تحديث جديد بالسيرفر (يأخذ لون الـ Error النيوني لتأكيد التنبيه)
+                    // الحالة ب: التطبيق مثبت ولكن يوجد تحديث جديد بالسيرفر
                     isUpdateAvailable -> {
                         txtVersion.text = "تحديث متاح: ${app.versionName} (الحالي: $installedVerName)"
                         txtVersion.setTextColor(colorError)
@@ -93,17 +92,16 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorError)
                     }
 
-                    // الحالة ج: التطبيق مثبت ومحدث بالكامل (يأخذ لون الحاوية والمظهر الهادئ المستقر كمتجر Droid-ify)
+                    // الحالة ج: التطبيق مثبت ومحدث بالكامل
                     isInstalled -> {
                         txtVersion.text = "مثبت ومحدث • الإصدار ${app.versionName}"
                         txtVersion.setTextColor(colorOnSurfaceVariant)
                         btnDownload.text = "فتح"
                         btnDownload.setTextColor(colorOnSurface)
-                        // جعل خلفية زر الفتح مفرغة وبخلفية رمادية زيتية هادئة لتبدو أقل بريقاً من أزرار التحديث
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorSurfaceVariant)
                     }
 
-                    // الحالة د: التطبيق غير موجود نهائياً على الجهاز ولا في التنزيلات (حالة التنزيل الصافي الأولي)
+                    // الحالة د: التطبيق غير موجود نهائياً على الجهاز ولا في التنزيلات
                     else -> {
                         txtVersion.text = "الإصدار: ${app.versionName}"
                         txtVersion.setTextColor(colorPrimary)
@@ -113,13 +111,14 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
                     }
                 }
 
-                // 4. تحميل الأيقونة
+                // 4. تحميل الأيقونة وحل مشكلة تمدد الحواف وتخطي التدوير
                 imgAppIcon.transitionName = "transition_app_icon_${app.packageName}" 
                 
                 Glide.with(context)
                     .load(app.iconUrl)
                     .placeholder(R.drawable.ic_launcher_foreground)
-                    .transition(DrawableTransitionOptions.withCrossFade())
+                    .error(R.drawable.ic_launcher_foreground)
+                    .dontAnimate() // 🚨 الحل النهائي: إيقاف تأثير التحويل التدريجي لإجبار البكسلات على أخذ شكل التدوير فوراً ومنع التمدد
                     .into(imgAppIcon)
 
                 // 5. الأحداث
