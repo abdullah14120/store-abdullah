@@ -1,16 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    
-    <color name="primary_tech_blue">#003366</color> <color name="secondary_cyan">#00E5FF</color>   <color name="dark_background">#0B131E</color>  <color name="ic_launcher_background">#003366</color>
+    <color name="pitch_black">#000000</color>
 
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-    <color name="gray_light">#D3D3D3</color>
-    <color name="success_green">#4CAF50</color>
-    <color name="error_red">#F44336</color>
+    <color name="md_theme_l_primary">#416835</color>
+    <color name="md_theme_l_onPrimary">#FFFFFF</color>
+    <color name="md_theme_l_primaryContainer">#C2EFAE</color>
+    <color name="md_theme_l_background">#F8FAF0</color>
+    <color name="md_theme_l_surface">#F8FAF0</color>
+    <color name="md_theme_l_onSurface">#191D17</color>
+    <color name="md_theme_l_surfaceVariant">#DFE4D7</color>
+    <color name="md_theme_l_onSurfaceVariant">#43483F</color>
+    <color name="md_theme_l_outline">#73796E</color>
+
+    <color name="md_theme_d_primary">#A6D394</color>
+    <color name="md_theme_d_onPrimary">#13380A</color>
+    <color name="md_theme_d_primaryContainer">#2A4F1F</color>
+    <color name="md_theme_d_onPrimaryContainer">#C2EFAE</color>
+    <color name="md_theme_d_background">#11140F</color> <color name="md_theme_d_surface">#11140F</color>
+    <color name="md_theme_d_onSurface">#E1E4DA</color>
+    <color name="md_theme_d_surfaceVariant">#43483F</color>
+    <color name="md_theme_d_onSurfaceVariant">#C3C8BC</color>
+    <color name="md_theme_d_outline">#8D9387</color>
+    <color name="md_theme_d_surfaceContainer">#1D211B</color>
+
+    <color name="md_theme_d_primary_mediumContrast">#AAD798</color>
+    <color name="md_theme_d_onPrimary_mediumContrast">#021B00</color>
+    <color name="md_theme_d_primaryContainer_mediumContrast">#729C62</color>
+    <color name="md_theme_d_onBackground_mediumContrast">#E1E4DA</color>
+    <color name="md_theme_d_surface_mediumContrast">#11140F</color>
+    <color name="md_theme_d_onSurface_mediumContrast">#F9FCF2</color>
 </resources>
