@@ -43,9 +43,14 @@
 
                 <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/imgDetailsIcon"
-                    android:layout_width="85dp" android:layout_height="85dp"
-                    android:scaleType="centerCrop" android:transitionName="transition_app_icon"
-                    app:shapeAppearanceOverlay="@style/RoundedIcon" android:background="#1E293B"
+                    android:layout_width="85dp" 
+                    android:layout_height="85dp"
+                    android:scaleType="centerCrop" 
+                    android:adjustViewBounds="true"
+                    android:clipToOutline="true" 
+                    android:transitionName="transition_app_icon"
+                    app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Medium" 
+                    android:background="#1E293B"
                     android:elevation="4dp"
                     tools:src="@tools/sample/avatars" />
 
@@ -171,51 +176,51 @@
             </FrameLayout>
 
             <LinearLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:layout_marginTop="20dp"
-    android:background="@drawable/bg_info_capsule"
-    android:paddingVertical="10dp"
-    android:paddingHorizontal="4dp"
-    android:weightSum="3"
-    android:gravity="center">
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="20dp"
+                android:background="@drawable/bg_info_capsule"
+                android:paddingVertical="10dp"
+                android:paddingHorizontal="4dp"
+                android:weightSum="3"
+                android:gravity="center">
 
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:gravity="center">
-        <include layout="@layout/layout_info_badge" android:id="@+id/badgeVersion" />
-    </LinearLayout>
-    
-    <View 
-        android:layout_width="1dp" 
-        android:layout_height="20dp" 
-        android:background="#334155" />
-    
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:gravity="center">
-        <include layout="@layout/layout_info_badge" android:id="@+id/badgeSize" />
-    </LinearLayout>
-    
-    <View 
-        android:layout_width="1dp" 
-        android:layout_height="20dp" 
-        android:background="#334155" />
-    
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:gravity="center">
-        <include layout="@layout/layout_info_badge" android:id="@+id/badgeDownloads" />
-    </LinearLayout>
-    
-</LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center">
+                    <include layout="@layout/layout_info_badge" android:id="@+id/badgeVersion" />
+                </LinearLayout>
+                
+                <View 
+                    android:layout_width="1dp" 
+                    android:layout_height="20dp" 
+                    android:background="#334155" />
+                
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center">
+                    <include layout="@layout/layout_info_badge" android:id="@+id/badgeSize" />
+                </LinearLayout>
+                
+                <View 
+                    android:layout_width="1dp" 
+                    android:layout_height="20dp" 
+                    android:background="#334155" />
+                
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center">
+                    <include layout="@layout/layout_info_badge" android:id="@+id/badgeDownloads" />
+                </LinearLayout>
+                
+            </LinearLayout>
 
             <TextView
                 android:layout_width="match_parent"
