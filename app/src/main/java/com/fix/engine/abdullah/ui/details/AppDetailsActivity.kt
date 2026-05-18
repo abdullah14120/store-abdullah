@@ -12,28 +12,30 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.fix.engine.abdullah.R
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.databinding.ActivityAppDetailsBinding
+import com.fix.engine.abdullah.installer.SessionInstaller
 import com.fix.engine.abdullah.service.AndroidDownloadManager
 import com.fix.engine.abdullah.service.DownloadTracker
 import java.io.File
+import kotlin.concurrent.thread
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Feature: Smart Logic (Download, Update, Install, Open) with Runtime Permissions Support
+ * Feature: Smart Logic integrated with background SessionInstaller & Real-time Progress Tracking
  */
 class AppDetailsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAppDetailsBinding
     private lateinit var downloadManager: AndroidDownloadManager
     private lateinit var tracker: DownloadTracker
+    private lateinit var sessionInstaller: SessionInstaller
     private var isDownloading = false
-    private var currentApp: AppModel? = null // تم إضافة هذا المتغير لحل خطأ النطاق
+    private var currentApp: AppModel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,13 +44,14 @@ class AppDetailsActivity : AppCompatActivity() {
 
         downloadManager = AndroidDownloadManager(this)
         tracker = DownloadTracker(this)
+        sessionInstaller = SessionInstaller(this)
 
         setupToolbar()
 
         val appData = intent.getSerializableExtra("APP_DATA") as? AppModel
 
         if (appData != null) {
-            currentApp = appData // تخزين البيانات للاستخدام العام داخل الكلاس
+            currentApp = appData
             displayDetails(appData)
             setupLogic(appData)
             checkCurrentStatus(appData)
@@ -75,7 +78,7 @@ class AppDetailsActivity : AppCompatActivity() {
             binding.btnInstallLarge.text = "تثبيت الآن"
             binding.btnInstallLarge.visibility = View.VISIBLE
             binding.btnOpenApp.visibility = View.GONE
-            binding.btnInstallLarge.setOnClickListener { installApk(finalFile) }
+            binding.btnInstallLarge.setOnClickListener { installApkWithSession(finalFile, app.packageName) }
             return
         }
 
@@ -105,11 +108,9 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     private fun checkStoragePermissionAndDownload(app: AppModel) {
-        // أندرويد 10 (API 29) فما فوق لا يحتاج إلى إذن كتابة خارجي للمجلدات العامة عند تهيئة المانجر بشكل صحيح
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startNewDownload(app)
         } else {
-            // الأنظمة القديمة (أندرويد 9 وأقل) تحتاج لطلب الإذن بشكل صريح في الوقت الفعلي
             if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
                 startNewDownload(app)
             } else {
@@ -202,10 +203,9 @@ class AppDetailsActivity : AppCompatActivity() {
                         btnInstallLarge.visibility = View.VISIBLE
                         btnInstallLarge.text = "تثبيت الآن"
                         
-                        // استخدام currentApp بأمان لتحديث سطر الاستماع
                         currentApp?.let { app ->
                             val finalFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), app.getUniqueFileName())
-                            btnInstallLarge.setOnClickListener { installApk(finalFile) }
+                            btnInstallLarge.setOnClickListener { installApkWithSession(finalFile, app.packageName) }
                         }
                     }
                 }
@@ -213,25 +213,40 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    private fun installApk(file: File) {
+    /**
+     * تشغيل محرك الـ SessionInstaller الحديث لمعالجة الملف وحقنه بالخلفية
+     */
+    private fun installApkWithSession(file: File, packageName: String) {
         if (!file.exists()) {
-            Toast.makeText(this, "المعذرة، الملف غير موجود!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "المعذرة، ملف الـ APK غير موجود!", Toast.LENGTH_SHORT).show()
             return
         }
 
-        try {
-            val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        // إخفاء الأزرار وإظهار بانل التقدم ليعرض نسبة التثبيت الذكي للمستخدم
+        binding.btnInstallLarge.visibility = View.GONE
+        binding.layoutDownloadProgress.visibility = View.VISIBLE
+        binding.txtDownloadSpeed.text = "جاري تهيئة التثبيت الذكي..."
+        binding.txtDownloadETA.text = "يرجى عدم إغلاق المتجر"
+
+        // تشغيل العملية في خيط منفصل (Background Thread) لتفادي تجمد الواجهة أثناء قراءة الـ Stream
+        thread {
+            val success = sessionInstaller.installApk(file, packageName) { progress ->
+                runOnUiThread {
+                    binding.downloadProgress.progress = progress
+                    binding.txtDownloadPercent.text = "$progress%"
+                    binding.txtDownloadSpeed.text = "جاري حَقن ملفات التطبيق..."
+                }
             }
-            startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(this, "فشل تحليل الحزمة، قد يكون الملف غير مكتمل", Toast.LENGTH_LONG).show()
-            if (file.exists()) file.delete()
-            recreate()
+
+            runOnUiThread {
+                binding.layoutDownloadProgress.visibility = View.GONE
+                binding.btnInstallLarge.visibility = View.VISIBLE
+                binding.btnInstallLarge.text = "تثبيت الآن"
+
+                if (!success) {
+                    Toast.makeText(this, "فشل بدء جلسة التثبيت، قد يكون الملف معطوباً", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
