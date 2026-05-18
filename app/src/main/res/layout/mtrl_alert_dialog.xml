@@ -4,17 +4,17 @@
     android:id="@+id/main_dialog_container"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="#1E293B"
+    android:background="?attr/colorSurfaceContainerHigh"
     android:orientation="vertical"
     android:padding="24dp">
 
     <ImageView
         android:id="@+id/dialog_icon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
         android:layout_gravity="center"
         android:src="@drawable/ic_launcher_foreground"
-        app:tint="#22D3EE" />
+        app:tint="?attr/colorPrimary" />
 
     <TextView
         android:id="@+id/dialog_title"
@@ -23,9 +23,10 @@
         android:layout_marginTop="16dp"
         android:gravity="center"
         android:text="عزيزي المستخدم، لضمان تحديث تطبيقاتك من متجر Abdullah بأمان، نحتاج منك منح المتجر إذن التثبيت."
-        android:textColor="#F8FAFC"
-        android:textSize="20sp"
-        android:fontFamily="sans-serif-black" />
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="18sp"
+        android:fontFamily="sans-serif-black"
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/dialog_message"
@@ -33,33 +34,41 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:gravity="center"
-        android:text="جاري معالجة طلبك..."
-        android:textColor="#94A3B8"
-        android:textSize="15sp" />
+        android:text="إضغط على موافق ليتم توجيهك إلى نافذة الصلاحيات.."
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="14sp"
+        android:fontFamily="sans-serif-medium" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
-        android:gravity="end"
+        android:gravity="center_horizontal"
         android:orientation="horizontal">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_negative"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
             android:text="إلغاء"
-            android:textColor="#94A3B8" />
+            android:textColor="?attr/colorPrimary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_positive"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
             android:layout_marginStart="12dp"
             android:text="موافق"
-            android:textColor="#0F172A"
-            app:backgroundTint="#22D3EE"
-            app:cornerRadius="12dp" />
+            android:textColor="?attr/colorOnPrimary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:backgroundTint="?attr/colorPrimary"
+            app:cornerRadius="@dimen/shape_medium_corner" />
     </LinearLayout>
 </LinearLayout>
