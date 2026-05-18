@@ -8,25 +8,6 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:315827933589:android:dcd57d8fcf1ed4fa52a69c",
-        "android_client_info": {
-          "package_name": "com.cdma.gsm.call"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyC4-M0BDpQupuA4S31GjJ_fYcHTEaAEjU0"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
         "mobilesdk_app_id": "1:315827933589:android:7151f1e110709ffc52a69c",
         "android_client_info": {
           "package_name": "com.fix.engine.abdullah"
