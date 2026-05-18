@@ -11,8 +11,8 @@ import java.io.OutputStream
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Abdullah Store
- * Feature: Modern Session Installer with Automatic Fallback Path Support
+ * Feature: Modern Session Installer for FIX ENGINE
+ * Supports smart background installation & progress tracking
  */
 class SessionInstaller(private val context: Context) {
 
@@ -62,7 +62,6 @@ class SessionInstaller(private val context: Context) {
             val intent = Intent(context, InstallStatusReceiver::class.java).apply {
                 action = "com.fix.engine.abdullah.COMMIT_INSTALL"
                 putExtra("PACK_NAME", packageName)
-                putExtra("APK_PATH", apkFile.absolutePath) // ⬅️ تم إضافة هذا السطر لتمرير مسار الملف لخطة الإنقاذ (Plan C)
             }
             
             val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
