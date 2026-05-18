@@ -1,7 +1,7 @@
 package com.fix.engine.abdullah.ui.adapter
 
 import android.content.pm.PackageManager
-import android.graphics.Color
+import android.content.res.ColorStateList
 import android.os.Environment
 import android.view.LayoutInflater
 import android.view.View
@@ -20,7 +20,7 @@ import java.io.File
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Global UI Edition
- * Feature: Shared Elements Support, Strict 4-State Button Logic & Elegant Color States
+ * Feature: Shared Elements Support, Strict 4-State Button Logic & Material 3 Colors
  */
 class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
     ListAdapter<AppModel, AppAdapter.AppViewHolder>(AppDiffCallback()) {
@@ -65,42 +65,51 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
                     isUpdateAvailable = false
                 }
 
-                // 3. منطق الألوان والحالات الأربع الذكي لمتجر عبدالله
+                // سحب درجات الألوان القياسية لثيم الماتيريال 3 الزيتي ديناميكياً
+                val colorPrimary = ContextCompat.getColor(context, R.color.md_theme_d_primary)
+                val colorOnPrimary = ContextCompat.getColor(context, R.color.md_theme_d_onPrimary)
+                val colorOnSurface = ContextCompat.getColor(context, R.color.md_theme_d_onSurface)
+                val colorOnSurfaceVariant = ContextCompat.getColor(context, R.color.md_theme_d_onSurfaceVariant)
+                val colorSurfaceVariant = ContextCompat.getColor(context, R.color.md_theme_d_surfaceVariant)
+                val colorError = ContextCompat.getColor(context, R.color.md_theme_d_error)
+
+                // 3. منطق الألوان والحالات الأربع الذكي المتطابق مع لغة تصاميم جوجل الحديثة
                 when {
-                    // الحالة أ: الملف محمل مسبقاً وجاهز للتثبيت السريع (اللون الأخضر)
+                    // الحالة أ: الملف محمل مسبقاً وجاهز للتثبيت السريع (يأخذ اللون الأساسي النشط للثيم لسرعة لفت الانتباه)
                     isDownloaded -> {
                         txtVersion.text = "ملف APK جاهز للتثبيت فوراً"
-                        txtVersion.setTextColor(Color.parseColor("#4ADE80")) // أخضر زاهي وملفت للتثبيت
+                        txtVersion.setTextColor(colorPrimary)
                         btnDownload.text = "تثبيت"
-                        btnDownload.setTextColor(Color.parseColor("#0F172A"))
-                        btnDownload.setBackgroundResource(R.drawable.bg_button_update) 
+                        btnDownload.setTextColor(colorOnPrimary)
+                        btnDownload.backgroundTintList = ColorStateList.valueOf(colorPrimary)
                     }
                     
-                    // الحالة ب: التطبيق مثبت ولكن يوجد تحديث جديد بالسيرفر (اللون الأحمر الملفت للإنتباه)
+                    // الحالة ب: التطبيق مثبت ولكن يوجد تحديث جديد بالسيرفر (يأخذ لون الـ Error النيوني لتأكيد التنبيه)
                     isUpdateAvailable -> {
                         txtVersion.text = "تحديث متاح: ${app.versionName} (الحالي: $installedVerName)"
-                        txtVersion.setTextColor(Color.parseColor("#EF4444")) // أحمر تنبيهي واضح لوجود تحديث
+                        txtVersion.setTextColor(colorError)
                         btnDownload.text = "تحديث"
-                        btnDownload.setTextColor(Color.parseColor("#0F172A"))
-                        btnDownload.setBackgroundResource(R.drawable.bg_button_update)
+                        btnDownload.setTextColor(ContextCompat.getColor(context, R.color.md_theme_d_onError))
+                        btnDownload.backgroundTintList = ColorStateList.valueOf(colorError)
                     }
 
-                    // الحالة ج: التطبيق مثبت ومحدث بالكامل (اللون الرمادي الهادئ المستقر)
+                    // الحالة ج: التطبيق مثبت ومحدث بالكامل (يأخذ لون الحاوية والمظهر الهادئ المستقر كمتجر Droid-ify)
                     isInstalled -> {
                         txtVersion.text = "مثبت ومحدث • الإصدار ${app.versionName}"
-                        txtVersion.setTextColor(ContextCompat.getColor(context, R.color.gray_light)) 
+                        txtVersion.setTextColor(colorOnSurfaceVariant)
                         btnDownload.text = "فتح"
-                        btnDownload.setTextColor(Color.parseColor("#F8FAFC"))
-                        btnDownload.setBackgroundResource(R.drawable.bg_button_open)
+                        btnDownload.setTextColor(colorOnSurface)
+                        // جعل خلفية زر الفتح مفرغة وبخلفية رمادية زيتية هادئة لتبدو أقل بريقاً من أزرار التحديث
+                        btnDownload.backgroundTintList = ColorStateList.valueOf(colorSurfaceVariant)
                     }
 
-                    // الحالة د: التطبيق غير موجود نهائياً على الجهاز ولا في التنزيلات (اللون الـ Cyan المعتمد للمتجر)
+                    // الحالة د: التطبيق غير موجود نهائياً على الجهاز ولا في التنزيلات (حالة التنزيل الصافي الأولي)
                     else -> {
                         txtVersion.text = "الإصدار: ${app.versionName}"
-                        txtVersion.setTextColor(Color.parseColor("#22D3EE")) // لون السايان المميز للتنزيلات الجديدة
+                        txtVersion.setTextColor(colorPrimary)
                         btnDownload.text = "تنزيل"
-                        btnDownload.setTextColor(Color.parseColor("#0F172A"))
-                        btnDownload.setBackgroundResource(R.drawable.bg_button_update) 
+                        btnDownload.setTextColor(colorOnPrimary)
+                        btnDownload.backgroundTintList = ColorStateList.valueOf(colorPrimary)
                     }
                 }
 
