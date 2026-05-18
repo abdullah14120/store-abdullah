@@ -8,7 +8,6 @@
     android:orientation="vertical"
     android:padding="12dp">
 
-    <!-- القيمة البرمجية (مثل رقم الإصدار أو الحجم) -->
     <TextView
         android:id="@+id/txtValue"
         android:layout_width="wrap_content"
@@ -16,22 +15,21 @@
         android:ellipsize="end"
         android:maxLines="1"
         android:text="--"
-        android:textColor="#F8FAFC"
-        android:textSize="17sp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="13sp"
         android:fontFamily="sans-serif-black"
         android:textStyle="bold" />
 
-    <!-- التسمية التوضيحية (مثل: الإصدار، الحجم) -->
     <TextView
         android:id="@+id/txtLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:text="معلومات"
-        android:textColor="#94A3B8"
-        android:textSize="12sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="11sp"
         android:fontFamily="sans-serif-medium"
-        android:textAllCaps="true"
-        android:letterSpacing="0.05" />
+        android:textAllCaps="false"
+        android:letterSpacing="0.02" />
 
 </LinearLayout>
