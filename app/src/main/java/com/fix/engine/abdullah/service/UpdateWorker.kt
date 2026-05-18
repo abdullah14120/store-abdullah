@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.fix.engine.abdullah.MainActivity
@@ -14,8 +15,8 @@ import com.fix.engine.abdullah.R
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Background Update Checker
- * Feature: Smart Notifications & Android 13+ Support
+ * Project: FIX ENGINE - Background Update Checker
+ * Feature: Smart Notifications & Material 3 Theme Integration
  */
 class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
@@ -55,20 +56,25 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             applicationContext, 
             0, 
             intent, 
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
         )
 
         val notification = NotificationCompat.Builder(applicationContext, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // أيقونة متجر Abdullah الجديدة
+            .setSmallIcon(R.drawable.ic_menu) // استخدام أيقونة Vector أحادية مفرغة متوافقة مع أندرويد 13+ لمنع ظهور مربعات رمادية عشوائية
             .setContentTitle(title)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message)) // لعرض النص كاملاً إذا كان طويلاً
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .setColor(applicationContext.getColor(R.color.primary_tech_blue)) // لون الأيقونة في الإشعارات
+            // 🚨 تحديث السطر هنا ليعتمد على اللون الأساسي للثيم الزيتي الجديد بدلاً من الأزرق التقني المحذوف
+            .setColor(ContextCompat.getColor(applicationContext, R.color.md_theme_d_primary))
             .build()
 
-        notificationManager.notify(1001, notification)
+        notificationManager.notify(1002, notification) // استخدام ID فريد للإشعار الدوري
     }
 }
