@@ -15,7 +15,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.fix.engine.abdullah.R
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.databinding.ActivityAppDetailsBinding
@@ -31,7 +30,7 @@ import kotlin.concurrent.thread
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Feature: Legacy FileProvider Installer with Fixed Realtime Firebase Stats UI Flow
+ * Feature: Legacy FileProvider Installer with Fixed Realtime Firebase Stats UI Flow & Fixed Glide Masking
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -64,7 +63,7 @@ class AppDetailsActivity : AppCompatActivity() {
             // 1. عرض تفاصيل الواجهة الأساسية
             displayDetails(appData)
             
-            // 2. 🚨 جلب إحصائية التنزيلات فوراً بمجرد الدخول لتفادي تخطي القراءة بسبب شروط الملفات
+            // 2. جلب إحصائية التنزيلات فوراً بمجرد الدخول لتفادي تخطي القراءة بسبب شروط الملفات
             loadDownloadsCount(appData.packageName)
             
             // 3. التحقق من منطق الأزرار وحالة التحميل الحالية
@@ -188,10 +187,12 @@ class AppDetailsActivity : AppCompatActivity() {
             badgeDownloads.root.findViewById<TextView>(R.id.txtLabel)?.text = "التنزيلات"
             badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = "..."
 
+            // 🛠️ تم التعديل هنا: حقن الـ dontAnimate لحل مشكلة توسع الأيقونات الكبيرة في واجهة التفاصيل
             Glide.with(this@AppDetailsActivity)
                 .load(app.iconUrl)
                 .placeholder(R.drawable.ic_launcher_foreground)
-                .transition(DrawableTransitionOptions.withCrossFade())
+                .error(R.drawable.ic_launcher_foreground)
+                .dontAnimate() // إجبار الحزمة التناغمية على التقيد فورا بقناع الـ ShapeableImageView
                 .into(imgDetailsIcon)
         }
     }
@@ -200,7 +201,6 @@ class AppDetailsActivity : AppCompatActivity() {
         val safeKey = packageName.trim().lowercase().replace(".", "_")
         
         thread {
-            // استخدام addValueEventListener لتحديث العداد في الواجهة بشكل فوري وتفاعلي
             databaseRef.child(safeKey).addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val count = if (snapshot.exists()) snapshot.getValue(Long::class.java) ?: 0L else 0L
@@ -275,16 +275,12 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * تشغيل مثبت النظام التقليدي الآمن مع محاكاة نصوص التحميل التفاعلية للحفاظ على جمالية التصميم
-     */
     private fun installApkLegacy(file: File) {
         if (!file.exists()) {
             Toast.makeText(this, "المعذرة، ملف الـ APK غير موجود!", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // تحويل أزرار الواجهة وعرض نصوص المحاكاة التفاعلية لشريط التقدم
         runOnUiThread {
             binding.btnInstallLarge.visibility = View.GONE
             binding.layoutDownloadProgress.visibility = View.VISIBLE
@@ -296,7 +292,6 @@ class AppDetailsActivity : AppCompatActivity() {
 
         thread {
             try {
-                // محاكاة سريعة في الخلفية لإعطاء المستخدم إحساساً باستجابة المتجر والتحضير
                 Thread.sleep(600)
                 runOnUiThread {
                     binding.downloadProgress.progress = 75
@@ -329,7 +324,6 @@ class AppDetailsActivity : AppCompatActivity() {
                     if (file.exists()) file.delete()
                 }
             } finally {
-                // إرجاع الواجهة لوضعها الطبيعي لكي يتمكن المستخدم من الضغط مجدداً إذا ألغى التثبيت يدوياً
                 runOnUiThread {
                     binding.layoutDownloadProgress.visibility = View.GONE
                     binding.btnInstallLarge.visibility = View.VISIBLE
