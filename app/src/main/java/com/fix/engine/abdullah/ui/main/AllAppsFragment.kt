@@ -19,8 +19,8 @@ import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Global UI Edition
- * Feature: Shared Element Transitions for a premium feel
+ * Project: FIX ENGINE - Global UI Edition (Material 3 Dynamic Style)
+ * Feature: Shared Element Transitions & Flicker-Free Realtime Search Distribution
  */
 class AllAppsFragment : Fragment() {
 
@@ -29,6 +29,9 @@ class AllAppsFragment : Fragment() {
     
     private val viewModel: MainViewModel by activityViewModels()
     private lateinit var appAdapter: AppAdapter
+    
+    // متغير للتحكم بالحركة وتطبيقها لمرة واحدة فقط عند فتح المتجر أول مرة منعاً للوميض
+    private var isFirstLoad = true
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentAllAppsBinding.inflate(inflater, container, false)
@@ -42,18 +45,20 @@ class AllAppsFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        // تعديل كود الضغط لدعم الانتقال الاحترافي للأيقونة
         appAdapter = AppAdapter { app, itemView ->
             val intent = Intent(requireContext(), AppDetailsActivity::class.java).apply {
                 putExtra("APP_DATA", app)
             }
             
-            // تحديد الأيقونة كعنصر مشترك للانتقال
             val iconView = itemView.findViewById<View>(R.id.imgAppIcon)
+            
+            // تأمين ربط معرف الانتقال المشترك ديناميكياً لضمان قراءته بشكل سريع بالنظام
+            ViewCompat.setTransitionName(iconView, "transition_app_icon")
+            
             val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
                 requireActivity(),
                 iconView,
-                "transition_app_icon" // المعرف المشترك الموجود في الـ XML
+                "transition_app_icon"
             )
 
             startActivity(intent, options.toBundle())
@@ -62,21 +67,27 @@ class AllAppsFragment : Fragment() {
         binding.rvAllApps.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = appAdapter
-            // إضافة تحسينات لسرعة التمرير (Scrolling)
             setHasFixedSize(true)
-            setItemViewCacheSize(20)
+            setItemViewCacheSize(20) // كاش مسبق لـ 20 عنصر لضمان التمرير الصاروخي للأيقونات الزيتية الدائرية
         }
     }
 
     private fun setupObserver() {
+        // مراقبة مسار appsList المخصص لعرض كافة تطبيقات المستودع
         viewModel.appsList.observe(viewLifecycleOwner) { apps ->
             appAdapter.submitList(apps)
             
-            // إضافة حركة انسيابية (Fade in) عند ظهور النتائج
-            if (apps.isNotEmpty()) {
-                binding.rvAllApps.alpha = 0f
-                binding.rvAllApps.animate().alpha(1f).setDuration(400).start()
+            if (!apps.isNullOrEmpty()) {
                 binding.tvNoResults.visibility = View.GONE
+                
+                // 🛠️ حل مشكلة الـ Flicker: الأنيميشن يظهر فقط عند أول إقلاع للمتجر لحماية تجربة البحث المباشر
+                if (isFirstLoad) {
+                    binding.rvAllApps.alpha = 0f
+                    binding.rvAllApps.animate().alpha(1f).setDuration(350).start()
+                    isFirstLoad = false
+                } else {
+                    binding.rvAllApps.alpha = 1f
+                }
             } else {
                 binding.tvNoResults.visibility = View.VISIBLE
             }
