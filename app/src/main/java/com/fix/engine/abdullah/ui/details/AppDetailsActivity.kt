@@ -20,13 +20,17 @@ import com.fix.engine.abdullah.databinding.ActivityAppDetailsBinding
 import com.fix.engine.abdullah.installer.SessionInstaller
 import com.fix.engine.abdullah.service.AndroidDownloadManager
 import com.fix.engine.abdullah.service.DownloadTracker
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import java.io.File
 import kotlin.concurrent.thread
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Feature: Smart Logic integrated with background SessionInstaller & Real-time Progress Tracking
+ * Feature: Background SessionInstaller & Live Firebase Download Statistics
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -36,6 +40,9 @@ class AppDetailsActivity : AppCompatActivity() {
     private lateinit var sessionInstaller: SessionInstaller
     private var isDownloading = false
     private var currentApp: AppModel? = null
+    
+    // تهيئة مرجع قاعدة بيانات الفايربيس
+    private val databaseRef = FirebaseDatabase.getInstance().getReference("download_stats")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +62,7 @@ class AppDetailsActivity : AppCompatActivity() {
             displayDetails(appData)
             setupLogic(appData)
             checkCurrentStatus(appData)
+            loadDownloadsCount(appData.packageName) // جلب الإحصائية فور فتح الصفحة
         } else {
             Toast.makeText(this, "بيانات التطبيق غير صالحة", Toast.LENGTH_SHORT).show()
             finish()
@@ -170,6 +178,10 @@ class AppDetailsActivity : AppCompatActivity() {
             badgeSize.root.findViewById<TextView>(R.id.txtLabel)?.text = "الحجم"
             badgeSize.root.findViewById<TextView>(R.id.txtValue)?.text = app.getFormattedSize()
 
+            // تهيئة الكبسولة الجديدة للتنزيلات بشكل افتراضي مؤقت لحين اكتمال استعلام الفايربيس
+            badgeDownloads.root.findViewById<TextView>(R.id.txtLabel)?.text = "التنزيلات"
+            badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = "..."
+
             Glide.with(this@AppDetailsActivity)
                 .load(app.iconUrl)
                 .placeholder(R.drawable.ic_launcher_foreground)
@@ -178,11 +190,51 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * دالة للاستماع لعدد التنزيلات الحقيقي من Firebase وعرضه بشكل منسق
+     */
+    private fun loadDownloadsCount(packageName: String) {
+        // تحويل النقاط في اسم الحزمة إلى شرطة تحتية لأن الفايربيس يمنع استخدام النقطة كمفتاح
+        val safeKey = packageName.replace(".", "_")
+        
+        databaseRef.child(safeKey).addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val count = snapshot.getValue(Long::class.java) ?: 0
+                runOnUiThread {
+                    binding.badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = formatDownloads(count)
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        })
+    }
+
+    /**
+     * زيادة العداد بمقدار +1 في Firebase عند نقر الزر الفعلي لبدء التحميل
+     */
+    private fun incrementDownloadCount(packageName: String) {
+        val safeKey = packageName.replace(".", "_")
+        databaseRef.child(safeKey).setValue(com.google.firebase.database.ServerValue.increment(1))
+    }
+
+    /**
+     * دالة لتنسيق الأرقام الضخمة بشكل رياضي ناعم وأنيق (مثال: 1500 يصبح 1.5K)
+     */
+    private fun formatDownloads(count: Long): String {
+        return when {
+            count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
+            count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
+            else -> count.toString()
+        }
+    }
+
     private fun startNewDownload(app: AppModel) {
         isDownloading = true
         binding.btnInstallLarge.visibility = View.GONE
         binding.btnOpenApp.visibility = View.GONE
         binding.layoutDownloadProgress.visibility = View.VISIBLE
+
+        // استدعاء دالة زيادة العداد فوراً في الفايربيس عند بدء التنزيل
+        incrementDownloadCount(app.packageName)
 
         val downloadId = downloadManager.enqueueDownload(app.downloadUrl, app.getUniqueFileName())
         startTrackingProcess(downloadId)
@@ -213,22 +265,17 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * تشغيل محرك الـ SessionInstaller الحديث لمعالجة الملف وحقنه بالخلفية
-     */
     private fun installApkWithSession(file: File, packageName: String) {
         if (!file.exists()) {
             Toast.makeText(this, "المعذرة، ملف الـ APK غير موجود!", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // إخفاء الأزرار وإظهار بانل التقدم ليعرض نسبة التثبيت الذكي للمستخدم
         binding.btnInstallLarge.visibility = View.GONE
         binding.layoutDownloadProgress.visibility = View.VISIBLE
         binding.txtDownloadSpeed.text = "جاري تهيئة التثبيت الذكي..."
         binding.txtDownloadETA.text = "يرجى عدم إغلاق المتجر"
 
-        // تشغيل العملية في خيط منفصل (Background Thread) لتفادي تجمد الواجهة أثناء قراءة الـ Stream
         thread {
             val success = sessionInstaller.installApk(file, packageName) { progress ->
                 runOnUiThread {
