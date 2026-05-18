@@ -41,7 +41,9 @@ class AppDetailsActivity : AppCompatActivity() {
     private var isDownloading = false
     private var currentApp: AppModel? = null
     
-    private val databaseRef = FirebaseDatabase.getInstance().getReference("download_stats")
+    // ⬇️ قم بلصق رابط سيرفرك الخاص هنا داخل دالة getInstance
+private val databaseRef = FirebaseDatabase.getInstance("https://banproject-2f9c6-default-rtdb.firebaseio.com")
+    .getReference("download_stats")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
