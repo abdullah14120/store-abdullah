@@ -189,23 +189,39 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     private fun loadDownloadsCount(packageName: String) {
-        val safeKey = packageName.replace(".", "_")
+    val safeKey = packageName.replace(".", "_")
+    
+    // تشغيل الاستعلام في خيط منفصل لتفادي تجميد الواجهة والـ Network Blocks
+    thread {
         databaseRef.child(safeKey).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val count = snapshot.getValue(Long::class.java) ?: 0
+                // إذا لم يكن التطبيق مسجلاً في الفايربيس بعد، نعتبر عداده الافتراضي 0
+                val count = if (snapshot.exists()) snapshot.getValue(Long::class.java) ?: 0L else 0L
+                
+                // العودة للواجهة الرئيسية لتحديث الكبسولة فوراً بالرقم الجديد
                 runOnUiThread {
                     binding.badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = formatDownloads(count)
                 }
             }
-            override fun onCancelled(error: DatabaseError) {}
+
+            override fun onCancelled(error: DatabaseError) {
+                runOnUiThread {
+                    // في حال وجود خطأ في الاتصال أو الحماية، نظهر 0 بدلاً من النقاط المعلقة
+                    binding.badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = "0"
+                }
+            }
         })
     }
-
+}
     private fun incrementDownloadCount(packageName: String) {
-        val safeKey = packageName.replace(".", "_")
+    val safeKey = packageName.replace(".", "_")
+    thread {
         databaseRef.child(safeKey).setValue(com.google.firebase.database.ServerValue.increment(1))
+            .addOnFailureListener { e ->
+                e.printStackTrace() // لطباعة سبب الفشل في الـ Logcat إذا رفض السيرفر الزيادة
+            }
     }
-
+}
     private fun formatDownloads(count: Long): String {
         return when {
             count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
