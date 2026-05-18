@@ -31,7 +31,7 @@ import kotlin.concurrent.thread
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Feature: Legacy FileProvider Installer with Advanced Interactive Progress UI Flow
+ * Feature: Legacy FileProvider Installer with Fixed Realtime Firebase Stats UI Flow
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -41,9 +41,9 @@ class AppDetailsActivity : AppCompatActivity() {
     private var isDownloading = false
     private var currentApp: AppModel? = null
     
-    // ⬇️ قم بلصق رابط سيرفرك الخاص هنا داخل دالة getInstance
-private val databaseRef = FirebaseDatabase.getInstance("https://abdullah-store-a95ed.firebasestorage.app")
-    .getReference("download_stats")
+    // تم ضبط مسار خادم الـ Realtime Database الفعلي المستخرج من مشروعك
+    private val databaseRef = FirebaseDatabase.getInstance("https://abdullah-store-a95ed-default-rtdb.europe-west1.firebasedatabase.app")
+        .getReference("download_stats")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,10 +60,16 @@ private val databaseRef = FirebaseDatabase.getInstance("https://abdullah-store-a
 
         if (appData != null) {
             currentApp = appData
+            
+            // 1. عرض تفاصيل الواجهة الأساسية
             displayDetails(appData)
+            
+            // 2. 🚨 جلب إحصائية التنزيلات فوراً بمجرد الدخول لتفادي تخطي القراءة بسبب شروط الملفات
+            loadDownloadsCount(appData.packageName)
+            
+            // 3. التحقق من منطق الأزرار وحالة التحميل الحالية
             setupLogic(appData)
             checkCurrentStatus(appData)
-            loadDownloadsCount(appData.packageName)
         } else {
             Toast.makeText(this, "بيانات التطبيق غير صالحة", Toast.LENGTH_SHORT).show()
             finish()
@@ -191,45 +197,39 @@ private val databaseRef = FirebaseDatabase.getInstance("https://abdullah-store-a
     }
 
     private fun loadDownloadsCount(packageName: String) {
-    // تحويل الأحرف كلها إلى صغيرة (lowercase) وتغيير النقاط لضمان التطابق التام في السيرفر
-    val safeKey = packageName.trim().lowercase().replace(".", "_")
-    
-    thread {
-        databaseRef.child(safeKey).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                // الفحص الذكي: إذا كان المسار موجوداً نأخذ القيمة، وإذا لم يكن موجوداً نضع 0 بدلاً من النقاط المعلقة
-                val count = if (snapshot.exists()) {
-                    snapshot.getValue(Long::class.java) ?: 0L
-                } else {
-                    0L
+        val safeKey = packageName.trim().lowercase().replace(".", "_")
+        
+        thread {
+            // استخدام addValueEventListener لتحديث العداد في الواجهة بشكل فوري وتفاعلي
+            databaseRef.child(safeKey).addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val count = if (snapshot.exists()) snapshot.getValue(Long::class.java) ?: 0L else 0L
+                    
+                    runOnUiThread {
+                        binding.badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = formatDownloads(count)
+                    }
                 }
-                
-                runOnUiThread {
-                    binding.badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = formatDownloads(count)
-                }
-            }
 
-            override fun onCancelled(error: DatabaseError) {
-                runOnUiThread {
-                    // في حال فشل الاتصال المؤقت، نظهر 0 لكي لا تبقى النقاط معلقة
-                    binding.badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = "0"
+                override fun onCancelled(error: DatabaseError) {
+                    runOnUiThread {
+                        binding.badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = "0"
+                    }
                 }
-            }
-        })
+            })
+        }
     }
-}
 
-private fun incrementDownloadCount(packageName: String) {
-    // استخدام نفس الصيغة النظيفة (lowercase) لضمان الزيادة في نفس مكان القراءة تماماً
-    val safeKey = packageName.trim().lowercase().replace(".", "_")
-    
-    thread {
-        databaseRef.child(safeKey).setValue(com.google.firebase.database.ServerValue.increment(1))
-            .addOnFailureListener { e ->
-                e.printStackTrace()
-            }
+    private fun incrementDownloadCount(packageName: String) {
+        val safeKey = packageName.trim().lowercase().replace(".", "_")
+        
+        thread {
+            databaseRef.child(safeKey).setValue(com.google.firebase.database.ServerValue.increment(1))
+                .addOnFailureListener { e ->
+                    e.printStackTrace()
+                }
+        }
     }
-}
+
     private fun formatDownloads(count: Long): String {
         return when {
             count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
