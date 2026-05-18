@@ -6,7 +6,7 @@
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0F172A"
+    android:background="?android:attr/colorBackground"
     tools:context=".MainActivity">
 
     <androidx.coordinatorlayout.widget.CoordinatorLayout 
@@ -17,7 +17,7 @@
             android:id="@+id/appBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#0F172A"
+            android:background="?android:attr/colorBackground"
             app:elevation="0dp">
 
             <com.google.android.material.appbar.CollapsingToolbarLayout
@@ -46,15 +46,17 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="مرحبًا بكم، هنا ستجد جميع التطبيقات المعدلة"
-                                android:textColor="#94A3B8"
-                                android:textSize="14sp" />
+                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textSize="13sp"
+                                android:fontFamily="sans-serif-medium" />
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="متجر Abdullah"
-                                android:textColor="#22D3EE"
-                                android:textSize="26sp"
-                                android:fontFamily="sans-serif-black" />
+                                android:textColor="?attr/colorPrimary"
+                                android:textAppearance="?attr/textAppearanceHeadlineMedium"
+                                android:fontFamily="sans-serif-black"
+                                android:layout_marginTop="2dp" />
                         </LinearLayout>
 
                         <com.google.android.material.imageview.ShapeableImageView
@@ -62,13 +64,15 @@
                             android:layout_width="45dp"
                             android:layout_height="45dp"
                             android:layout_alignParentEnd="true"
+                            android:layout_centerVertical="true"
                             android:src="@drawable/ic_menu"
-                            android:background="#1E293B"
-                            android:padding="10dp"
+                            android:background="?attr/colorSurfaceContainer"
+                            app:tint="?attr/colorOnSurface"
+                            android:padding="11dp"
                             android:clickable="true"
                             android:focusable="true"
                             android:foreground="?attr/selectableItemBackgroundBorderless"
-                            app:shapeAppearanceOverlay="@style/CircleImage"
+                            app:shapeAppearanceOverlay="@style/Shape.Circle"
                             tools:ignore="ContentDescription" />
                     </RelativeLayout>
 
@@ -76,10 +80,10 @@
                         android:id="@+id/searchCard"
                         android:layout_width="match_parent"
                         android:layout_height="54dp"
-                        app:cardBackgroundColor="#1E293B"
-                        app:cardCornerRadius="16dp"
+                        app:cardBackgroundColor="?attr/colorSurfaceContainer"
+                        app:cardCornerRadius="@dimen/shape_large_corner"
                         app:cardElevation="0dp"
-                        app:strokeColor="#334155"
+                        app:strokeColor="?attr/colorOutlineVariant"
                         app:strokeWidth="1dp">
 
                         <LinearLayout
@@ -93,7 +97,7 @@
                                 android:layout_width="22dp"
                                 android:layout_height="22dp"
                                 android:src="@android:drawable/ic_menu_search"
-                                app:tint="#94A3B8" />
+                                app:tint="?attr/colorOnSurfaceVariant" />
 
                             <EditText
                                 android:id="@+id/etSearch"
@@ -101,8 +105,8 @@
                                 android:layout_height="match_parent"
                                 android:background="@android:color/transparent"
                                 android:hint="ابحث عن التطبيقات هنا .."
-                                android:textColorHint="#64748B"
-                                android:textColor="#F8FAFC"
+                                android:textColorHint="?attr/colorOutline"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="15sp"
                                 android:paddingHorizontal="12dp"
                                 android:inputType="text" />
@@ -115,13 +119,13 @@
                 android:id="@+id/tabLayoutMain"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:background="#0F172A"
+                android:background="?android:attr/colorBackground"
                 app:tabIndicatorFullWidth="false"
                 app:tabIndicatorHeight="3dp"
                 app:tabIndicatorGravity="bottom"
-                app:tabIndicatorColor="#22D3EE"
-                app:tabSelectedTextColor="#22D3EE"
-                app:tabTextColor="#94A3B8"
+                app:tabIndicatorColor="?attr/colorPrimary"
+                app:tabSelectedTextColor="?attr/colorPrimary"
+                app:tabTextColor="?attr/colorOnSurfaceVariant"
                 app:tabTextAppearance="@style/CustomTabText"
                 app:tabRippleColor="@android:color/transparent"/>
 
@@ -132,7 +136,7 @@
                 android:layout_height="4dp"
                 android:indeterminate="true"
                 android:visibility="gone"
-                android:indeterminateTint="#22D3EE" />
+                android:indeterminateTint="?attr/colorPrimary" />
 
         </com.google.android.material.appbar.AppBarLayout>
 
@@ -140,7 +144,7 @@
             android:id="@+id/viewPagerMain"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#0F172A"
+            android:background="?android:attr/colorBackground"
             app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
@@ -150,10 +154,10 @@
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="#1E293B"
-        android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
-        app:itemTextColor="#F8FAFC"
-        app:itemIconTint="#22D3EE"
+        android:background="?attr/colorSurfaceContainerLow"
+        android:theme="@style/Theme.FixEngine"
+        app:itemTextColor="?attr/colorOnSurface"
+        app:itemIconTint="?attr/colorPrimary"
         app:menu="@menu/drawer_menu" />
 
 </androidx.drawerlayout.widget.DrawerLayout>
