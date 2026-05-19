@@ -367,9 +367,9 @@ class MainActivity : AppCompatActivity() {
             // تمرير مصفوفة البايتات المفكوكة مع مفتاح الملح 0 لإعلام الـ Repository باعتماد الـ Base64
             viewModel.loadApps(decodedBytes, 0.toByte())
             
-        } catch (e: Exception) {
-            // معالجة الأخطاء الاستثنائية إن وجدت لمنع تجميد شريط التحميل
-            viewModel.errorMessage.postValue("خطأ في معالجة بوابة الأمان")
-        }
+        catch (e: Exception) {
+    // عرض رسالة خطأ مباشرة في الواجهة دون التعديل على LiveData المحمية
+    Toast.makeText(this, "خطأ في معالجة بوابة الأمان", Toast.LENGTH_LONG).show()
+}
     }
 }
