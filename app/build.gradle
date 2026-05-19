@@ -9,6 +9,15 @@ android {
     namespace 'com.fix.engine.abdullah'
     compileSdk 35 
 
+    signingConfigs {
+        release {
+            // القراءة التلقائية من متغيرات النظام (Environment Variables) في جيت هاب
+            storeFile file(System.getenv("SIGNING_STORE_FILE") ?: "fixengine.jks")
+            storePassword System.getenv("SIGNING_STORE_PASSWORD")
+            keyAlias System.getenv("SIGNING_KEY_ALIAS")
+            keyPassword System.getenv("SIGNING_KEY_PASSWORD")
+        }
+
     defaultConfig {
         applicationId "com.fix.engine.abdullah"
         minSdk 24 
@@ -29,6 +38,7 @@ android {
         release {
             minifyEnabled true 
             shrinkResources true
+            signingConfig signingConfigs.release // 🚨 إجبار الجرادل على توقيع نسخة الريليز بالمفتاح الثابت
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
