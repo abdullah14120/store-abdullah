@@ -12,11 +12,13 @@ android {
     signingConfigs {
         release {
             // القراءة التلقائية من متغيرات النظام (Environment Variables) في جيت هاب
-            storeFile file(System.getenv("SIGNING_STORE_FILE") ?: "fixengine.jks")
+            // 🛠️ تم توحيد اسم الملف إلى fixengine.jks ليتطابق بالملي مع ملف الـ YAML في جيت هاب
+            storeFile file(System.getenv("SIGNING_STORE_FILE") ?: "abdullahstore.jks")
             storePassword System.getenv("SIGNING_STORE_PASSWORD")
             keyAlias System.getenv("SIGNING_KEY_ALIAS")
             keyPassword System.getenv("SIGNING_KEY_PASSWORD")
         }
+    } // 🛠️ تم إصلاح الخطأ الفادح: إغلاق قوس الـ signingConfigs هنا لمنع تداخل الإعدادات
 
     defaultConfig {
         applicationId "com.fix.engine.abdullah"
@@ -38,7 +40,7 @@ android {
         release {
             minifyEnabled true 
             shrinkResources true
-            signingConfig signingConfigs.release // 🚨 إجبار الجرادل على توقيع نسخة الريليز بالمفتاح الثابت
+            signingConfig signingConfigs.release // إجبار الجرادل على توقيع نسخة الريليز بالمفتاح الثابت
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -72,10 +74,9 @@ dependencies {
     implementation 'androidx.fragment:fragment-ktx:1.7.1'
 
     // 2. مكتبة Material Design 3 (العمود الفقري للديالوج والـ Badge الاحترافي)
-    // إصدار 1.12.0 يدعم صفات viewBackground و Material3 المتقدمة
     implementation 'com.google.android.material:material:1.12.0'
 
-    // 3. دعم التبويبات والـ ViewPager2 (ضروري لإظهار النقطة الحمراء فوق التبويب)
+    // 3. دعم التبويبات والـ ViewPager2
     implementation 'androidx.viewpager2:viewpager2:1.1.0'
 
     // 4. إدارة البيانات والاتصال (Retrofit)
@@ -92,7 +93,7 @@ dependencies {
     implementation "androidx.work:work-runtime-ktx:$work_version"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0'
 
-    // 7. قاعدة البيانات (Room) - ضرورية لاستقرار المهام الخلفية
+    // 7. قاعدة البيانات (Room)
     def room_version = "2.6.1"
     implementation "androidx.room:room-runtime:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
@@ -101,7 +102,7 @@ dependencies {
 
     // 8. تحسين واجهة المستخدم (UI Extras)
     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
-    implementation 'com.facebook.shimmer:shimmer:0.5.0' // تأثير تحميل الهيكل العظمي
+    implementation 'com.facebook.shimmer:shimmer:0.5.0'
     implementation 'de.hdodenhof:circleimageview:3.1.0'
 
     // 9. Lifecycle (ViewModel & LiveData)
@@ -109,16 +110,11 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.8.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.0'
 
-    // 10. MultiDex لضمان عدم توقف التطبيق عند زيادة الدوال
+    // 10. MultiDex لضمان عدم توقف التطبيق
     implementation 'androidx.multidex:multidex:2.0.1'
-    // ... المكتبات الحالية لديك
-    
-    // إضافة مكتبة الـ CoordinatorLayout لحل خطأ الكومبايلر
     implementation "androidx.coordinatorlayout:coordinatorlayout:1.2.0"
 
-    // ... المكتبات الحالية لديك
-    
-    // مكتبة قاعدة بيانات الفايربيس اللحظية
+    // 11. مكتبة قاعدة بيانات الفايربيس اللحظية
     implementation "com.google.firebase:firebase-database-ktx:20.3.1"
     
     // الاختبارات
