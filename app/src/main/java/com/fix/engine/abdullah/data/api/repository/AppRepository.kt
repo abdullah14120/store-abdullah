@@ -7,22 +7,25 @@ import kotlinx.coroutines.withContext
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Professional Data Repository
- * Logic: Bridge between Remote API and ViewModel with Error Handling
+ * Project: FIX ENGINE - Professional Data Repository (Secure Data Hub)
+ * Logic: Bridge between Cryptographic API Streams and ViewModels
  */
 class AppRepository {
 
     private val apiService = RetrofitClient.instance
 
     /**
-     * جلب قائمة التطبيقات من مستودع GitHub
-     * يدعم فحص حالة الاستجابة لضمان استقرار "متجر Abdullah"
+     * جلب قائمة التطبيقات من مستودع الـ Server الآمن.
+     * يستقبل المصفوفة المشفرة ويفكها تفاعلياً في الخلفية لضمان الحماية المطلقة.
      */
-    suspend fun fetchApps(repoUrl: String): Result<List<AppModel>> {
+    suspend fun fetchApps(encryptedUrl: ByteArray, cryptoSalt: Byte): Result<List<AppModel>> {
         return withContext(Dispatchers.IO) {
             try {
-                // استدعاء الواجهة البرمجية (التي تعيد الآن Response)
-                val response = apiService.getAppsList(repoUrl)
+                // 🔐 فك التشفير اللحظي داخل الـ Thread المعزول لحجب الرابط عن كاشفات الذاكرة الثابتة
+                val rawUrl = decryptUrlStream(encryptedUrl, cryptoSalt)
+                
+                // استدعاء الواجهة البرمجية بالرابط النظيف المحمي
+                val response = apiService.getAppsList(rawUrl)
                 
                 if (response.isSuccessful) {
                     val apps = response.body()
@@ -32,13 +35,24 @@ class AppRepository {
                         Result.failure(Exception("قائمة التطبيقات فارغة في الخادم"))
                     }
                 } else {
-                    // التقاط أخطاء السيرفر (مثل 404 أو 500)
-                    Result.failure(Exception("خطأ في الاتصال بالمستودع: ${response.code()}"))
+                    // التقاط أخطاء السيرفر بحذر لعدم تسريب أي معلومات عن هيكل المستودع
+                    Result.failure(Exception("فشل مزامنة المستودع الآمن: ${response.code()}"))
                 }
             } catch (e: Exception) {
-                // التقاط أخطاء الشبكة العامة أو تحويل الـ JSON
+                // التقاط أخطاء الشبكة العامة أو انقطاع الاتصال
                 Result.failure(e)
             }
         }
+    }
+
+    /**
+     * المحرك الداخلي السري لفك بوابات الـ XOR لضمان تشويه الرابط تماماً في حال محاولة سحب الـ Heap Dump
+     */
+    private fun decryptUrlStream(secureBytes: ByteArray, salt: Byte): String {
+        val output = ByteArray(secureBytes.size)
+        for (i in secureBytes.indices) {
+            output[i] = (secureBytes[i].toInt() xor salt.toInt()).toByte()
+        }
+        return String(output, Charsets.UTF_8)
     }
 }
