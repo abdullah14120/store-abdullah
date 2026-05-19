@@ -7,13 +7,13 @@ import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Enterprise Data Model
+ * Project: متجر Abdullah - Enterprise Data Model (Secure Edition)
  * Feature: ProGuard Protected Architecture, Smart Size Formatting & Unique File Identity
  */
 @Keep // 🚨 حماية فولاذية: يمنع ProGuard و R8 من تغيير أسماء الخصائص لضمان نجاح قراءة الـ JSON دائماً
 data class AppModel(
     @SerializedName("id") 
-    val id: String,
+    val id: Int, // 🛠️ تم التصحيح إلى Int ليتطابق مع أرقام السيرفر القياسية الخام
 
     @SerializedName("name") 
     val name: String,
@@ -25,7 +25,7 @@ data class AppModel(
     val versionName: String,
     
     @SerializedName("versionCode") 
-    val versionCode: Long, // 🛠️ تم التصحيح: تحويله إلى Long ليتوافق مع أنظمة أندرويد الحديثة ومحاكاة المتاجر الكبرى
+    val versionCode: Double, // 🛠️ تم التصحيح إلى Double لدعم الأرقام الضخمة في سيرفرك (مثل التطبيق 9) ومنع الانهيار صامتاً
     
     @SerializedName("developer") 
     val developer: String,
@@ -37,7 +37,7 @@ data class AppModel(
     val downloadUrl: String,
 
     @SerializedName("size") 
-    val size: Long = 0, // الحجم بالبايت (Bytes) قادم من السيرفر ليتم تحويله تلقائياً
+    val size: String = "0", // 🛠️ تم التصحيح إلى String لأن السيرفر يرسل الحجم محاطاً بعلامات تنصيص
     
     @SerializedName("description") 
     val description: String? = "لا يوجد وصف متاح لهذا التطبيق حالياً."
@@ -53,11 +53,15 @@ data class AppModel(
 
     /**
      * وظيفة احترافية لتحويل الحجم ديناميكياً (MB أو KB) بالاعتماد على النظام القياسي
+     * 🛠️ تم تحديثها لتقوم بتحويل الـ String القادم من السيرفر إلى قيمة رقمية آمنة في الخلفية
      */
     fun getFormattedSize(): String {
-        if (size <= 0) return "حجم غير معروف"
+        // تحويل النص الآتي من السيرفر إلى رقم طويل (Long) بأمان
+        val sizeInBytes = size.toLongOrNull() ?: 0L
         
-        val kb = size / 1024.0
+        if (sizeInBytes <= 0L) return "حجم غير معروف"
+        
+        val kb = sizeInBytes / 1024.0
         val mb = kb / 1024.0
         
         return if (mb >= 1) {
