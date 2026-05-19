@@ -11,14 +11,13 @@ android {
 
     signingConfigs {
         release {
-            // القراءة التلقائية من متغيرات النظام (Environment Variables) في جيت هاب
-            // 🛠️ تم توحيد اسم الملف إلى fixengine.jks ليتطابق بالملي مع ملف الـ YAML في جيت هاب
-            storeFile file(System.getenv("SIGNING_STORE_FILE") ?: "abdullahstore.jks")
+            // 🛠️ تم التصحيح الفعلي: توحيد الاسم الاحتياطي ليتوافق مع ملف جيت هاب لمنع أي خطأ تضارب
+            storeFile file(System.getenv("SIGNING_STORE_FILE") ?: "fixengine.jks")
             storePassword System.getenv("SIGNING_STORE_PASSWORD")
             keyAlias System.getenv("SIGNING_KEY_ALIAS")
             keyPassword System.getenv("SIGNING_KEY_PASSWORD")
         }
-    } // 🛠️ تم إصلاح الخطأ الفادح: إغلاق قوس الـ signingConfigs هنا لمنع تداخل الإعدادات
+    } 
 
     defaultConfig {
         applicationId "com.fix.engine.abdullah"
@@ -40,7 +39,7 @@ android {
         release {
             minifyEnabled true 
             shrinkResources true
-            signingConfig signingConfigs.release // إجبار الجرادل على توقيع نسخة الريليز بالمفتاح الثابت
+            signingConfig signingConfigs.release 
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -73,7 +72,7 @@ dependencies {
     implementation 'androidx.activity:activity-ktx:1.9.0'
     implementation 'androidx.fragment:fragment-ktx:1.7.1'
 
-    // 2. مكتبة Material Design 3 (العمود الفقري للديالوج والـ Badge الاحترافي)
+    // 2. مكتبة Material Design 3 
     implementation 'com.google.android.material:material:1.12.0'
 
     // 3. دعم التبويبات والـ ViewPager2
@@ -88,12 +87,12 @@ dependencies {
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     kapt 'com.github.bumptech.glide:compiler:4.16.0'
 
-    // 6. العمليات في الخلفية (WorkManager)
+    // 6. العمليات في الخلفية (WorkManager & Coroutines)
     def work_version = "2.9.1"
     implementation "androidx.work:work-runtime-ktx:$work_version"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0'
 
-    // 7. قاعدة البيانات (Room)
+    // 7. قاعدة البيانات المحلية (Room)
     def room_version = "2.6.1"
     implementation "androidx.room:room-runtime:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
@@ -110,12 +109,14 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.8.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.0'
 
-    // 10. MultiDex لضمان عدم توقف التطبيق
+    // 10. MultiDex و الـ Layouts المتقدمة
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation "androidx.coordinatorlayout:coordinatorlayout:1.2.0"
 
-    // 11. مكتبة قاعدة بيانات الفايربيس اللحظية
-    implementation "com.google.firebase:firebase-database-ktx:20.3.1"
+    // 11. 🛠️ تم الإضافة: الهيكل القياسي الموحد لخدمات الفايربيس لضمان استقرار قنوات الاتصال
+    implementation platform('com.google.firebase:firebase-bom:33.1.0')
+    implementation 'com.google.firebase:firebase-database-ktx'
+    implementation 'com.google.firebase:firebase-common-ktx'
     
     // الاختبارات
     testImplementation 'junit:junit:4.13.2'
