@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Pro View Model (Material 3 Secure Edition)
+ * Project: متجر Abdullah - Pro View Model (Material 3 Secure Edition)
  * Logic: Handles Independent Multi-Fragment Search & Secure Encrypted Data Distribution
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -41,10 +41,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * 🔐 جلب التطبيقات وفرزها في الخلفية بتوزيع متوازٍ
-     * تم تحديث البارامترات لتستقبل الحزمة المشفرة بدلاً من روابط النصوص الصافية
      */
     fun loadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
-        viewModelScope.launch(Dispatchers.IO) { // العمليات الثقيلة وفك التشفير تتم داخل الـ Thread المعزول لحماية الذاكرة
+        // العمليات الثقيلة وفك التشفير تتم داخل الـ Thread المعزول لحماية الذاكرة والواجهة
+        viewModelScope.launch(Dispatchers.IO) { 
             _isLoading.postValue(true)
             _errorMessage.postValue(null)
             
@@ -59,8 +59,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     try {
                         val pInfo = packageManager.getPackageInfo(app.packageName, 0)
                         val installedVer = pInfo.versionName ?: ""
+                        // عمل trim لتفادي الفراغات المخفية في النصوص القادمة من السيرفر
                         app.versionName.trim() != installedVer.trim()
                     } catch (e: PackageManager.NameNotFoundException) {
+                        false // التطبيق غير مثبت، إذن لا يوجد له تحديث في التبويب الثاني
+                    } catch (e: Exception) {
                         false
                     }
                 }
@@ -71,31 +74,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoading.postValue(false)
                 
             }.onFailure { exception ->
-                _errorMessage.postValue("فشل في جلب البيانات: ${exception.localizedMessage}")
+                // استرجاع تفاصيل الخطأ الشبكي الحقيقي وعرضه في الواجهة مباشرة
+                _errorMessage.postValue("فشل في جلب البيانات: ${exception.localizedMessage ?: "خطأ شبكي مجهول"}")
                 _isLoading.postValue(false)
             }
         }
     }
 
     /**
-     * دالة البحث المباشر الذكية والمزدوجة: تقوم بتصفية تبويب التطبيقات 
-     * وتبويب التحديثات معاً دون أن يختفي محتوى أي واجهة منهما!
+     * دالة البحث المباشر الذكية والمزدوجة
+     * 🛠️ تم تعديلها لتطابق الخصائص الحقيقية للسيرفر (name و developer) مع الحماية ضد الـ Null
      */
     fun filterApps(query: String) {
         if (query.isBlank()) {
             _appsList.value = fullAppsList
             _updatesList.value = fullUpdatesList
         } else {
-            // تصفية ذكية لصفحة التطبيقات بناءً على الاسم أو المطور
-            val filteredApps = fullAppsList.filter { 
-                it.name.contains(query, ignoreCase = true) || 
-                it.developer.contains(query, ignoreCase = true)
+            // تصفية ذكية لصفحة التطبيقات بناءً على الاسم أو المطور الحالي
+            val filteredApps = fullAppsList.filter { app ->
+                val nameMatch = app.name?.contains(query, ignoreCase = true) ?: false
+                val devMatch = app.developer?.contains(query, ignoreCase = true) ?: false
+                nameMatch || devMatch
             }
             
             // تصفية موازية ومستقلة لشاشة التحديثات المتاحة لتظل النتائج متناسقة
-            val filteredUpdates = fullUpdatesList.filter { 
-                it.name.contains(query, ignoreCase = true) || 
-                it.developer.contains(query, ignoreCase = true)
+            val filteredUpdates = fullUpdatesList.filter { app ->
+                val nameMatch = app.name?.contains(query, ignoreCase = true) ?: false
+                val devMatch = app.developer?.contains(query, ignoreCase = true) ?: false
+                nameMatch || devMatch
             }
 
             _appsList.value = filteredApps
