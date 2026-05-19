@@ -34,26 +34,15 @@ import java.security.MessageDigest
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Official Runtime Core)
- * Feature: Production SHA-256 Signature Attestation, Hex-XOR String Obfuscation & M3 Layouts
+ * Feature: Production SHA-256 Signature Attestation, Base64 String Obfuscation & M3 Layouts
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
 
-    // مفتاح التشفير السري المخصص للـ XOR لمنع الفحص الثابت
-    private val cryptoSalt: Byte = 0x5A
-
-    // رابط الـ Repository JSON مشفر بالكامل بصيغة مصفوفة بايتات لفك بوابات الـ Repository الجديد
-        // 🔒 رابط الـ Repository JSON الفعلي والمصحح (apps.json) بعد تشفيره بمفتاح 0x5A لـ "متجر Abdullah"
-    private val repoSecArray = byteArrayOf(
-        0x32, 0x2e, 0x2e, 0x2a, 0x29, 0x60, 0x75, 0x75, 0x28, 0x3b, 0x2d, 0x74, 0x3d, 0x33, 0x2c, 0x32, 
-        0x33, 0x23, 0x3f, 0x3f, 0x3d, 0x35, 0x33, 0x39, 0x74, 0x39, 0x35, 0x37, 0x75, 0x3b, 0x38, 0x3e, 
-        0x2f, 0x36, 0x36, 0x3b, 0x32, 0x6b, 0x3e, 0x3b, 0x6c, 0x6b, 0x6a, 0x6a, 0x7f, 0x7f, 0x75, 0x28, 
-        0x3f, 0x33, 0x3e, 0x3b, 0x38, 0x32, 0x33, 0x3b, 0x3f, 0x75, 0x32, 0x3f, 0x3f, 0x3b, 0x29, 0x75, 
-        0x3d, 0x3b, 0x33, 0x3e, 0x29, 0x75, 0x3b, 0x2a, 0x2a, 0x29, 0x75, 0x3b, 0x2a, 0x2a, 0x29, 0x34, 
-        0x20, 0x35, 0x34, 0x34
-    )
+    // 🔒 الرابط الخام لـ "apps.json" مشفر بترميز Base64 لحمايته من الفحص الثابت وحل مشاكل الـ XOR
+    private val repoSecUrlBase64 = "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2FiZHVsbGFoMTQxMjAvc3RvcmUtYWJkdWxsYWgvcmVmcy9oZWFkcy9tYWluL2FwcHMuanNvbg=="
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,17 +109,6 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             false // سد منافذ الثغرات عند حدوث أي محاولة تخطي بالـ Runtime الالتفافي
         }
-    }
-
-    /**
-     * دالة فك التشفير اللحظي في الذاكرة العشوائية (RAM Only) عبر بوابة الـ XOR
-     */
-    private fun decryptSecureString(secureBytes: ByteArray): String {
-        val output = ByteArray(secureBytes.size)
-        for (i in secureBytes.indices) {
-            output[i] = (secureBytes[i].toInt() xor cryptoSalt.toInt()).toByte()
-        }
-        return String(output, Charsets.UTF_8)
     }
 
     private fun setupNavigationDrawer() {
@@ -381,8 +359,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-        private fun refreshData() {
-        // حماية نظام الإقلاع الفوري: فك تشفير الرابط الحقيقي لحظياً وتمريره للـ ViewModel الآمن
-        viewModel.loadApps(repoSecArray, cryptoSalt)
+    private fun refreshData() {
+        try {
+            // 🛠️ فك تشفير الـ Base64 بلغة النظام القياسية وبشكل فوري في الذاكرة العشوائية
+            val decodedBytes = android.util.Base64.decode(repoSecUrlBase64, android.util.Base64.DEFAULT)
+            
+            // تمرير مصفوفة البايتات المفكوكة مع مفتاح الملح 0 لإعلام الـ Repository باعتماد الـ Base64
+            viewModel.loadApps(decodedBytes, 0.toByte())
+            
+        } catch (e: Exception) {
+            // معالجة الأخطاء الاستثنائية إن وجدت لمنع تجميد شريط التحميل
+            viewModel.errorMessage.postValue("خطأ في معالجة بوابة الأمان")
+        }
     }
 }
