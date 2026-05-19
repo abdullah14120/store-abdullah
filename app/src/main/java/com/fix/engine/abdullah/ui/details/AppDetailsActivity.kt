@@ -31,7 +31,7 @@ import kotlin.concurrent.thread
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Feature: Legacy FileProvider Installer, Material 3 Glide Masking & Encrypted Firebase RTDB Session
+ * Feature: Legacy FileProvider Installer, Material 3 Glide Masking & Encrypted Base64 Firebase RTDB Session
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -41,18 +41,10 @@ class AppDetailsActivity : AppCompatActivity() {
     private var isDownloading = false
     private var currentApp: AppModel? = null
     
-    // 🔐 مفتاح التشفير السري المتناسق مع كود الواجهة الرئيسية للـ XOR
-    private val cryptoSalt: Byte = 0x5A
     private lateinit var databaseRef: DatabaseReference
 
-    // رابط الـ Firebase Realtime Database مشفر كمصفوفة بايتات معماة لمنع السرقة أو التخريب
-    private val firebaseSecArray = byteArrayOf(
-        0x3c, 0x2e, 0x2e, 0x2a, 0x23, 0x6a, 0x7f, 0x7f, 0x3b, 0x3e, 0x3e, 0x2f, 0x36, 0x36, 0x3f, 0x32, 
-        0x7d, 0x29, 0x2e, 0x35, 0x28, 0x3f, 0x7d, 0x3b, 0x23, 0x6f, 0x3f, 0x3f, 0x3f, 0x3e, 0x3e, 0x77, 
-        0x3e, 0x3f, 0x33, 0x33, 0x3f, 0x2f, 0x2e, 0x33, 0x7d, 0x3c, 0x3f, 0x2d, 0x33, 0x20, 0x31, 0x35, 
-        0x3d, 0x29, 0x3f, 0x7d, 0x3c, 0x33, 0x28, 0x3f, 0x3b, 0x3c, 0x3b, 0x39, 0x3f, 0x33, 0x3b, 0x2e, 
-        0x3b, 0x2c, 0x33, 0x74, 0x3b, 0x2a, 0x2a, 0x75
-    )
+    // 🔒 رابط الـ Firebase Realtime Database مشفر بترميز Base64 لحمايته من الفحص والسرقة
+    private val firebaseSecUrlBase64 = "aHR0cHM6Ly9hYmR1bGxhaC1zdG9yZS1hOTVlZC1kZWZhdWx0LXJ0ZGIuZXVyb3BlLXdlc3QxLmZpcmViYXNlZGF0YWJhc2UuYXBw"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,9 +57,16 @@ class AppDetailsActivity : AppCompatActivity() {
 
         setupToolbar()
 
-        // 🔐 فك تشفير رابط خادم الفايربيس لحظياً في الذاكرة وبناء مرجع الاتصال الآمن بشكل مغلق
-        val decodedFirebaseUrl = decryptSecureString(firebaseSecArray)
-        databaseRef = FirebaseDatabase.getInstance(decodedFirebaseUrl).getReference("download_stats")
+        try {
+            // 🛠️ فك تشفير الـ Base64 لحظياً بلغة النظام القياسية وبشكل فوري لبناء مرجع الاتصال الآمن
+            val decodedBytes = android.util.Base64.decode(firebaseSecUrlBase64, android.util.Base64.DEFAULT)
+            val decodedFirebaseUrl = String(decodedBytes, Charsets.UTF_8)
+            
+            databaseRef = FirebaseDatabase.getInstance(decodedFirebaseUrl).getReference("download_stats")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "خطأ في الاتصال الأمني بقاعدة البيانات", Toast.LENGTH_SHORT).show()
+        }
 
         val appData = intent.getSerializableExtra("APP_DATA") as? AppModel
 
@@ -77,8 +76,10 @@ class AppDetailsActivity : AppCompatActivity() {
             // 1. عرض تفاصيل الواجهة الأساسية
             displayDetails(appData)
             
-            // 2. جلب إحصائية التنزيلات فوراً بمجرد الدخول بتمرير المرجع المؤمن
-            loadDownloadsCount(appData.packageName)
+            // 2. جلب إحصائية التنزيلات فوراً بمجرد الدخول بتمرير المرجع المؤمن (إذا تم تهيئته بنجاح)
+            if (::databaseRef.isInitialized) {
+                loadDownloadsCount(appData.packageName)
+            }
             
             // 3. التحقق من منطق الأزرار وحالة التحميل الحالية
             setupLogic(appData)
@@ -87,17 +88,6 @@ class AppDetailsActivity : AppCompatActivity() {
             Toast.makeText(this, "بيانات التطبيق غير صالحة", Toast.LENGTH_SHORT).show()
             finish()
         }
-    }
-
-    /**
-     * المحرك الداخلي السري لفك بوابات الـ XOR لفك تشفير الرابط في الـ RAM فقط
-     */
-    private fun decryptSecureString(secureBytes: ByteArray): String {
-        val output = ByteArray(secureBytes.size)
-        for (i in secureBytes.indices) {
-            output[i] = (secureBytes[i].toInt() xor cryptoSalt.toInt()).toByte()
-        }
-        return String(output, Charsets.UTF_8)
     }
 
     private fun setupToolbar() {
@@ -225,6 +215,7 @@ class AppDetailsActivity : AppCompatActivity() {
         val safeKey = packageName.trim().lowercase().replace(".", "_")
         
         thread {
+            if (!::databaseRef.isInitialized) return@thread
             databaseRef.child(safeKey).addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val count = if (snapshot.exists()) snapshot.getValue(Long::class.java) ?: 0L else 0L
@@ -247,6 +238,7 @@ class AppDetailsActivity : AppCompatActivity() {
         val safeKey = packageName.trim().lowercase().replace(".", "_")
         
         thread {
+            if (!::databaseRef.isInitialized) return@thread
             databaseRef.child(safeKey).setValue(com.google.firebase.database.ServerValue.increment(1))
                 .addOnFailureListener { e ->
                     e.printStackTrace()
