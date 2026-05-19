@@ -13,8 +13,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Pro View Model (Material 3 Dynamic Edition)
- * Logic: Handles Independent Multi-Fragment Search & Secure Data Distribution
+ * Project: FIX ENGINE - Pro View Model (Material 3 Secure Edition)
+ * Logic: Handles Independent Multi-Fragment Search & Secure Encrypted Data Distribution
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -29,7 +29,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _appsList = MutableLiveData<List<AppModel>>()
     val appsList: LiveData<List<AppModel>> get() = _appsList
 
-    // 🔵 2. مسار مراقبة صفحة "التحديثات" (فصل مستقل تماماً لحل مشكلة اختفاء التحديثات)
+    // 🔵 2. مسار مراقبة صفحة "التحديثات"
     private val _updatesList = MutableLiveData<List<AppModel>>()
     val updatesList: LiveData<List<AppModel>> get() = _updatesList
 
@@ -40,14 +40,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val errorMessage: LiveData<String?> get() = _errorMessage
 
     /**
-     * جلب التطبيقات وفرزها في الخلفية بتوزيع متوازٍ
+     * 🔐 جلب التطبيقات وفرزها في الخلفية بتوزيع متوازٍ
+     * تم تحديث البارامترات لتستقبل الحزمة المشفرة بدلاً من روابط النصوص الصافية
      */
-    fun loadApps(repoUrl: String) {
-        viewModelScope.launch(Dispatchers.IO) { // 🚨 تحويل العمليات الثقيلة لـ Dispatchers.IO لحماية سرعة واجهة المتجر
+    fun loadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
+        viewModelScope.launch(Dispatchers.IO) { // العمليات الثقيلة وفك التشفير تتم داخل الـ Thread المعزول لحماية الذاكرة
             _isLoading.postValue(true)
             _errorMessage.postValue(null)
             
-            val result = repository.fetchApps(repoUrl)
+            // تمرير مصفوفة البايتات والمفتاح السري مباشرة للـ Repository لفكها لحظياً هناك
+            val result = repository.fetchApps(encryptedUrl, cryptoSalt)
             
             result.onSuccess { list ->
                 fullAppsList = list
@@ -63,7 +65,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
-                // ضخ البيانات لكل واجهة بشكل آمن وفي نفس اللحظة
+                // ضخ البيانات لكل واجهة بشكل آمن وفي نفس اللحظة عبر postValue الآمنة للخلفية
                 _appsList.postValue(fullAppsList)
                 _updatesList.postValue(fullUpdatesList)
                 _isLoading.postValue(false)
