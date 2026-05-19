@@ -1,14 +1,16 @@
 package com.fix.engine.abdullah.data.model
 
+import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
 import java.io.Serializable
 import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Enterprise Data Model
- * Feature: Smart Size Formatting & Unique File Identity
+ * Project: FIX ENGINE - Enterprise Data Model
+ * Feature: ProGuard Protected Architecture, Smart Size Formatting & Unique File Identity
  */
+@Keep // 🚨 حماية فولاذية: يمنع ProGuard و R8 من تغيير أسماء الخصائص لضمان نجاح قراءة الـ JSON دائماً
 data class AppModel(
     @SerializedName("id") 
     val id: String,
@@ -23,7 +25,7 @@ data class AppModel(
     val versionName: String,
     
     @SerializedName("versionCode") 
-    val versionCode: String, // تم التحويل لـ Long لدعم التوافقية العالية
+    val versionCode: Long, // 🛠️ تم التصحيح: تحويله إلى Long ليتوافق مع أنظمة أندرويد الحديثة ومحاكاة المتاجر الكبرى
     
     @SerializedName("developer") 
     val developer: String,
@@ -32,27 +34,25 @@ data class AppModel(
     val iconUrl: String,
     
     @SerializedName("downloadUrl") 
-    val downloadUrl: String = "مطور معتمد",
+    val downloadUrl: String,
 
     @SerializedName("size") 
-    val size: Long = 0, // الحجم بالبايت (Bytes)
+    val size: Long = 0, // الحجم بالبايت (Bytes) قادم من السيرفر ليتم تحويله تلقائياً
     
     @SerializedName("description") 
-    val description: String? = "لا يوجد وصف متاح لهذا التطبيق حالياً.",
-    
-
+    val description: String? = "لا يوجد وصف متاح لهذا التطبيق حالياً."
 ) : Serializable {
     
     /**
      * توليد اسم الملف الفريد الموحد لكل أجزاء التطبيق.
-     * يضمن عدم تداخل الملفات المحملة.
+     * يضمن عدم تداخل الملفات المحملة داخل مجلد التنزيلات بالجهاز.
      */
     fun getUniqueFileName(): String {
-        return "${packageName}_v${versionName}.apk"
+        return "${packageName}_v${versionName.trim()}.apk"
     }
 
     /**
-     * وظيفة احترافية لتحويل الحجم ديناميكياً (MB أو KB).
+     * وظيفة احترافية لتحويل الحجم ديناميكياً (MB أو KB) بالاعتماد على النظام القياسي
      */
     fun getFormattedSize(): String {
         if (size <= 0) return "حجم غير معروف"
