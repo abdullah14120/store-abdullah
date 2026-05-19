@@ -29,12 +29,15 @@ import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 import com.google.android.material.button.MaterialButton 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
-import java.security.MessageDigest
+import java.io.ByteArrayInputStream
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
+import java.util.Arrays
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Global Professional Hub
- * Feature: Runtime Signature Attestation, Hex-XOR String Obfuscation & M3 Layouts
+ * Project: متجر Abdullah (Official Runtime Core)
+ * Feature: Cryptographic Public Key Identifier Attestation, Hex-XOR String Obfuscation & M3 Theme Layouts
  */
 class MainActivity : AppCompatActivity() {
 
@@ -44,13 +47,14 @@ class MainActivity : AppCompatActivity() {
     // مفتاح التشفير السري المخصص للـ XOR لمنع الفحص الثابت
     private val cryptoSalt: Byte = 0x5A
 
-    // رابط الـ Telegram مشفر كمصفوفة بايتات لمنع الكاشفات النصية
-    private val telegramSecArray = byteArrayOf(
-        0x3c, 0x2e, 0x2e, 0x2a, 0x29, 0x60, 0x75, 0x75, 0x7e, 0x73, 
-        0x37, 0x33, 0x37, 0x3b, 0x2f, 0x3b, 0x2f, 0x3e, 0x3b, 0x37, 0x3f, 0x3f, 0x33, 0x37, 0x33
+    // 🔐 مصفوفة البايتات الموثقة لـ KeyIdentifier المستخرجة من ملف توقيعك الرسمي مباشرة
+    private val targetKeyIdentifier = byteArrayOf(
+        0x2A, 0x82, 0x5B, 0x8B, 0xEE, 0x9C, 0xE7, 0x63, 
+        0x59, 0x3A, 0x04, 0xFE, 0x91, 0xCA, 0x4F, 0x35, 
+        0x72, 0xA1, 0x17, 0xE5
     )
 
-    // رابط الـ Repository JSON مشفر بالكامل بصيغة مصفوفة بايتات
+    // رابط الـ Repository JSON مشفر بالكامل بصيغة مصفوفة بايتات لفك بوابات الـ Repository الجديد
     private val repoSecArray = byteArrayOf(
         0x32, 0x2e, 0x2e, 0x2a, 0x29, 0x60, 0x75, 0x75, 0x28, 0x3b, 0x2d, 0x74, 0x3d, 0x33, 0x2c, 0x32, 
         0x33, 0x23, 0x3f, 0x3f, 0x3d, 0x35, 0x33, 0x39, 0x74, 0x39, 0x35, 0x37, 0x75, 0x3b, 0x38, 0x3e, 
@@ -63,7 +67,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // 🚨 1. تفعيل درع الحماية وفحص التوقيع الرقمي فوراً؛ إذا ثبت التعديل ينهار التطبيق
+        // 🚨 1. تشغيل الفحص المتقدم للمفتاح العام؛ في حال تفكيك الحزمة وإعادة توقيعها بمفتاح آخر ينهار المتجر فوراً
         if (!verifyAppSignature()) {
             finishAffinity()
             return
@@ -88,8 +92,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 🛡️ دالة الأمان الديناميكية: تفحص الـ SHA-256 الخاص بالتوقيع الحالي للتطبيق
-     * لمنع أي منافس من تعديل كود المتجر وإعادة توقيعه باسم آخر.
+     * 🛡️ دالة الأمن الفولاذية: تقوم باستخراج الـ Public Key الفعلي لشهادة الـ APK 
+     * والتحقق من احتوائه على بصمة الـ KeyIdentifier الأصلية الموثقة الخاصة بك.
      */
     private fun verifyAppSignature(): Boolean {
         return try {
@@ -110,13 +114,30 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (signatures != null && signatures.isNotEmpty()) {
-                val md = MessageDigest.getInstance("SHA-256")
-                val publicKey = md.digest(signatures[0].toByteArray())
-                val hexString = publicKey.joinToString("") { String.format("%02X", it) }
+                val certBytes = signatures[0].toByteArray()
+                val input = ByteArrayInputStream(certBytes)
+                val cf = CertificateFactory.getInstance("X.509")
+                val cert = cf.generateCertificate(input) as X509Certificate
                 
-                // ⚠️ ضع هنا بصمة الـ SHA-256 الرسمية والخاصة بملف جافا الكيستور (Keystore) الخاص بك
-                // إذا تطابقت يستمر المتجر بالعمل، وإذا اختلفت ينغلق التطبيق تلقائياً
-                hexString.isNotEmpty() 
+                val publicKeyBytes = cert.publicKey.encoded
+                
+                var isMatched = false
+                if (publicKeyBytes.size >= targetKeyIdentifier.size) {
+                    for (i in 0..publicKeyBytes.size - targetKeyIdentifier.size) {
+                        var match = true
+                        for (j in targetKeyIdentifier.indices) {
+                            if (publicKeyBytes[i + j] != targetKeyIdentifier[j]) {
+                                match = false
+                                break
+                            }
+                        }
+                        if (match) {
+                            isMatched = true
+                            break
+                        }
+                    }
+                }
+                isMatched
             } else {
                 false
             }
@@ -150,14 +171,8 @@ class MainActivity : AppCompatActivity() {
                     showAboutDeveloperDialog()
                 }
                 R.id.nav_add_app -> {
-                    try {
-                        // فك تشفير رابط التليجرام لحظياً عند الضغط فقط
-                        val decodedTelegram = decryptSecureString(telegramSecArray)
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(decodedTelegram))
-                        startActivity(intent)
-                    } catch (e: Exception) {
-                        Toast.makeText(this, "تطبيق تليجرام غير مثبت", Toast.LENGTH_SHORT).show()
-                    }
+                    // 🛠️ تم التعديل: استدعاء دالة العرض المنبثقة بدلاً من الإحالة التلقائية للتليجرام
+                    showAddAppDeveloperDialog()
                 }
             }
             binding.drawerLayout.closeDrawer(GravityCompat.START)
@@ -172,6 +187,28 @@ class MainActivity : AppCompatActivity() {
             .setTitle("حول المطور")
             .setMessage("تم تطوير المتجر بواسطة م/ عبدالله التميمي.\nنهدف إلى تقديم تجربة فريدة، آمنة واحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
             .setPositiveButton("حسناً", null)
+            .show()
+    }
+
+    /**
+     * 🛠️ ميزة مضافة: ديالوج تفاعلي لإضافة تطبيقات المطورين بالارتباط مع رقم واتساب المباشر
+     */
+    private fun showAddAppDeveloperDialog() {
+        if (isFinishing || isDestroyed) return
+
+        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setTitle("إضافة تطبيقك في المتجر")
+            .setMessage("يمكنكم التواصل مباشرة على الواتساب الرقم 770034578 لإرسال تفاصيل تطبيقكم، والمراجعة البرمجية قبل الرفع.")
+            .setPositiveButton("مراسلة الآن") { _, _ ->
+                try {
+                    // فتح رابط المحادثة المباشرة لرقم الواتساب الخاص بك تلقائياً لراحة المطور
+                    val whatsappIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/967770034578"))
+                    startActivity(whatsappIntent)
+                } catch (e: Exception) {
+                    Toast.makeText(this, "تطبيق واتساب غير مثبت في جهازك", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("إلغاء", null)
             .show()
     }
 
@@ -371,8 +408,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshData() {
-        // 🚨 حماية الخادم: فك تشفير رابط السيرفر بشكل آمن في الذاكرة لمنع رصده ثابتاً بالـ Strings
-        val decodedRepoUrl = decryptSecureString(repoSecArray)
-        viewModel.loadApps(decodedRepoUrl)
+        viewModel.loadApps(repoSecArray, cryptoSalt)
     }
 }
