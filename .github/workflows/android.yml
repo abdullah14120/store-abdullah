@@ -1,4 +1,4 @@
-name: Build FIX ENGINE APK
+name: Build Abdullah Store APK
 
 on:
   push:
@@ -18,24 +18,36 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin' # توزيعة ممتازة ومستقرة جداً لـ Android
+          distribution: 'temurin'
           cache: 'gradle'
 
       - name: Generate New Gradle Wrapper
-        # هنا نقوم بإنشاء الـ Wrapper في كل مرة لضمان نظافة بيئة البناء
         run: gradle wrapper --gradle-version 8.2
 
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
 
+      - name: Decode Keystore
+        # 🛠️ تم تصحيح المحاذاة والمسافات هنا لتفادي انهيار البناء (Parsing Error)
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/fixengine.jks
+
+      - name: Build Release APK
+        # 🛠️ تم إخراج الـ run خارج الـ env لكي ينفذ الجرادل الأمر الفعلي للتوقيع والـ Build
+        env:
+          SIGNING_STORE_FILE: fixengine.jks
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --stacktrace --no-daemon
+
       - name: Build Debug APK
-        # استخدام ./gradlew لضمان استخدام النسخة التي أنشأناها للتو
-        # أضفت --no-daemon لأنها أفضل في بيئات الـ CI لتجنب تعليق العمليات
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FIX-ENGINE-Build-${{ github.run_number }}
-          path: app/build/outputs/apk/debug/*.apk
-          retention-days: 5 # تقليل الأيام للحفاظ على مساحة التخزين في حسابك
+          name: Abdullah-Store-Build-${{ github.run_number }}
+          # 🛠️ تم تعديل المسار هنا ليرفع لك النسختين (الـ Release الموقعة الفولاذية والـ Debug معا) لكي تحمل ما تشاء منها
+          path: app/build/outputs/apk/**/*.apk
+          retention-days: 5
