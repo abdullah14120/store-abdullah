@@ -29,15 +29,12 @@ import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 import com.google.android.material.button.MaterialButton 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
-import java.io.ByteArrayInputStream
-import java.security.cert.CertificateFactory
-import java.security.cert.X509Certificate
-import java.util.Arrays
+import java.security.MessageDigest
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Official Runtime Core)
- * Feature: Cryptographic Public Key Identifier Attestation, Hex-XOR String Obfuscation & M3 Theme Layouts
+ * Feature: Production SHA-256 Signature Attestation, Hex-XOR String Obfuscation & M3 Layouts
  */
 class MainActivity : AppCompatActivity() {
 
@@ -46,13 +43,6 @@ class MainActivity : AppCompatActivity() {
 
     // مفتاح التشفير السري المخصص للـ XOR لمنع الفحص الثابت
     private val cryptoSalt: Byte = 0x5A
-
-    // 🔐 مصفوفة البايتات الموثقة لـ KeyIdentifier المستخرجة من ملف توقيعك الرسمي مباشرة
-    private val targetKeyIdentifier = byteArrayOf(
-        0x2A, 0x82, 0x5B, 0x8B, 0xEE, 0x9C, 0xE7, 0x63, 
-        0x59, 0x3A, 0x04, 0xFE, 0x91, 0xCA, 0x4F, 0x35, 
-        0x72, 0xA1, 0x17, 0xE5
-    )
 
     // رابط الـ Repository JSON مشفر بالكامل بصيغة مصفوفة بايتات لفك بوابات الـ Repository الجديد
     private val repoSecArray = byteArrayOf(
@@ -67,7 +57,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // 🚨 1. تشغيل الفحص المتقدم للمفتاح العام؛ في حال تفكيك الحزمة وإعادة توقيعها بمفتاح آخر ينهار المتجر فوراً
+        // 🚨 1. تشغيل فحص المطابقة الرقمية للـ SHA-256 لمنع التعديل؛ ينغلق التطبيق فوراً إذا تم توقيعه بمفتاح غريب
         if (!verifyAppSignature()) {
             finishAffinity()
             return
@@ -92,8 +82,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 🛡️ دالة الأمن الفولاذية: تقوم باستخراج الـ Public Key الفعلي لشهادة الـ APK 
-     * والتحقق من احتوائه على بصمة الـ KeyIdentifier الأصلية الموثقة الخاصة بك.
+     * 🛡️ درع الحماية الرسمي والنهائي لـ "متجر Abdullah" المعتمد على مطابقة بصمة الـ SHA-256 للشهادة الأصلية.
      */
     private fun verifyAppSignature(): Boolean {
         return try {
@@ -114,35 +103,21 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (signatures != null && signatures.isNotEmpty()) {
-                val certBytes = signatures[0].toByteArray()
-                val input = ByteArrayInputStream(certBytes)
-                val cf = CertificateFactory.getInstance("X.509")
-                val cert = cf.generateCertificate(input) as X509Certificate
+                // توليد الـ SHA-256 للبصمة الحالية المتواجدة بالحزمة
+                val md = MessageDigest.getInstance("SHA-256")
+                val publicKey = md.digest(signatures[0].toByteArray())
+                val hexString = publicKey.joinToString(":") { String.format("%02X", it) }
                 
-                val publicKeyBytes = cert.publicKey.encoded
+                // 🔒 بصمة الـ SHA-256 الرسمية المأخوذة مباشرة من شهادة مستودع توقيعك الفعلي
+                val myTargetSignature = "A3:45:9B:83:CC:90:AB:39:AF:A5:E3:F8:01:51:AC:D1:4F:2D:7A:4C:B9:76:74:0C:6C:A4:19:72:33:7C:B7:47"
                 
-                var isMatched = false
-                if (publicKeyBytes.size >= targetKeyIdentifier.size) {
-                    for (i in 0..publicKeyBytes.size - targetKeyIdentifier.size) {
-                        var match = true
-                        for (j in targetKeyIdentifier.indices) {
-                            if (publicKeyBytes[i + j] != targetKeyIdentifier[j]) {
-                                match = false
-                                break
-                            }
-                        }
-                        if (match) {
-                            isMatched = true
-                            break
-                        }
-                    }
-                }
-                isMatched
+                // مطابقة صامتة وحازمة تتجاهل حالة الأحرف تجنباً لأي اختلافات بناء أثناء الـ Compiler
+                hexString.equals(myTargetSignature, ignoreCase = true)
             } else {
                 false
             }
         } catch (e: Exception) {
-            false
+            false // سد منافذ الثغرات عند حدوث أي محاولة تخطي بالـ Runtime الالتفافي
         }
     }
 
@@ -171,7 +146,6 @@ class MainActivity : AppCompatActivity() {
                     showAboutDeveloperDialog()
                 }
                 R.id.nav_add_app -> {
-                    // 🛠️ تم التعديل: استدعاء دالة العرض المنبثقة بدلاً من الإحالة التلقائية للتليجرام
                     showAddAppDeveloperDialog()
                 }
             }
@@ -185,13 +159,13 @@ class MainActivity : AppCompatActivity() {
 
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
             .setTitle("حول المطور")
-            .setMessage("تم تطوير المتجر بواسطة م/ عبدالله التميمي.\nنهدف إلى تقديم تجربة فريدة، آمنة واحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
+            .setMessage("تم تطوير المتجر بواسطة م/ عبدالله التميمي.\nنهدف إلى تقديم تجربة فريدة، آمنة وااحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
             .setPositiveButton("حسناً", null)
             .show()
     }
 
     /**
-     * 🛠️ ميزة مضافة: ديالوج تفاعلي لإضافة تطبيقات المطورين بالارتباط مع رقم واتساب المباشر
+     * ديالوج تفاعلي لإضافة تطبيقات المطورين بالارتباط مع رقم واتساب المباشر
      */
     private fun showAddAppDeveloperDialog() {
         if (isFinishing || isDestroyed) return
@@ -201,7 +175,6 @@ class MainActivity : AppCompatActivity() {
             .setMessage("يمكنكم التواصل مباشرة على الواتساب الرقم 770034578 لإرسال تفاصيل تطبيقكم، والمراجعة البرمجية قبل الرفع.")
             .setPositiveButton("مراسلة الآن") { _, _ ->
                 try {
-                    // فتح رابط المحادثة المباشرة لرقم الواتساب الخاص بك تلقائياً لراحة المطور
                     val whatsappIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/967770034578"))
                     startActivity(whatsappIntent)
                 } catch (e: Exception) {
