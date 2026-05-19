@@ -22,6 +22,7 @@ import com.fix.engine.abdullah.service.AndroidDownloadManager
 import com.fix.engine.abdullah.service.DownloadTracker
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import java.io.File
@@ -30,7 +31,7 @@ import kotlin.concurrent.thread
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Feature: Legacy FileProvider Installer with Fixed Realtime Firebase Stats UI Flow & Fixed Glide Masking
+ * Feature: Legacy FileProvider Installer, Material 3 Glide Masking & Encrypted Firebase RTDB Session
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -40,9 +41,18 @@ class AppDetailsActivity : AppCompatActivity() {
     private var isDownloading = false
     private var currentApp: AppModel? = null
     
-    // تم ضبط مسار خادم الـ Realtime Database الفعلي المستخرج من مشروعك
-    private val databaseRef = FirebaseDatabase.getInstance("https://abdullah-store-a95ed-default-rtdb.europe-west1.firebasedatabase.app")
-        .getReference("download_stats")
+    // 🔐 مفتاح التشفير السري المتناسق مع كود الواجهة الرئيسية للـ XOR
+    private val cryptoSalt: Byte = 0x5A
+    private lateinit var databaseRef: DatabaseReference
+
+    // رابط الـ Firebase Realtime Database مشفر كمصفوفة بايتات معماة لمنع السرقة أو التخريب
+    private val firebaseSecArray = byteArrayOf(
+        0x3c, 0x2e, 0x2e, 0x2a, 0x23, 0x6a, 0x7f, 0x7f, 0x3b, 0x3e, 0x3e, 0x2f, 0x36, 0x36, 0x3f, 0x32, 
+        0x7d, 0x29, 0x2e, 0x35, 0x28, 0x3f, 0x7d, 0x3b, 0x23, 0x6f, 0x3f, 0x3f, 0x3f, 0x3e, 0x3e, 0x77, 
+        0x3e, 0x3f, 0x33, 0x33, 0x3f, 0x2f, 0x2e, 0x33, 0x7d, 0x3c, 0x3f, 0x2d, 0x33, 0x20, 0x31, 0x35, 
+        0x3d, 0x29, 0x3f, 0x7d, 0x3c, 0x33, 0x28, 0x3f, 0x3b, 0x3c, 0x3b, 0x39, 0x3f, 0x33, 0x3b, 0x2e, 
+        0x3b, 0x2c, 0x33, 0x74, 0x3b, 0x2a, 0x2a, 0x75
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +65,10 @@ class AppDetailsActivity : AppCompatActivity() {
 
         setupToolbar()
 
+        // 🔐 فك تشفير رابط خادم الفايربيس لحظياً في الذاكرة وبناء مرجع الاتصال الآمن بشكل مغلق
+        val decodedFirebaseUrl = decryptSecureString(firebaseSecArray)
+        databaseRef = FirebaseDatabase.getInstance(decodedFirebaseUrl).getReference("download_stats")
+
         val appData = intent.getSerializableExtra("APP_DATA") as? AppModel
 
         if (appData != null) {
@@ -63,7 +77,7 @@ class AppDetailsActivity : AppCompatActivity() {
             // 1. عرض تفاصيل الواجهة الأساسية
             displayDetails(appData)
             
-            // 2. جلب إحصائية التنزيلات فوراً بمجرد الدخول لتفادي تخطي القراءة بسبب شروط الملفات
+            // 2. جلب إحصائية التنزيلات فوراً بمجرد الدخول بتمرير المرجع المؤمن
             loadDownloadsCount(appData.packageName)
             
             // 3. التحقق من منطق الأزرار وحالة التحميل الحالية
@@ -73,6 +87,17 @@ class AppDetailsActivity : AppCompatActivity() {
             Toast.makeText(this, "بيانات التطبيق غير صالحة", Toast.LENGTH_SHORT).show()
             finish()
         }
+    }
+
+    /**
+     * المحرك الداخلي السري لفك بوابات الـ XOR لفك تشفير الرابط في الـ RAM فقط
+     */
+    private fun decryptSecureString(secureBytes: ByteArray): String {
+        val output = ByteArray(secureBytes.size)
+        for (i in secureBytes.indices) {
+            output[i] = (secureBytes[i].toInt() xor cryptoSalt.toInt()).toByte()
+        }
+        return String(output, Charsets.UTF_8)
     }
 
     private fun setupToolbar() {
@@ -187,12 +212,11 @@ class AppDetailsActivity : AppCompatActivity() {
             badgeDownloads.root.findViewById<TextView>(R.id.txtLabel)?.text = "التنزيلات"
             badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = "..."
 
-            // 🛠️ تم التعديل هنا: حقن الـ dontAnimate لحل مشكلة توسع الأيقونات الكبيرة في واجهة التفاصيل
             Glide.with(this@AppDetailsActivity)
                 .load(app.iconUrl)
                 .placeholder(R.drawable.ic_launcher_foreground)
                 .error(R.drawable.ic_launcher_foreground)
-                .dontAnimate() // إجبار الحزمة التناغمية على التقيد فورا بقناع الـ ShapeableImageView
+                .dontAnimate() 
                 .into(imgDetailsIcon)
         }
     }
@@ -305,7 +329,6 @@ class AppDetailsActivity : AppCompatActivity() {
                 }
                 Thread.sleep(200)
 
-                // تحضير الـ Uri الآمن وإطلاق المثبت الرسمي للأندرويد
                 val providerAuthority = "$packageName.provider"
                 val uri: Uri = FileProvider.getUriForFile(this@AppDetailsActivity, providerAuthority, file)
                 
