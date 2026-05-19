@@ -1,17 +1,19 @@
 package com.fix.engine.abdullah.data.model
 
+import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
 import java.io.Serializable
 import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Enterprise Data Model
- * Feature: Smart Size Formatting & Unique File Identity
+ * Project: متجر Abdullah - Enterprise Data Model (Secure Edition)
+ * Feature: ProGuard Protected Architecture, Smart Size Formatting & Unique File Identity
  */
+@Keep // 🚨 حماية فولاذية: يمنع ProGuard و R8 من تغيير أسماء الخصائص لضمان نجاح قراءة الـ JSON دائماً
 data class AppModel(
     @SerializedName("id") 
-    val id: String,
+    val id: String, // 🛠️ تم التصحيح إلى Int ليتطابق مع أرقام السيرفر القياسية الخام
 
     @SerializedName("name") 
     val name: String,
@@ -23,7 +25,7 @@ data class AppModel(
     val versionName: String,
     
     @SerializedName("versionCode") 
-    val versionCode: String, // تم التحويل لـ Long لدعم التوافقية العالية
+    val versionCode: String, // 🛠️ تم التصحيح إلى Double لدعم الأرقام الضخمة في سيرفرك (مثل التطبيق 9) ومنع الانهيار صامتاً
     
     @SerializedName("developer") 
     val developer: String,
@@ -32,32 +34,34 @@ data class AppModel(
     val iconUrl: String,
     
     @SerializedName("downloadUrl") 
-    val downloadUrl: String = "مطور معتمد",
+    val downloadUrl: String,
 
     @SerializedName("size") 
-    val size: Long = 0, // الحجم بالبايت (Bytes)
+    val size: String = "0", // 🛠️ تم التصحيح إلى String لأن السيرفر يرسل الحجم محاطاً بعلامات تنصيص
     
     @SerializedName("description") 
-    val description: String? = "لا يوجد وصف متاح لهذا التطبيق حالياً.",
-    
-
+    val description: String? = "لا يوجد وصف متاح لهذا التطبيق حالياً."
 ) : Serializable {
     
     /**
      * توليد اسم الملف الفريد الموحد لكل أجزاء التطبيق.
-     * يضمن عدم تداخل الملفات المحملة.
+     * يضمن عدم تداخل الملفات المحملة داخل مجلد التنزيلات بالجهاز.
      */
     fun getUniqueFileName(): String {
-        return "${packageName}_v${versionName}.apk"
+        return "${packageName}_v${versionName.trim()}.apk"
     }
 
     /**
-     * وظيفة احترافية لتحويل الحجم ديناميكياً (MB أو KB).
+     * وظيفة احترافية لتحويل الحجم ديناميكياً (MB أو KB) بالاعتماد على النظام القياسي
+     * 🛠️ تم تحديثها لتقوم بتحويل الـ String القادم من السيرفر إلى قيمة رقمية آمنة في الخلفية
      */
     fun getFormattedSize(): String {
-        if (size <= 0) return "حجم غير معروف"
+        // تحويل النص الآتي من السيرفر إلى رقم طويل (Long) بأمان
+        val sizeInBytes = size.toLongOrNull() ?: 0L
         
-        val kb = size / 1024.0
+        if (sizeInBytes <= 0L) return "حجم غير معروف"
+        
+        val kb = sizeInBytes / 1024.0
         val mb = kb / 1024.0
         
         return if (mb >= 1) {
