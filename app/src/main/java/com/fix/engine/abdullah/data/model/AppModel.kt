@@ -13,7 +13,7 @@ import java.util.Locale
 @Keep // 🚨 حماية فولاذية: يمنع ProGuard و R8 من تغيير أسماء الخصائص لضمان نجاح قراءة الـ JSON دائماً
 data class AppModel(
     @SerializedName("id") 
-    val id: Int, // 🛠️ تم التصحيح إلى Int ليتطابق مع أرقام السيرفر القياسية الخام
+    val id: String, // 🛠️ تم التصحيح إلى Int ليتطابق مع أرقام السيرفر القياسية الخام
 
     @SerializedName("name") 
     val name: String,
@@ -25,7 +25,7 @@ data class AppModel(
     val versionName: String,
     
     @SerializedName("versionCode") 
-    val versionCode: Double, // 🛠️ تم التصحيح إلى Double لدعم الأرقام الضخمة في سيرفرك (مثل التطبيق 9) ومنع الانهيار صامتاً
+    val versionCode: String, // 🛠️ تم التصحيح إلى Double لدعم الأرقام الضخمة في سيرفرك (مثل التطبيق 9) ومنع الانهيار صامتاً
     
     @SerializedName("developer") 
     val developer: String,
