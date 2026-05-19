@@ -7,7 +7,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Professional Data Repository (Secure Data Hub)
+ * Project: متجر Abdullah - Professional Data Repository (Secure Data Hub)
  * Logic: Bridge between Cryptographic API Streams and ViewModels
  */
 class AppRepository {
@@ -16,13 +16,18 @@ class AppRepository {
 
     /**
      * جلب قائمة التطبيقات من مستودع الـ Server الآمن.
-     * يستقبل المصفوفة المشفرة ويفكها تفاعلياً في الخلفية لضمان الحماية المطلقة.
+     * يستقبل المصفوفة المفكوكة أو المشفرة ويتعامل معها ديناميكياً في الخلفية.
      */
     suspend fun fetchApps(encryptedUrl: ByteArray, cryptoSalt: Byte): Result<List<AppModel>> {
         return withContext(Dispatchers.IO) {
             try {
-                // 🔐 فك التشفير اللحظي داخل الـ Thread المعزول لحجب الرابط عن كاشفات الذاكرة الثابتة
-                val rawUrl = decryptUrlStream(encryptedUrl, cryptoSalt)
+                // 🛠️ فحص ذكي: إذا كان المفتاح 0 فهذا يعني أن الرابط قادم من بوابة Base64 وجاهز تماماً كنص صافٍ
+                val rawUrl = if (cryptoSalt == 0.toByte()) {
+                    String(encryptedUrl, Charsets.UTF_8)
+                } else {
+                    // كود الـ XOR الاحتياطي الخاص بك في حال قررت العودة إليه مستقبلاً
+                    decryptUrlStream(encryptedUrl, cryptoSalt)
+                }
                 
                 // استدعاء الواجهة البرمجية بالرابط النظيف المحمي
                 val response = apiService.getAppsList(rawUrl)
