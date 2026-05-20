@@ -49,15 +49,15 @@
   },
   {
     "id": 5,
-    "name": "واتساب",
-    "packageName": "com.abdullahtamemi",
+    "name": "WhatsApp",
+    "packageName": "com.fixwhatsapp2",
     "versionName": "2.26.17.73",
     "versionCode": 2147483647,
     "developer": "WhatsApp",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icon.png",
-    "downloadUrl": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/main/apks/MTManager.apk",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1K-nPCWtNj7m2ycg53Xn8LB_Cp0OOUF9y&export=download&confirm=t&uuid=20e57b9d-0e93-4a85-8576-255bf02c8ab2",
     "size": "152845",
-    "description": "أقوى أداة لتعديل ملفات APK وتعريب التطبيقات مباشرة من هاتفك."
+    "description": "تحديث واتساب الأخضر درع الحماية."
   },
   {
     "id": 6,
