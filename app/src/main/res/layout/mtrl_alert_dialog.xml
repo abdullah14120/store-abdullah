@@ -10,8 +10,8 @@
 
     <ImageView
     android:id="@+id/dialog_icon"
-    android:layout_width="32dp"
-    android:layout_height="32dp"
+    android:layout_width="72dp"
+    android:layout_height="72dp"
     android:layout_gravity="center"
     android:src="@mipmap/ic_launcher" />
 
