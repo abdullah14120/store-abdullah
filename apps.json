@@ -20,7 +20,7 @@
     "developer": "عبدالله التميمي",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconabblue.png",
     "downloadUrl": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/main/apks/FixEngine.apk",
-    "size": "152845",
+    "size": "125263449",
     "description": "تحديث جديد واتساب AB الأزرق."
   },
   {
@@ -32,7 +32,7 @@
     "developer": "عبدالله التميمي",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconnasa.png",
     "downloadUrl": "https://drive.usercontent.google.com/download?id=1-iFwanV607lSfBQ5Y1KZDsc_7KFiDz9J&export=download&confirm=t&uuid=3b0e0461-6f63-4bb2-b5dd-4300288e8335",
-    "size": "152845",
+    "size": "125263449",
     "description": "تطبيق توصيل الطلبات الأول في مدينة تريم، مع نظام تسعير مرن للمناديب."
   },
   {
@@ -44,7 +44,7 @@
     "developer": "عبدالله التميمي",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconred.png",
     "downloadUrl": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/main/apks/HVPN.apk",
-    "size": "152845",
+    "size": "125263449",
     "description": "تطبيق شبكة افتراضية آمنة تعتمد على بروتوكولات VLESS لتجاوز القيود وتأمين الاتصال."
   },
   {
@@ -56,31 +56,31 @@
     "developer": "WhatsApp",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icon.png",
     "downloadUrl": "https://drive.usercontent.google.com/download?id=1K-nPCWtNj7m2ycg53Xn8LB_Cp0OOUF9y&export=download&confirm=t&uuid=20e57b9d-0e93-4a85-8576-255bf02c8ab2",
-    "size": "152845",
+    "size": "125263449",
     "description": "تحديث واتساب الأخضر درع الحماية."
   },
   {
     "id": 6,
-    "name": "Shizuku",
-    "packageName": "moe.shizuku.privileged.api",
-    "versionName": "13.5.4",
+    "name": "واتساب حضرموت",
+    "packageName": "com.hadramout",
+    "versionName": "2.26.17.73",
     "versionCode": 2147483647,
-    "developer": "RikkaW",
+    "developer": "عبدالله التميمي",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icon.png",
     "downloadUrl": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/main/apks/Shizuku.apk",
-    "size": "152845",
-    "description": "أداة متقدمة تمنح صلاحيات النظام للتطبيقات بدون الحاجة لروت كامل."
+    "size": "125263449",
+    "description": "تحديث واتساب حضرموت"
   },
   {
     "id": 7,
-    "name": "APK Editor Ultra",
-    "packageName": "com.fix.editor.apk",
-    "versionName": "1.10.2",
+    "name": "واتساب",
+    "packageName": "com.abdullahtamemi",
+    "versionName": "2.26.17.73",
     "versionCode": 2147483647,
-    "developer": "Abdullah Mod",
+    "developer": "عبدالله التميمي",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icon.png",
     "downloadUrl": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/main/apks/APKEditor.apk",
-    "size": "152845",
+    "size": "125263449",
     "description": "تعديل موارد التطبيقات وتغيير الأيقونات والأسماء بسهولة تامة."
   },
   {
@@ -92,7 +92,7 @@
     "developer": "عمر باذيب",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconob.png",
     "downloadUrl": "https://drive.usercontent.google.com/download?id=1mcacGbH0BiYO0O5_aPI9EnCEUltj9jSA&export=download&confirm=t&uuid=af815a8f-4fbc-482d-8902-7eecfaf661b9",
-    "size": "152845",
+    "size": "125263449",
     "description": "تحديث جديد واتساب عمر العنابي."
   },
   {
