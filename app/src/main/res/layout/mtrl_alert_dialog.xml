@@ -9,12 +9,11 @@
     android:padding="24dp">
 
     <ImageView
-        android:id="@+id/dialog_icon"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_gravity="center"
-        android:src="@drawable/ic_launcher_foreground"
-        app:tint="?attr/colorPrimary" />
+    android:id="@+id/dialog_icon"
+    android:layout_width="32dp"
+    android:layout_height="32dp"
+    android:layout_gravity="center"
+    android:src="@mipmap/ic_launcher" />
 
     <TextView
         android:id="@+id/dialog_title"
