@@ -114,16 +114,17 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
                 // 4. تحميل الأيقونة وحل مشكلة تمدد الحواف وتخطي التدوير
                 imgAppIcon.transitionName = "transition_app_icon_${app.packageName}" 
                 
-                Glide.with(context)
-                    .load(app.iconUrl)
-                    .placeholder(R.drawable.ic_launcher_foreground)
-                    .error(R.drawable.ic_launcher_foreground)
-                    .dontAnimate() // 🚨 الحل النهائي: إيقاف تأثير التحويل التدريجي لإجبار البكسلات على أخذ شكل التدوير فوراً ومنع التمدد
-                    .into(imgAppIcon)
+Glide.with(context)
+    .load(app.iconUrl)
+    .placeholder(R.mipmap.ic_launcher) // 👈 تم التعديل هنا لقرائه الأيقونة الزيتية الجديدة
+    .error(R.mipmap.ic_launcher)       // 👈 تم التعديل هنا لقرائه الأيقونة الزيتية الجديدة
+    .dontAnimate() // 🚨 الحل النهائي: إيقاف تأثير التحويل التدريجي لإجبار البكسلات على أخذ شكل التدوير فوراً ومنع التمدد
+    .into(imgAppIcon)
 
-                // 5. الأحداث
-                root.setOnClickListener { onAppClick(app, root) }
-                btnDownload.setOnClickListener { onAppClick(app, root) }
+// 5. الأحداث
+root.setOnClickListener { onAppClick(app, root) }
+btnDownload.setOnClickListener { onAppClick(app, root) }
+
             }
         }
     }
