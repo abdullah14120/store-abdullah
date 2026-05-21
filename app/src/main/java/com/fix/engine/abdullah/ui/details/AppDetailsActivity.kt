@@ -293,61 +293,71 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     private fun installApkLegacy(file: File) {
-        if (!file.exists()) {
-            Toast.makeText(this, "المعذرة، ملف الـ APK غير موجود!", Toast.LENGTH_SHORT).show()
-            return
-        }
+    if (!file.exists()) {
+        Toast.makeText(this, "المعذرة، ملف الـ APK غير موجود!", Toast.LENGTH_SHORT).show()
+        return
+    }
 
-        runOnUiThread {
-            binding.btnInstallLarge.visibility = View.GONE
-            binding.layoutDownloadProgress.visibility = View.VISIBLE
-            binding.downloadProgress.progress = 20
-            binding.txtDownloadPercent.text = "20%"
-            binding.txtDownloadSpeed.text = "جاري تحضير ملفات التثبيت..."
-            binding.txtDownloadETA.text = "يرجى الانتظار"
-        }
+    runOnUiThread {
+        binding.btnInstallLarge.visibility = View.GONE
+        binding.layoutDownloadProgress.visibility = View.VISIBLE
+        binding.downloadProgress.progress = 20
+        binding.txtDownloadPercent.text = "20%"
+        binding.txtDownloadSpeed.text = "جاري تحضير ملفات التثبيت..."
+        binding.txtDownloadETA.text = "يرجى الانتظار"
+    }
 
-        thread {
-            try {
-                Thread.sleep(600)
-                runOnUiThread {
-                    binding.downloadProgress.progress = 75
-                    binding.txtDownloadPercent.text = "75%"
-                    binding.txtDownloadSpeed.text = "جاري التثبيت النهائي في النظام... 🚀"
-                }
-                Thread.sleep(500)
-                runOnUiThread {
-                    binding.downloadProgress.progress = 100
-                    binding.txtDownloadPercent.text = "100%"
-                }
-                Thread.sleep(200)
+    thread {
+        try {
+            Thread.sleep(600)
+            runOnUiThread {
+                binding.downloadProgress.progress = 75
+                binding.txtDownloadPercent.text = "75%"
+                binding.txtDownloadSpeed.text = "جاري التثبيت النهائي في النظام... 🚀"
+            }
+            Thread.sleep(500)
+            runOnUiThread {
+                binding.downloadProgress.progress = 100
+                binding.txtDownloadPercent.text = "100%"
+            }
+            Thread.sleep(200)
 
-                val providerAuthority = "$packageName.provider"
-                val uri: Uri = FileProvider.getUriForFile(this@AppDetailsActivity, providerAuthority, file)
+            // 🚀 التعديل الجوهري: صناعة الـ Uri والـ Intent بناءً على إصدار نظام المستخدم
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 
-                val intent = Intent(Intent.ACTION_VIEW).apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    // 🟢 لأندرويد 7.0 فما فوق (API 24+) نستخدم الـ FileProvider والاسم الصحيح المعتمد في المانيفست
+                    val providerAuthority = "$packageName.fileprovider" // 👈 تم تصحيح الاسم هنا
+                    val uri: Uri = FileProvider.getUriForFile(this@AppDetailsActivity, providerAuthority, file)
+                    
                     setDataAndType(uri, "application/vnd.android.package-archive")
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                } else {
+                    // 🔵 لأندرويد 6.0 (API 23) نستخدم المسار المباشر الصافي الآمن تماماً لهذه الأنظمة
+                    val uri: Uri = Uri.fromFile(file)
+                    setDataAndType(uri, "application/vnd.android.package-archive")
                 }
-                startActivity(intent)
+            }
+            
+            startActivity(intent)
 
-            } catch (e: Exception) {
-                e.printStackTrace()
-                runOnUiThread {
-                    Toast.makeText(this@AppDetailsActivity, "فشل تحليل الحزمة، قد يكون الملف غير مكتمل", Toast.LENGTH_LONG).show()
-                    if (file.exists()) file.delete()
-                }
-            } finally {
-                runOnUiThread {
-                    binding.layoutDownloadProgress.visibility = View.GONE
-                    binding.btnInstallLarge.visibility = View.VISIBLE
-                    binding.btnInstallLarge.text = "تثبيت الآن"
-                }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            runOnUiThread {
+                Toast.makeText(this@AppDetailsActivity, "فشل تحليل الحزمة، قد يكون الملف غير مكتمل", Toast.LENGTH_LONG).show()
+                if (file.exists()) file.delete()
+            }
+        } finally {
+            runOnUiThread {
+                binding.layoutDownloadProgress.visibility = View.GONE
+                binding.btnInstallLarge.visibility = View.VISIBLE
+                binding.btnInstallLarge.text = "تثبيت الآن"
             }
         }
     }
+}
 
     override fun onDestroy() {
         super.onDestroy()
