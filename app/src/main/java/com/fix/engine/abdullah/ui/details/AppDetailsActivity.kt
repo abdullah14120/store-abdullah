@@ -187,7 +187,7 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    private fun displayDetails(app: AppModel) {
+        private fun displayDetails(app: AppModel) {
         binding.apply {
             txtDetailsName.text = app.name
             txtDetailsDev.text = app.developer
@@ -202,10 +202,11 @@ class AppDetailsActivity : AppCompatActivity() {
             badgeDownloads.root.findViewById<TextView>(R.id.txtLabel)?.text = "التنزيلات"
             badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = "..."
 
+            // 🚀 تحويل مسار الصور المؤقتة وصور الخطأ لتقرأ من الـ mipmap بأمان وبدون كراشات
             Glide.with(this@AppDetailsActivity)
                 .load(app.iconUrl)
-                .placeholder(R.drawable.ic_launcher_foreground)
-                .error(R.drawable.ic_launcher_foreground)
+                .placeholder(R.mipmap.ic_launcher) // 👈 تم التعديل هنا ليتوافق مع الـ PNG/WebP الجديد
+                .error(R.mipmap.ic_launcher)       // 👈 تم التعديل هنا ليتوافق مع الـ PNG/WebP الجديد
                 .dontAnimate() 
                 .into(imgDetailsIcon)
         }
