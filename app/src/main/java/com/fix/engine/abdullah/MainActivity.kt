@@ -6,6 +6,10 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -44,6 +48,14 @@ class MainActivity : AppCompatActivity() {
     // 🔒 الرابط الخام لـ "apps.json" مشفر بترميز Base64 لحمايته من الفحص الثابت وحل مشاكل الـ XOR
     private val repoSecUrlBase64 = "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2FiZHVsbGFoMTQxMjAvc3RvcmUtYWJkdWxsYWgvcmVmcy9oZWFkcy9tYWluL2FwcHMuanNvbg=="
     
+    // 🌐 أدوات مراقبة حالة الشبكة الفورية في الخلفية مع عودة الاتصال
+    private lateinit var connectivityManager: ConnectivityManager
+    private lateinit var networkCallback: ConnectivityManager.NetworkCallback
+    private var isNetworkCallbackRegistered = false
+
+    // 🛡️ شرط الأمان الذكي: لمنع تحديث الواجهة تلقائياً والمستخدم يتصفح في حال كان لديه بيانات مسبقة
+    private var isDataLoadedSuccessfully = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -108,6 +120,59 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             false // سد منافذ الثغرات عند حدوث أي محاولة تخطي بالـ Runtime الالتفافي
+        }
+    }
+
+    /**
+     * 🔄 دالة مراقبة الاتصال الذكي بالإنترنت لإنعاش المتجر فورياً في حال عودة الشبكة
+     */
+    private fun registerNetworkMonitoring() {
+        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                super.onAvailable(network)
+                
+                runOnUiThread {
+                    // 🚀 تطبيق شرط الأمان الذكي: حدث الصفحة تلقائياً فقط إذا كان المتجر فارغاً وفشل سابقاً في جلب البيانات
+                    if (!isDataLoadedSuccessfully) {
+                        Toast.makeText(this@MainActivity, "تم استعادة الاتصال! جاري مزامنة المتجر... 🔄", Toast.LENGTH_SHORT).show()
+                        refreshData()
+                    } else {
+                        // في حال كانت التطبيقات معروضة ومستقرة، نكتفي بإشعار صامت دون تخريب تصفح المستخدم بإعادة تحميل الصفحة
+                        Toast.makeText(this@MainActivity, "متصل بالإنترنت ✨", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
+            override fun onLost(network: Network) {
+                super.onLost(network)
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "عذراً، انقطع الاتصال بالإنترنت!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        val networkRequest = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
+        isNetworkCallbackRegistered = true
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // بدء الاستماع الذكي لحالة الشبكة فور ظهور التطبيق في الواجهة
+        registerNetworkMonitoring()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // تعطيل الاستماع فور خروج التطبيق للخلفية لحفظ طاقة بطارية هواتف المستخدمين ومنع تسريب الذاكرة
+        if (isNetworkCallbackRegistered) {
+            connectivityManager.unregisterNetworkCallback(networkCallback)
+            isNetworkCallbackRegistered = false
         }
     }
 
@@ -274,7 +339,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         val builder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_menu) 
+            .setSmallIcon(R.mipmap.ic_launcher) // 👈 تم التعديل على الأيقونة لتقرأ من الـ mipmap المستقرة الجديدة
             .setContentTitle("تحديثات متوفرة لـ تطبيقاتك! 🚀")
             .setContentText("يوجد عدد ($updatesCount) من تطبيقاتك تمتلك إصدارات محدثة، قم بتثبيتها الآن.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -325,12 +390,19 @@ class MainActivity : AppCompatActivity() {
         viewModel.isLoading.observe(this) { binding.progressBar.isVisible = it }
         viewModel.appsList.observe(this) { apps ->
             if (!apps.isNullOrEmpty()) {
+                // 🚀 تأكيد النجاح: تم تحميل البيانات وعرضها بنجاح، مما يقفل شرط الأمان من أي تحديث عشوائي
+                isDataLoadedSuccessfully = true
+                
                 checkMandatoryUpdate(apps)
                 calculateUpdates(apps)
             }
         }
         viewModel.errorMessage.observe(this) { 
-            it?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() } 
+            it?.let { 
+                Toast.makeText(this, it, Toast.LENGTH_LONG).show() 
+                // في حال حدوث خطأ أو فشل جلب البيانات لأي سبب، نفتح الباب للتحديث التلقائي فور عودة الإنترنت
+                isDataLoadedSuccessfully = false
+            } 
         }
     }
 
@@ -361,7 +433,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshData() {
         try {
-            // 🛠️ فك تشفير الـ Base64 بلغة النظام القياسية وبشكل فوري في الذاكرة العشوائية
+            // 🛠️ فك تشفير الـ Base64 بلغة نظام الأندرويد المتوافقة مع أندرويد 6.0 وحتى أندرويد 15
             val decodedBytes = android.util.Base64.decode(repoSecUrlBase64, android.util.Base64.DEFAULT)
             
             // تمرير مصفوفة البايتات المفكوكة مع مفتاح الملح 0 لإعلام الـ Repository باعتماد الـ Base64
@@ -369,6 +441,7 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             // عرض رسالة خطأ مباشرة في الواجهة دون التعديل على LiveData المحمية الخارجية
             Toast.makeText(this, "خطأ في معالجة بوابة الأمان", Toast.LENGTH_LONG).show()
+            isDataLoadedSuccessfully = false
         }
     }
 }
