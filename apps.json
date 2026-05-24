@@ -130,9 +130,21 @@
     "downloadUrl": "https://github.com/abdullah14120/store-abdullah/raw/refs/heads/main/Abdullah-StoreV1.0.apk",
     "size": "4285066",
     "description": "متجر عبدالله التميمي لتحميل وتحديث تطبيقات أندرويد المعدلة والاحترافية"
-  },
+    },
   {
     "id": 12,
+    "name": "واتساب",
+    "packageName": "com.whatsapp",
+    "versionName": "2.26.20.70",
+    "versionCode": 21474836477,
+    "developer": "واتساب الأخضر للأجهزة المحظورة",
+    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icon.png",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1QzRyU7Oh7N0UW35PBq8ADmOJtFA1Qqwl&export=download&confirm=t&uuid=8151a763-07e6-462b-afe0-80f472cacc5b",
+    "size": "142563865",
+    "description": "تحديث الواتساب الاخضر لأجهزة LT المحظورة و بعض الأجهزة التي لاتقبل التحديث 💚"
+  },
+  {
+    "id": 13,
     "name": "WhatsApp",
     "packageName": "com.fixwhatsapp",
     "versionName": "2.26.7.74",
