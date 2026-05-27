@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.fix.engine.abdullah"> <uses-permission android:name="android.permission.INTERNET" />
+    package="com.fix.engine.abdullah">
+
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
-    
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
@@ -16,9 +15,6 @@
 
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <queries>
         <intent>
@@ -67,12 +63,13 @@
 
         <service 
             android:name=".service.DownloadService"
-            android:foregroundServiceType="dataSync"
             android:exported="false" />
 
         <receiver
             android:name=".service.DownloadReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.SEND_DOWNLOAD_COMPLETED_INTENTS"
+            tools:ignore="ProtectedBroadcast">
             <intent-filter>
                 <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
             </intent-filter>
@@ -80,7 +77,7 @@
 
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.fix.engine.abdullah.provider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
@@ -98,7 +95,9 @@
                 android:value="androidx.startup" />
         </provider>
         
-        <receiver android:name=".installer.InstallStatusReceiver" android:exported="false">
+        <receiver 
+            android:name=".installer.InstallStatusReceiver" 
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.fix.engine.abdullah.COMMIT_INSTALL" />
             </intent-filter>
