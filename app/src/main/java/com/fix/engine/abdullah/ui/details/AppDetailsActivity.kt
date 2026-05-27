@@ -100,7 +100,9 @@ class AppDetailsActivity : AppCompatActivity() {
     private fun setupLogic(app: AppModel) {
         val pm = packageManager
         val fileName = app.getUniqueFileName()
-        val downloadFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        
+        // 🟢 القراءة المباشرة من مجلد المتجر الخاص المتوافق مع الـ AndroidDownloadManager
+        val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         val finalFile = File(downloadFolder, fileName)
 
         if (finalFile.exists()) {
@@ -187,7 +189,7 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-        private fun displayDetails(app: AppModel) {
+    private fun displayDetails(app: AppModel) {
         binding.apply {
             txtDetailsName.text = app.name
             txtDetailsDev.text = app.developer
@@ -202,11 +204,10 @@ class AppDetailsActivity : AppCompatActivity() {
             badgeDownloads.root.findViewById<TextView>(R.id.txtLabel)?.text = "التنزيلات"
             badgeDownloads.root.findViewById<TextView>(R.id.txtValue)?.text = "..."
 
-            // 🚀 تحويل مسار الصور المؤقتة وصور الخطأ لتقرأ من الـ mipmap بأمان وبدون كراشات
             Glide.with(this@AppDetailsActivity)
                 .load(app.iconUrl)
-                .placeholder(R.mipmap.ic_launcher) // 👈 تم التعديل هنا ليتوافق مع الـ PNG/WebP الجديد
-                .error(R.mipmap.ic_launcher)       // 👈 تم التعديل هنا ليتوافق مع الـ PNG/WebP الجديد
+                .placeholder(R.mipmap.ic_launcher) 
+                .error(R.mipmap.ic_launcher)       
                 .dontAnimate() 
                 .into(imgDetailsIcon)
         }
@@ -274,17 +275,17 @@ class AppDetailsActivity : AppCompatActivity() {
                     downloadProgress.progress = progress
                     txtDownloadPercent.text = "$progress%"
                     txtDownloadETA.text = sizeLabel
-                    txtDownloadSpeed.text = if (progress < 100) "جاري التحميل..." else "اكتمل التحميل"
                     
-                    if (progress >= 100) {
+                    if (progress < 100) {
+                        txtDownloadSpeed.text = "جاري التحميل..."
+                    } else {
+                        // 🟢 الحل لمنع القفز العشوائي: نغير النص لإعلام المستخدم بالتجميع الخلفي المستقر ونوقف الـ Tracking
+                        txtDownloadSpeed.text = "جاري تجميع وتهيئة الحزمة... 🚀"
                         isDownloading = false
-                        layoutDownloadProgress.visibility = View.GONE
-                        btnInstallLarge.visibility = View.VISIBLE
-                        btnInstallLarge.text = "تثبيت الآن"
                         
-                        currentApp?.let { app ->
-                            val finalFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), app.getUniqueFileName())
-                            btnInstallLarge.setOnClickListener { installApkLegacy(finalFile) }
+                        // نكتفي بتعطيل المراقبة الحالية لكي يتولى الـ DownloadReceiver فتح مثبت النظام فور اكتمال الملف حقيقياً
+                        if (::tracker.isInitialized) {
+                            tracker.stopTracking()
                         }
                     }
                 }
@@ -293,71 +294,69 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     private fun installApkLegacy(file: File) {
-    if (!file.exists()) {
-        Toast.makeText(this, "المعذرة، ملف الـ APK غير موجود!", Toast.LENGTH_SHORT).show()
-        return
-    }
+        if (!file.exists()) {
+            Toast.makeText(this, "المعذرة، ملف الـ APK غير موجود!", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-    runOnUiThread {
-        binding.btnInstallLarge.visibility = View.GONE
-        binding.layoutDownloadProgress.visibility = View.VISIBLE
-        binding.downloadProgress.progress = 20
-        binding.txtDownloadPercent.text = "20%"
-        binding.txtDownloadSpeed.text = "جاري تحضير ملفات التثبيت..."
-        binding.txtDownloadETA.text = "يرجى الانتظار"
-    }
+        runOnUiThread {
+            binding.btnInstallLarge.visibility = View.GONE
+            binding.layoutDownloadProgress.visibility = View.VISIBLE
+            binding.downloadProgress.progress = 20
+            binding.txtDownloadPercent.text = "20%"
+            binding.txtDownloadSpeed.text = "جاري تحضير ملفات التثبيت..."
+            binding.txtDownloadETA.text = "يرجى الانتظار"
+        }
 
-    thread {
-        try {
-            Thread.sleep(600)
-            runOnUiThread {
-                binding.downloadProgress.progress = 75
-                binding.txtDownloadPercent.text = "75%"
-                binding.txtDownloadSpeed.text = "جاري التثبيت النهائي في النظام... 🚀"
-            }
-            Thread.sleep(500)
-            runOnUiThread {
-                binding.downloadProgress.progress = 100
-                binding.txtDownloadPercent.text = "100%"
-            }
-            Thread.sleep(200)
-
-            // 🚀 التعديل الجوهري: صناعة الـ Uri والـ Intent بناءً على إصدار نظام المستخدم
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    // 🟢 لأندرويد 7.0 فما فوق (API 24+) نستخدم الـ FileProvider والاسم الصحيح المعتمد في المانيفست
-                    val providerAuthority = "$packageName.fileprovider" // 👈 تم تصحيح الاسم هنا
-                    val uri: Uri = FileProvider.getUriForFile(this@AppDetailsActivity, providerAuthority, file)
-                    
-                    setDataAndType(uri, "application/vnd.android.package-archive")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                } else {
-                    // 🔵 لأندرويد 6.0 (API 23) نستخدم المسار المباشر الصافي الآمن تماماً لهذه الأنظمة
-                    val uri: Uri = Uri.fromFile(file)
-                    setDataAndType(uri, "application/vnd.android.package-archive")
+        thread {
+            try {
+                Thread.sleep(600)
+                runOnUiThread {
+                    binding.downloadProgress.progress = 75
+                    binding.txtDownloadPercent.text = "75%"
+                    binding.txtDownloadSpeed.text = "جاري التثبيت النهائي في النظام... 🚀"
                 }
-            }
-            
-            startActivity(intent)
+                Thread.sleep(500)
+                runOnUiThread {
+                    binding.downloadProgress.progress = 100
+                    binding.txtDownloadPercent.text = "100%"
+                }
+                Thread.sleep(200)
 
-        } catch (e: Exception) {
-            e.printStackTrace()
-            runOnUiThread {
-                Toast.makeText(this@AppDetailsActivity, "فشل تحليل الحزمة، قد يكون الملف غير مكتمل", Toast.LENGTH_LONG).show()
-                if (file.exists()) file.delete()
-            }
-        } finally {
-            runOnUiThread {
-                binding.layoutDownloadProgress.visibility = View.GONE
-                binding.btnInstallLarge.visibility = View.VISIBLE
-                binding.btnInstallLarge.text = "تثبيت الآن"
+                // صناعة الـ Uri والـ Intent بناءً على إصدار نظام المستخدم بشكل متوافق تماماً مع المانيفست
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        val providerAuthority = "$packageName.fileprovider" 
+                        val uri: Uri = FileProvider.getUriForFile(this@AppDetailsActivity, providerAuthority, file)
+                        
+                        setDataAndType(uri, "application/vnd.android.package-archive")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    } else {
+                        val uri: Uri = Uri.fromFile(file)
+                        setDataAndType(uri, "application/vnd.android.package-archive")
+                    }
+                }
+                
+                startActivity(intent)
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                runOnUiThread {
+                    Toast.makeText(this@AppDetailsActivity, "فشل تحليل الحزمة، قد يكون الملف غير مكتمل", Toast.LENGTH_LONG).show()
+                    if (file.exists()) file.delete()
+                }
+            } finally {
+                runOnUiThread {
+                    binding.layoutDownloadProgress.visibility = View.GONE
+                    binding.btnInstallLarge.visibility = View.VISIBLE
+                    binding.btnInstallLarge.text = "تثبيت الآن"
+                }
             }
         }
     }
-}
 
     override fun onDestroy() {
         super.onDestroy()
