@@ -1,84 +1,108 @@
-package com.fix.engine.abdullah.service
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.fix.engine.abdullah">
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
-import android.os.Build
-import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
-import androidx.work.CoroutineWorker
-import androidx.work.WorkerParameters
-import com.fix.engine.abdullah.MainActivity
-import com.fix.engine.abdullah.R
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
-/**
- * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Background Update Checker
- * Feature: Smart Notifications & Material 3 Theme Integration (M3 Olive Style)
- */
-class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    override suspend fun doWork(): Result {
-        // هنا يتم فحص التحديثات في الخلفية بانتظام بفضل WorkManager
-        // بمجرد العثور على تحديث في ملف JSON، نرسل الإشعار للمستخدم
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="متجر Abdullah"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.FixEngine"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="35">
         
-        sendNotification(
-            "تحديثات جديدة متوفرة لـ تطبيقاتك! 🚀", 
-            "هناك إصدارات جديدة ومحدثة بانتظارك الآن داخل متجر Abdullah، تفقدها وثبتها فوراً!"
-        )
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustPan">
+            
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter android:label="فتح في متجر Abdullah">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                
+                <data 
+                    android:scheme="fixengine" 
+                    android:host="details" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.details.AppDetailsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.FixEngine" />
+
+        <service 
+            android:name=".service.DownloadService"
+            android:exported="false" />
+
+        <receiver
+            android:name=".service.DownloadReceiver"
+            android:exported="true"
+            android:permission="android.permission.SEND_DOWNLOAD_COMPLETED_INTENTS"
+            tools:ignore="ProtectedBroadcast">
+            <intent-filter>
+                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
+            </intent-filter>
+        </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup" />
+        </provider>
         
-        return Result.success()
-    }
+        <receiver 
+            android:name=".installer.InstallStatusReceiver" 
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.fix.engine.abdullah.COMMIT_INSTALL" />
+            </intent-filter>
+        </receiver>
 
-    private fun sendNotification(title: String, message: String) {
-        val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "abdullah_store_updates"
+    </application>
 
-        // إنشاء قناة الإشعارات لأجهزة أندرويد 8.0 فما فوق (API 26+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId, 
-                "تحديثات متجر Abdullah", 
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "تنبيهات تلقائية عند توفر تحديثات جديدة للتطبيقات"
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        val intent = Intent(applicationContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        
-        // 🔒 صياغة برمجية آمنة ومحصنة للـ PendingIntent متوافقة مع أندرويد 6.0 وحتى أندرويد 15
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        } else {
-            PendingIntent.FLAG_UPDATE_CURRENT
-        }
-
-        val pendingIntent = PendingIntent.getActivity(
-            applicationContext, 
-            0, 
-            intent, 
-            flags
-        )
-
-        val notification = NotificationCompat.Builder(applicationContext, channelId)
-            // 🟢 تم التعديل لتقرأ الأيقونة من الـ mipmap لضمان الثبات التام ومنع ظهور المربعات الرمادية
-            .setSmallIcon(R.mipmap.ic_launcher) 
-            .setContentTitle(title)
-            .setContentText(message)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(message)) // لعرض النص كاملاً وبشكل منسق إذا كان طويلاً
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            // 🟢 اعتماد تلوين الإشعار باللون الأساسي للثيم الزيتي المعتمد بمتجرك
-            .setColor(ContextCompat.getColor(applicationContext, R.color.md_theme_d_primary))
-            .build()
-
-        notificationManager.notify(1002, notification) // استخدام ID فريد وثابت للإشعار الدوري
-    }
-}
+</manifest>
