@@ -31,12 +31,18 @@ class AndroidDownloadManager(private val context: Context) {
                 // إظهار الإشعار أثناء التحميل وعند الاكتمال
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 
-                // التخزين في مجلد التنزيلات العام مع اللاحقة المؤقتة
-                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, tempFileName)
+                // 🟢 التعديل الجوهري والأمثل: التخزين في مجلد التحميلات التابع للتطبيق لمنع مشاكل الصلاحيات في الأنظمة الحديثة
+                .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, tempFileName)
                 
                 // إعدادات الاتصال الشاملة
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true) 
+
+            // 🚀 لإجبار معالج الحزم والنظام على رؤية الملف وفحصه في الأنظمة القديمة والحديثة
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+                @Suppress("DEPRECATION")
+                request.setVisibleInDownloadsUi(true)
+            }
 
             downloadManager.enqueue(request)
         } catch (e: Exception) {
