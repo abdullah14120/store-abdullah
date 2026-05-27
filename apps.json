@@ -123,13 +123,13 @@
     "id": 11,
     "name": "متجر Abdullah",
     "packageName": "com.fix.engine.abdullah",
-    "versionName": "1.0",
-    "versionCode": 2,
+    "versionName": "1.1",
+    "versionCode": 3,
     "developer": "عبدالله التميمي",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconm.png",
-    "downloadUrl": "https://github.com/abdullah14120/store-abdullah/raw/refs/heads/main/Abdullah-StoreV1.0.apk",
-    "size": "4285066",
-    "description": "متجر عبدالله التميمي لتحميل وتحديث تطبيقات أندرويد المعدلة والاحترافية"
+    "downloadUrl": "https://github.com/abdullah14120/store-abdullah/raw/refs/heads/main/Abdullah-StoreV1.1.apk",
+    "size": "4285377",
+    "description": "تحديث إصلاحي للمتجر | لحل مشكلة تثبيت التطبيقات ، في حال عدم قدرتكم غلى تثبيت التحديث ، يرجى تحميله من الرابط التالي :- https://github.com/abdullah14120/store-abdullah/raw/refs/heads/main/Abdullah-StoreV1.1.apk"
     },
   {
     "id": 12,
