@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<paths>
-    <!-- مسار التنزيلات العام -->
-    <external-path name="my_downloads" path="Download/" />
-    <!-- مسار ملفات التطبيق الخاصة للضرورة -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 🟢 الحل الشامل لمجلد التنزيلات العام (DownloadManager) بدون تقييد -->
+    <external-path name="all_external_storage" path="." />
+    
+    <!-- 🟢 لتأمين مجلد التنزيلات الخاص بالتطبيق لـ minSdk 23 وما فوق -->
     <external-files-path name="external_files" path="." />
+    
+    <!-- 🟢 مسارات احتياطية لتغطية الـ Cache والملفات الداخلية منعاً لأي كراش -->
+    <cache-path name="internal_cache" path="." />
+    <external-cache-path name="external_cache" path="." />
+    <files-path name="internal_files" path="." />
 </paths>
