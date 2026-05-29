@@ -142,9 +142,21 @@
     "downloadUrl": "https://drive.usercontent.google.com/download?id=1QzRyU7Oh7N0UW35PBq8ADmOJtFA1Qqwl&export=download&confirm=t&uuid=8151a763-07e6-462b-afe0-80f472cacc5b",
     "size": "142563865",
     "description": "تحديث الواتساب الاخضر لأجهزة LT المحظورة و بعض الأجهزة التي لاتقبل التحديث 💚"
-  },
+    },
   {
     "id": 13,
+    "name": "WhatsApp",
+    "packageName": "com.whatsapp",
+    "versionName": "2.26.17.73",
+    "versionCode": 21474836477,
+    "developer": "واتساب الأخضر ضد الحظر",
+    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icon.png",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1QcyC3Xdks4EUkAiAkft6aWyPukIiXL-X&export=download&confirm=t&uuid=029a9998-fe46-49de-8522-958a1fc0ea9e",
+    "size": "134413271",
+    "description": "واتساب الاخضر ضد الحظر"
+  },
+  {
+    "id": 14,
     "name": "WhatsApp",
     "packageName": "com.fixwhatsapp",
     "versionName": "2.26.7.74",
