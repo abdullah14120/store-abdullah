@@ -145,6 +145,18 @@
     },
   {
     "id": 13,
+    "name": "ABWhatsApp",
+    "packageName": "com.sathwbg.easymessager",
+    "versionName": "2.26.17.73",
+    "versionCode": 21474836477,
+    "developer": "-SBعبدالله التميمي",
+    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconsb.png",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1_A-LqygRV401Ij68gcym_1Nog5d4uOJ8&export=download&confirm=t&uuid=54da4b48-59cf-45fe-857d-deb92c6a4d0b",
+    "size": "134663086",
+    "description": "تحديث ABWhatsApp الأزرق SB"
+    },
+  {
+    "id": 14,
     "name": "WhatsApp",
     "packageName": "com.whatsapp",
     "versionName": "2.26.17.73",
@@ -156,7 +168,7 @@
     "description": "واتساب الاخضر ضد الحظر"
   },
   {
-    "id": 14,
+    "id": 15,
     "name": "WhatsApp",
     "packageName": "com.fixwhatsapp",
     "versionName": "2.26.7.74",
