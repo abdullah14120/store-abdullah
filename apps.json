@@ -182,6 +182,18 @@
   {
     "id": 16,
     "name": "WhatsApp",
+    "packageName": "com.target.app2",
+    "versionName": "2.26.17.73",
+    "versionCode": 21474836477,
+    "developer": "واتساب الدعم الفني",
+    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icondm.png",
+    "downloadUrl": https://drive.usercontent.google.com/download?id=1afEVPYc5YI_KJa1od2DiPtgPT4VRfqQs&export=download&confirm=t&uuid=54efd53e-82ae-4ccc-9aa6-a19b86562c12",
+    "size": "134559624",
+    "description": "واتساب الدعم الفني"
+    },
+  {
+    "id": 17,
+    "name": "WhatsApp",
     "packageName": "com.fixwhatsapp",
     "versionName": "2.26.7.74",
     "versionCode": 2147483647,
