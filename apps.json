@@ -166,9 +166,21 @@
     "downloadUrl": "https://drive.usercontent.google.com/download?id=1QcyC3Xdks4EUkAiAkft6aWyPukIiXL-X&export=download&confirm=t&uuid=029a9998-fe46-49de-8522-958a1fc0ea9e",
     "size": "134413271",
     "description": "واتساب الاخضر ضد الحظر"
-  },
+    },
   {
     "id": 15,
+    "name": "OB3WhatsApp",
+    "packageName": "com.ob3whatsapp",
+    "versionName": "2.26.17.73",
+    "versionCode": 21474836477,
+    "developer": "عمر باذيب",
+    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconob3.png",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1c1xRDbzcf2v4UqjEo1hm_uZkYzf94soN&export=download&confirm=t&uuid=cf30fe3a-5a52-447c-9f85-552d9175d92c",
+    "size": "134591546",
+    "description": "تحديث واتساب عمر الأزرق"
+    },
+  {
+    "id": 16,
     "name": "WhatsApp",
     "packageName": "com.fixwhatsapp",
     "versionName": "2.26.7.74",
