@@ -157,15 +157,15 @@
     },
   {
     "id": 14,
-    "name": "WhatsApp",
-    "packageName": "com.whatsapp",
-    "versionName": "2.26.17.73",
+    "name": "ABWhatsApp",
+    "packageName": "com.android.meta",
+    "versionName": "2.26.17.73F",
     "versionCode": 21474836477,
-    "developer": "واتساب الأخضر ضد الحظر",
-    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icon.png",
+    "developer": "واتساب الأخضر المطور - الدعم الفني",
+    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icondm.png",
     "downloadUrl": "https://drive.usercontent.google.com/download?id=1QcyC3Xdks4EUkAiAkft6aWyPukIiXL-X&export=download&confirm=t&uuid=029a9998-fe46-49de-8522-958a1fc0ea9e",
     "size": "134413271",
-    "description": "واتساب الاخضر ضد الحظر"
+    "description": "واتساب الاخضر المطور android.meta"
     },
   {
     "id": 15,
@@ -181,18 +181,6 @@
     },
   {
     "id": 16,
-    "name": "WhatsApp",
-    "packageName": "com.target.app2",
-    "versionName": "2.26.17.73",
-    "versionCode": 21474836477,
-    "developer": "واتساب الدعم الفني",
-    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icondm.png",
-    "downloadUrl": "https://drive.usercontent.google.com/download?id=1afEVPYc5YI_KJa1od2DiPtgPT4VRfqQs&export=download&confirm=t&uuid=54efd53e-82ae-4ccc-9aa6-a19b86562c12",
-    "size": "134559624",
-    "description": "واتساب الدعم الفني"
-    },
-  {
-    "id": 17,
     "name": "WhatsApp",
     "packageName": "com.fixwhatsapp",
     "versionName": "2.26.7.74",
