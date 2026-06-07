@@ -1,105 +1,137 @@
 package com.fix.engine.abdullah.service
 
-import android.annotation.SuppressLint
-import android.app.DownloadManager
 import android.content.Context
-import android.database.Cursor
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
+import androidx.core.content.FileProvider
+import com.tonyodev.fetch2.AbstractFetchListener
+import com.tonyodev.fetch2.Download
+import com.tonyodev.fetch2.Error
+import com.tonyodev.fetch2.Fetch
+import java.io.File
 import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Performance Tracker
- * Feature: Large APK Support & Memory Optimization (Leak-Free)
+ * Project: Abdullah Store - Performance Tracker & Auto Installer
+ * Feature: Integrated FetchListener with Auto-Rename and Install
  */
-class DownloadTracker(context: Context) {
+class DownloadTracker(private val context: Context) {
 
-    // 🟢 استخدامgetApplicationContext لمنع تسريب الذاكرة (Memory Leak) نهائياً في حال إغلاق الـ Activity
-    private val appContext = context.applicationContext
-    private val downloadManager = appContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    private val fetch = Fetch.Impl.getDefaultInstance()
+    private var currentListener: AbstractFetchListener? = null
     private val handler = Handler(Looper.getMainLooper())
-    private var runnable: Runnable? = null
 
-    @SuppressLint("Range")
-    fun startTracking(downloadId: Long, onProgress: (Int, String) -> Unit) {
-        stopTracking() // ضمان إيقاف أي عداد برمي سابق قبل البدء
+    fun startTracking(downloadId: Int, onProgress: (Int, String) -> Unit) {
+        stopTracking() 
 
-        if (downloadId == -1L) {
+        if (downloadId == -1) {
             onProgress(0, "فشل في التحميل")
             return
         }
 
-        runnable = object : Runnable {
-            override fun run() {
-                val query = DownloadManager.Query().setFilterById(downloadId)
-                val cursor: Cursor? = downloadManager.query(query)
-                var shouldContinue = true 
-
-                try {
-                    if (cursor != null && cursor.moveToFirst()) {
-                        val status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
-                        val bytesDownloaded = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-                        val bytesTotal = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-
-                        when (status) {
-                            DownloadManager.STATUS_SUCCESSFUL -> {
-                                onProgress(100, "اكتمل التحميل")
-                                shouldContinue = false
-                            }
-                            DownloadManager.STATUS_FAILED -> {
-                                onProgress(0, "فشل في التحميل")
-                                shouldContinue = false
-                            }
-                            DownloadManager.STATUS_RUNNING -> {
-                                if (bytesTotal > 0) {
-                                    val progress = ((bytesDownloaded * 100L) / bytesTotal).toInt()
-                                    
-                                    // 🟢 معالجة رياضية فائقة الدقة لحساب الـ ميجابايت للتطبيقات الضخمة بدون أخطاء الـ Float
-                                    val downloadedMb = bytesDownloaded.toDouble() / (1024.0 * 1024.0)
-                                    val totalMb = bytesTotal.toDouble() / (1024.0 * 1024.0)
-                                    
-                                    val sizeInMb = String.format(Locale.ENGLISH, "%.1f/%.1f MB", downloadedMb, totalMb)
-                                    onProgress(progress, sizeInMb)
-                                } else {
-                                    onProgress(0, "جاري جلب حجم الملف...")
-                                }
-                            }
-                            DownloadManager.STATUS_PENDING -> {
-                                onProgress(0, "جاري الانتظار في الصف...")
-                            }
-                            DownloadManager.STATUS_PAUSED -> {
-                                onProgress(0, "تم إيقاف التحميل مؤقتاً")
-                            }
-                        }
+        currentListener = object : AbstractFetchListener() {
+            override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
+                if (download.id == downloadId) {
+                    val progress = download.progress
+                    
+                    // حساب دقيق للميجابايت
+                    val downloadedMb = download.downloaded / (1024.0 * 1024.0)
+                    val totalMb = download.total / (1024.0 * 1024.0)
+                    
+                    val sizeText = if (download.total > 0) {
+                        String.format(Locale.ENGLISH, "%.1f/%.1f MB", downloadedMb, totalMb)
                     } else {
-                        // في حال إلغاء التحميل من قبل المستخدم واختفاء الـ ID، نبلغ الواجهة فوراً للتراجع
-                        onProgress(0, "تم إلغاء التحميل")
-                        shouldContinue = false
+                        "جاري جلب حجم الملف..."
                     }
-                } catch (e: Exception) {
-                    onProgress(0, "فشل في التحميل")
-                    shouldContinue = false
-                } finally {
-                    cursor?.close()
+                    
+                    handler.post { onProgress(progress, sizeText) }
                 }
+            }
 
-                // الاستمرار في الفحص وإعادة جدولة الـ Runnable كل 800 مللي ثانية لحفظ المعالج والبطارية
-                if (shouldContinue && runnable != null) {
-                    handler.postDelayed(this, 800)
+            override fun onCompleted(download: Download) {
+                if (download.id == downloadId) {
+                    handler.post { onProgress(100, "اكتمل التحميل") }
+                    
+                    // 🚀 دمج منطق التثبيت وتغيير الاسم فوراً بمجرد الاكتمال
+                    processDownloadedFile(download.file)
+                    stopTracking() 
+                }
+            }
+
+            override fun onError(download: Download, error: Error, throwable: Throwable?) {
+                if (download.id == downloadId) {
+                    handler.post { onProgress(0, "فشل في التحميل") }
+                    stopTracking()
+                }
+            }
+
+            override fun onPaused(download: Download) {
+                if (download.id == downloadId) {
+                    handler.post { onProgress(download.progress, "تم الإيقاف مؤقتاً") }
                 }
             }
         }
-        handler.post(runnable!!)
+
+        fetch.addListener(currentListener!!)
+    }
+
+    fun stopTracking() {
+        currentListener?.let {
+            fetch.removeListener(it)
+            currentListener = null
+        }
     }
 
     /**
-     * 🛡️ دالة الحظر المباشر لتنظيف الذاكرة العشوائية ومنع الهدر الخلفي بالـ Runtime
+     * 🟢 تم نقل منطق DownloadReceiver القديم إلى هنا بشكل أنظف ومباشر
      */
-    fun stopTracking() {
-        runnable?.let {
-            handler.removeCallbacks(it)
-            runnable = null
+    private fun processDownloadedFile(filePath: String) {
+        val tempFile = File(filePath)
+        
+        if (tempFile.exists()) {
+            if (tempFile.name.endsWith(".tmp")) {
+                val finalName = tempFile.name.removeSuffix(".tmp")
+                val finalFile = File(tempFile.parent, finalName)
+                
+                if (tempFile.renameTo(finalFile)) {
+                    openInstaller(finalFile)
+                } else {
+                    openInstaller(tempFile)
+                }
+            } else {
+                openInstaller(tempFile)
+            }
+        }
+    }
+
+    private fun openInstaller(file: File) {
+        try {
+            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    val contentUri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file
+                    )
+                    setDataAndType(contentUri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } else {
+                    setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive")
+                }
+            }
+            context.startActivity(installIntent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            handler.post {
+                Toast.makeText(context, "اكتمل التحميل: يرجى الضغط على 'تثبيت الآن' من داخل المتجر", Toast.LENGTH_LONG).show()
+            }
         }
     }
 }
