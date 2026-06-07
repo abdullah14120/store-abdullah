@@ -1,19 +1,21 @@
 package com.fix.engine.abdullah.data.model
 
+import android.os.Parcelable
 import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
-import java.io.Serializable
+import kotlinx.parcelize.Parcelize
 import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: متجر Abdullah - Enterprise Data Model (Secure Edition)
- * Feature: ProGuard Protected Architecture, Smart Size Formatting & Unique File Identity
+ * Project: متجر Abdullah - Enterprise Data Model (Secure & High Performance Edition)
+ * Feature: ProGuard Protected Architecture, Smart Size Formatting, Unique File Identity & Parcelize Speed
  */
-@Keep // 🚨 حماية فولاذية: يمنع ProGuard و R8 من تغيير أسماء الخصائص لضمان نجاح قراءة الـ JSON دائماً
+@Keep 
+@Parcelize // 🚀 التعديل الجوهري: استخدام تقنية أندرويد الأصلية لتمرير البيانات بسرعة فائقة بين الشاشات
 data class AppModel(
     @SerializedName("id") 
-    val id: String, // 🛠️ تم التصحيح إلى Int ليتطابق مع أرقام السيرفر القياسية الخام
+    val id: Int, // 🟢 تم توحيد النوع برمجياً ليطابق التعليق والسيرفر
 
     @SerializedName("name") 
     val name: String,
@@ -25,7 +27,7 @@ data class AppModel(
     val versionName: String,
     
     @SerializedName("versionCode") 
-    val versionCode: String, // 🛠️ تم التصحيح إلى Double لدعم الأرقام الضخمة في سيرفرك (مثل التطبيق 9) ومنع الانهيار صامتاً
+    val versionCode: Long, // 🟢 تم التصحيح إلى Long لدعم الأرقام الصحيحة الضخمة بدون أخطاء الفاصلة العشرية
     
     @SerializedName("developer") 
     val developer: String,
@@ -37,11 +39,11 @@ data class AppModel(
     val downloadUrl: String,
 
     @SerializedName("size") 
-    val size: String = "0", // 🛠️ تم التصحيح إلى String لأن السيرفر يرسل الحجم محاطاً بعلامات تنصيص
+    val size: String = "0", // يبقى String ليتعامل بسلاسة مع علامات التنصيص القادمة من JSON
     
     @SerializedName("description") 
     val description: String? = "لا يوجد وصف متاح لهذا التطبيق حالياً."
-) : Serializable {
+) : Parcelable { // 🚀 استبدال Serializable بـ Parcelable
     
     /**
      * توليد اسم الملف الفريد الموحد لكل أجزاء التطبيق.
@@ -53,7 +55,6 @@ data class AppModel(
 
     /**
      * وظيفة احترافية لتحويل الحجم ديناميكياً (MB أو KB) بالاعتماد على النظام القياسي
-     * 🛠️ تم تحديثها لتقوم بتحويل الـ String القادم من السيرفر إلى قيمة رقمية آمنة في الخلفية
      */
     fun getFormattedSize(): String {
         // تحويل النص الآتي من السيرفر إلى رقم طويل (Long) بأمان
