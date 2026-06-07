@@ -2,6 +2,8 @@ package com.fix.engine.abdullah.service
 
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import com.tonyodev.fetch2.DefaultFetchNotificationManager
 import com.tonyodev.fetch2.DownloadNotification
 import com.tonyodev.fetch2.Fetch
@@ -11,7 +13,7 @@ import java.util.Locale
  * Developed by: Abdullah Al-Tamimi
  * Feature: Professional Custom Notification Manager (Android 12+ Crash Fix)
  */
-class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificationManager(context) {
+class CustomFetchNotificationManager(private val context: Context) : DefaultFetchNotificationManager(context) {
 
     // 🚀 ربط الإشعارات بمحرك Fetch الافتراضي
     override fun getFetchInstanceForNamespace(namespace: String): Fetch {
@@ -33,22 +35,34 @@ class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificatio
         return String.format(Locale.US, "%.1f MB / %.1f MB", downloadedMB, totalMB)
     }
 
-    // 🛡️ الحل السحري لانهيار أندرويد 12 (API 31+):
-    // نمنع المكتبة من إنشاء الأزرار القديمة (إيقاف/إلغاء) داخل الإشعار والتي تسبب الانهيار.
-    // سيكتفي الإشعار بعرض التقدم بشكل أنيق، بينما يتحكم المستخدم بالتحميل من واجهة المتجر.
+    // 🛡️ الحل الجذري لانهيار أندرويد 12 (API 31+):
+    // بما أن المترجم يرفض قيمة Null، سنقوم بإنشاء PendingIntent وهمي وآمن جداً
+    // يحتوي على علامة FLAG_IMMUTABLE الإجبارية لمنع الانهيار.
     override fun getActionPendingIntent(
         downloadNotification: DownloadNotification,
         actionType: DownloadNotification.ActionType
-    ): PendingIntent? {
-        return null // إرجاع Null يمنع رسم الأزرار ويتجاوز الخطأ الأمني
+    ): PendingIntent {
+        val dummyIntent = Intent("com.fix.engine.abdullah.DUMMY_ACTION")
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+        return PendingIntent.getBroadcast(context, downloadNotification.notificationId, dummyIntent, flags)
     }
 
-    // 🛡️ تطبيق نفس الحماية على إشعارات المجموعات
+    // 🛡️ تطبيق نفس الحماية المنيعة على إشعارات المجموعات
     override fun getGroupActionPendingIntent(
         groupId: Int,
         downloadNotifications: List<DownloadNotification>,
         actionType: DownloadNotification.ActionType
-    ): PendingIntent? {
-        return null
+    ): PendingIntent {
+        val dummyIntent = Intent("com.fix.engine.abdullah.DUMMY_GROUP_ACTION")
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+        return PendingIntent.getBroadcast(context, groupId, dummyIntent, flags)
     }
 }
