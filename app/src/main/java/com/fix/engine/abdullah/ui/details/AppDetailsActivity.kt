@@ -1,7 +1,6 @@
 package com.fix.engine.abdullah.ui.details
 
 import android.annotation.SuppressLint
-import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -25,13 +24,15 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.tonyodev.fetch2.Fetch
+import com.tonyodev.fetch2.Status
 import java.io.File
 import kotlin.concurrent.thread
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Feature: Legacy FileProvider Installer, Material 3 Glide Masking & Encrypted Base64 Firebase RTDB Session
+ * Refactored: Fully integrated with Fetch API for Multi-thread Downloading & Auto Install
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -43,7 +44,7 @@ class AppDetailsActivity : AppCompatActivity() {
     
     private lateinit var databaseRef: DatabaseReference
 
-    // 🔒 رابط الـ Firebase Realtime Database مشفر بترميز Base64 لحمايته من الفحص والسرقة
+    // 🔒 رابط الـ Firebase Realtime Database مشفر بترميز Base64
     private val firebaseSecUrlBase64 = "aHR0cHM6Ly9hYmR1bGxhaC1zdG9yZS1hOTVlZC1kZWZhdWx0LXJ0ZGIuZXVyb3BlLXdlc3QxLmZpcmViYXNlZGF0YWJhc2UuYXBw"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,7 +59,6 @@ class AppDetailsActivity : AppCompatActivity() {
         setupToolbar()
 
         try {
-            // 🛠️ فك تشفير الـ Base64 لحظياً بلغة النظام القياسية وبشكل فوري لبناء مرجع الاتصال الآمن
             val decodedBytes = android.util.Base64.decode(firebaseSecUrlBase64, android.util.Base64.DEFAULT)
             val decodedFirebaseUrl = String(decodedBytes, Charsets.UTF_8)
             
@@ -73,15 +73,12 @@ class AppDetailsActivity : AppCompatActivity() {
         if (appData != null) {
             currentApp = appData
             
-            // 1. عرض تفاصيل الواجهة الأساسية
             displayDetails(appData)
             
-            // 2. جلب إحصائية التنزيلات فوراً بمجرد الدخول بتمرير المرجع المؤمن (إذا تم تهيئته بنجاح)
             if (::databaseRef.isInitialized) {
                 loadDownloadsCount(appData.packageName)
             }
             
-            // 3. التحقق من منطق الأزرار وحالة التحميل الحالية
             setupLogic(appData)
             checkCurrentStatus(appData)
         } else {
@@ -101,7 +98,6 @@ class AppDetailsActivity : AppCompatActivity() {
         val pm = packageManager
         val fileName = app.getUniqueFileName()
         
-        // 🟢 القراءة المباشرة من مجلد المتجر الخاص المتوافق مع الـ AndroidDownloadManager
         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         val finalFile = File(downloadFolder, fileName)
 
@@ -159,33 +155,32 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * 🚀 تم التعديل بالكامل للبحث في مهام مكتبة Fetch بدلاً من مدير تحميل النظام القديم
+     */
     @SuppressLint("Range")
     private fun checkCurrentStatus(app: AppModel) {
-        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val query = DownloadManager.Query().setFilterByStatus(
-            DownloadManager.STATUS_RUNNING or DownloadManager.STATUS_PENDING or DownloadManager.STATUS_PAUSED
-        )
-        val cursor = manager.query(query)
-        
-        var activeDownloadId: Long = -1
+        val fileName = app.getUniqueFileName()
+        val tempFileName = "$fileName.tmp"
+        val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val tempFile = File(downloadFolder, tempFileName)
 
-        if (cursor != null) {
-            while (cursor.moveToNext()) {
-                val title = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_TITLE))
-                if (title == app.name || title == app.getUniqueFileName()) {
-                    activeDownloadId = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_ID))
-                    break
+        val fetch = Fetch.Impl.getDefaultInstance()
+        fetch.getDownloads { downloads ->
+            val activeDownload = downloads.find { 
+                it.file == tempFile.absolutePath && 
+                (it.status == Status.DOWNLOADING || it.status == Status.QUEUED || it.status == Status.PAUSED) 
+            }
+            
+            if (activeDownload != null) {
+                runOnUiThread {
+                    isDownloading = true
+                    binding.btnInstallLarge.visibility = View.GONE
+                    binding.btnOpenApp.visibility = View.GONE
+                    binding.layoutDownloadProgress.visibility = View.VISIBLE
+                    startTrackingProcess(activeDownload.id)
                 }
             }
-            cursor.close()
-        }
-
-        if (activeDownloadId != -1L) {
-            isDownloading = true
-            binding.btnInstallLarge.visibility = View.GONE
-            binding.btnOpenApp.visibility = View.GONE
-            binding.layoutDownloadProgress.visibility = View.VISIBLE
-            startTrackingProcess(activeDownloadId)
         }
     }
 
@@ -264,11 +259,15 @@ class AppDetailsActivity : AppCompatActivity() {
 
         incrementDownloadCount(app.packageName)
 
-        val downloadId = downloadManager.enqueueDownload(app.downloadUrl, app.getUniqueFileName())
+        // 🟢 نمرر Int بدلاً من Long
+        val downloadId: Int = downloadManager.enqueueDownload(app.downloadUrl, app.getUniqueFileName())
         startTrackingProcess(downloadId)
     }
 
-    private fun startTrackingProcess(downloadId: Long) {
+    /**
+     * 🚀 تم التعديل لاستقبال Int والاعتماد على الذكاء الجديد لمتتبع Fetch
+     */
+    private fun startTrackingProcess(downloadId: Int) {
         tracker.startTracking(downloadId) { progress, sizeLabel ->
             runOnUiThread {
                 binding.apply {
@@ -279,20 +278,22 @@ class AppDetailsActivity : AppCompatActivity() {
                     if (progress < 100) {
                         txtDownloadSpeed.text = "جاري التحميل..."
                     } else {
-                        // 🟢 الحل لمنع القفز العشوائي: نغير النص لإعلام المستخدم بالتجميع الخلفي المستقر ونوقف الـ Tracking
-                        txtDownloadSpeed.text = "جاري تجميع وتهيئة الحزمة... 🚀"
+                        txtDownloadSpeed.text = "جاري فتح المثبت... 🚀"
                         isDownloading = false
                         
-                        // نكتفي بتعطيل المراقبة الحالية لكي يتولى الـ DownloadReceiver فتح مثبت النظام فور اكتمال الملف حقيقياً
-                        if (::tracker.isInitialized) {
-                            tracker.stopTracking()
-                        }
+                        // إعادة الواجهة لوضع التثبيت اليدوي في حال قام المستخدم بإلغاء التثبيت ويريد المحاولة لاحقاً
+                        layoutDownloadProgress.visibility = View.GONE
+                        btnInstallLarge.visibility = View.VISIBLE
+                        btnInstallLarge.text = "تثبيت الآن"
                     }
                 }
             }
         }
     }
 
+    /**
+     * 🟢 تعمل هذه الدالة كخطة احتياطية ممتازة إذا ضغط المستخدم على "تثبيت الآن" لملف محمل مسبقاً
+     */
     private fun installApkLegacy(file: File) {
         if (!file.exists()) {
             Toast.makeText(this, "المعذرة، ملف الـ APK غير موجود!", Toast.LENGTH_SHORT).show()
@@ -302,28 +303,16 @@ class AppDetailsActivity : AppCompatActivity() {
         runOnUiThread {
             binding.btnInstallLarge.visibility = View.GONE
             binding.layoutDownloadProgress.visibility = View.VISIBLE
-            binding.downloadProgress.progress = 20
-            binding.txtDownloadPercent.text = "20%"
+            binding.downloadProgress.progress = 100
+            binding.txtDownloadPercent.text = "100%"
             binding.txtDownloadSpeed.text = "جاري تحضير ملفات التثبيت..."
             binding.txtDownloadETA.text = "يرجى الانتظار"
         }
 
         thread {
             try {
-                Thread.sleep(600)
-                runOnUiThread {
-                    binding.downloadProgress.progress = 75
-                    binding.txtDownloadPercent.text = "75%"
-                    binding.txtDownloadSpeed.text = "جاري التثبيت النهائي في النظام... 🚀"
-                }
-                Thread.sleep(500)
-                runOnUiThread {
-                    binding.downloadProgress.progress = 100
-                    binding.txtDownloadPercent.text = "100%"
-                }
-                Thread.sleep(200)
-
-                // صناعة الـ Uri والـ Intent بناءً على إصدار نظام المستخدم بشكل متوافق تماماً مع المانيفست
+                Thread.sleep(800) // تأثير بصري سلس
+                
                 val intent = Intent(Intent.ACTION_VIEW).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -345,8 +334,7 @@ class AppDetailsActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 e.printStackTrace()
                 runOnUiThread {
-                    Toast.makeText(this@AppDetailsActivity, "فشل تحليل الحزمة، قد يكون الملف غير مكتمل", Toast.LENGTH_LONG).show()
-                    if (file.exists()) file.delete()
+                    Toast.makeText(this@AppDetailsActivity, "فشل فتح الحزمة", Toast.LENGTH_LONG).show()
                 }
             } finally {
                 runOnUiThread {
