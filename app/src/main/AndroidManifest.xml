@@ -34,6 +34,10 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="35">
         
+     <application
+        android:name=".AbdullahStoreApp"
+        android:allowBackup="true"
+ 
         <activity
             android:name=".MainActivity"
             android:exported="true"
