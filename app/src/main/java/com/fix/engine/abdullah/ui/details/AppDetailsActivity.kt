@@ -68,7 +68,13 @@ class AppDetailsActivity : AppCompatActivity() {
             Toast.makeText(this, "خطأ في الاتصال الأمني بقاعدة البيانات", Toast.LENGTH_SHORT).show()
         }
 
-        val appData = intent.getSerializableExtra("APP_DATA") as? AppModel
+        // 🚀 التعديل: استقبال البيانات كـ Parcelable فائق السرعة مع دعم كامل لأندرويد 13 فما فوق
+val appData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    intent.getParcelableExtra("APP_DATA", AppModel::class.java)
+} else {
+    @Suppress("DEPRECATION")
+    intent.getParcelableExtra("APP_DATA") as? AppModel
+}
 
         if (appData != null) {
             currentApp = appData
