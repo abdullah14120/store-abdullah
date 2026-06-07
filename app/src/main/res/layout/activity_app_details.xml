@@ -68,7 +68,7 @@
                 app:layout_constraintStart_toEndOf="@id/imgDetailsIcon"
                 app:layout_constraintTop_toTopOf="@id/imgDetailsIcon"
                 app:layout_constraintBottom_toTopOf="@id/txtDetailsDev"
-                app:layout_setVerticalChainStyle="packed"
+                app:layout_constraintVertical_chainStyle="packed"
                 tools:text="FIX ENGINE PRO" />
 
             <TextView
