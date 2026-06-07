@@ -45,3 +45,25 @@
 # 8. 🛠️ قواعد عامة لتقليل الأخطاء وحذف ملفات التتبع الحساسة في نسخة الريليز
 -dontnote **
 -keepattributes SourceFile, LineNumberTable
+
+# 9. 🚀 حماية مكتبة Fetch للتحميلات (التي أضفناها للتو)
+-keep class com.tonyodev.fetch2.** { *; }
+-keep class com.tonyodev.fetch2core.** { *; }
+-dontwarn com.tonyodev.fetch2.**
+-dontwarn com.tonyodev.fetch2core.**
+
+# 10. 🗄️ حماية مكتبة Room Database (تستخدمها Fetch داخلياً لحفظ تقدم التحميل واستئنافه)
+-keep class androidx.room.** { *; }
+-dontwarn androidx.room.**
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class * { *; }
+
+# 11. 🧩 حماية مكتبة Gson (لمنع فشل تحويل الـ JSON إلى Models)
+-keep class com.google.gson.** { *; }
+-keep class com.google.gson.reflect.** { *; }
+-dontwarn com.google.gson.**
+
+# 12. ⚡ حماية الـ Coroutines (تستخدمها WorkManager و Room في الخلفية)
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keep class kotlinx.coroutines.** { *; }
