@@ -339,7 +339,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         val builder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.mipmap.ic_launcher) // 👈 تم التعديل على الأيقونة لتقرأ من الـ mipmap المستقرة الجديدة
+            .setSmallIcon(R.drawable.ic_notification_transparent) // استخدا  تم التعديل على الأيقونة لتقرأ من الـ mipmap المستقرة الجديدة
             .setContentTitle("تحديثات متوفرة لـ تطبيقاتك! 🚀")
             .setContentText("يوجد عدد ($updatesCount) من تطبيقاتك تمتلك إصدارات محدثة، قم بتثبيتها الآن.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
