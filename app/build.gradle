@@ -117,6 +117,9 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     implementation 'com.google.firebase:firebase-database-ktx'
     implementation 'com.google.firebase:firebase-common-ktx'
+        // 12. مكتبة Fetch لتحميل الملفات بسرعة فائقة ودعم تعدد المسارات
+    implementation 'androidx.tonyodev.fetch2:xfetch2:3.1.6'
+
     
     // الاختبارات
     testImplementation 'junit:junit:4.13.2'
