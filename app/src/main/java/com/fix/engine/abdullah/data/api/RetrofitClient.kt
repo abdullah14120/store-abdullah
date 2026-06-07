@@ -5,20 +5,25 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
+import com.fix.engine.abdullah.BuildConfig // تأكد من استيراد الـ BuildConfig الخاص بتطبيقك
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: Abdullah Store - High Performance Network Client
- * Feature: Optimized for slow connections & Dynamic API Calls
+ * Feature: Optimized for slow connections & Dynamic API Calls with Production Security
  */
 object RetrofitClient {
     
     private const val BASE_URL = "https://raw.githubusercontent.com/"
 
     private val okHttpClient: OkHttpClient by lazy {
-        // مراقب البيانات لمتابعة الطلبات في الـ Logcat
+        // 🔒 حماية صارمة: تشغيل مراقب البيانات فقط أثناء البرمجة (Debug) وإيقافه كلياً للمستخدمين (Release)
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY 
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
 
         OkHttpClient.Builder()
