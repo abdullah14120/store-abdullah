@@ -21,22 +21,36 @@ import com.fix.engine.abdullah.R
 class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        // هنا يتم فحص التحديثات في الخلفية بانتظام بفضل WorkManager
-        // بمجرد العثور على تحديث في ملف JSON، نرسل الإشعار للمستخدم
-        
-        sendNotification(
-            "تحديثات جديدة متوفرة لـ تطبيقاتك! 🚀", 
-            "هناك إصدارات جديدة ومحدثة بانتظارك الآن داخل متجر Abdullah، تفقدها وثبتها فوراً!"
-        )
-        
-        return Result.success()
+        return try {
+            // 1. هنا تقوم بجلب ملف الـ JSON الخاص بك وفحص الإصدارات
+            val isUpdateAvailable = checkForUpdatesInJson()
+
+            // 2. إرسال الإشعار فقط إذا كان هناك تحديث فعلي
+            if (isUpdateAvailable) {
+                sendNotification(
+                    "تحديثات جديدة متوفرة لـ تطبيقاتك! 🚀", 
+                    "هناك إصدارات جديدة ومحدثة بانتظارك الآن داخل متجر Abdullah، تفقدها وثبتها فوراً!"
+                )
+            }
+            
+            Result.success()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // في حال فشل الاتصال بالإنترنت أو فشل قراءة JSON
+            Result.retry() 
+        }
+    }
+
+    // دالة افتراضية لمحاكاة فحص التحديثات (قم بتعديلها بمنطقك الخاص)
+    private suspend fun checkForUpdatesInJson(): Boolean {
+        // TODO: تنفيذ منطق جلب الـ JSON ومقارنة أرقام الإصدارات
+        return true 
     }
 
     private fun sendNotification(title: String, message: String) {
         val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "abdullah_store_updates"
 
-        // إنشاء قناة الإشعارات لأجهزة أندرويد 8.0 فما فوق (API 26+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId, 
@@ -52,7 +66,6 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         
-        // 🔒 صياغة برمجية آمنة ومحصنة للـ PendingIntent متوافقة مع أندرويد 6.0 وحتى أندرويد 15
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         } else {
@@ -67,18 +80,17 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         )
 
         val notification = NotificationCompat.Builder(applicationContext, channelId)
-            // 🟢 تم التعديل لتقرأ الأيقونة من الـ mipmap لضمان الثبات التام ومنع ظهور المربعات الرمادية
-            .setSmallIcon(R.mipmap.ic_launcher) 
+            // 🟢 التعديل الجوهري: استخدام أيقونة شفافة (Vector) لمنع المربع الرمادي
+            .setSmallIcon(R.drawable.ic_notification_transparent) 
             .setContentTitle(title)
             .setContentText(message)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(message)) // لعرض النص كاملاً وبشكل منسق إذا كان طويلاً
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            // 🟢 اعتماد تلوين الإشعار باللون الأساسي للثيم الزيتي المعتمد بمتجرك
             .setColor(ContextCompat.getColor(applicationContext, R.color.md_theme_d_primary))
             .build()
 
-        notificationManager.notify(1002, notification) // استخدام ID فريد وثابت للإشعار الدوري
+        notificationManager.notify(1002, notification) 
     }
 }
