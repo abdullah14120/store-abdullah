@@ -44,7 +44,8 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
 
                 // 1. تحديد مسار الملف المحلي .apk
                 val fileName = app.getUniqueFileName()
-                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                // 🟢 التعديل الجوهري: توجيه المسار لمجلد التطبيق الداخلي ليتوافق مع مكتبة Fetch
+                val downloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                 val localFile = File(downloadsDir, fileName)
                 val isDownloaded = localFile.exists()
 
@@ -114,17 +115,16 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
                 // 4. تحميل الأيقونة وحل مشكلة تمدد الحواف وتخطي التدوير
                 imgAppIcon.transitionName = "transition_app_icon_${app.packageName}" 
                 
-Glide.with(context)
-    .load(app.iconUrl)
-    .placeholder(R.mipmap.ic_launcher) // 👈 تم التعديل هنا لقرائه الأيقونة الزيتية الجديدة
-    .error(R.mipmap.ic_launcher)       // 👈 تم التعديل هنا لقرائه الأيقونة الزيتية الجديدة
-    .dontAnimate() // 🚨 الحل النهائي: إيقاف تأثير التحويل التدريجي لإجبار البكسلات على أخذ شكل التدوير فوراً ومنع التمدد
-    .into(imgAppIcon)
+                Glide.with(context)
+                    .load(app.iconUrl)
+                    .placeholder(R.mipmap.ic_launcher) 
+                    .error(R.mipmap.ic_launcher)       
+                    .dontAnimate() 
+                    .into(imgAppIcon)
 
-// 5. الأحداث
-root.setOnClickListener { onAppClick(app, root) }
-btnDownload.setOnClickListener { onAppClick(app, root) }
-
+                // 5. الأحداث
+                root.setOnClickListener { onAppClick(app, root) }
+                btnDownload.setOnClickListener { onAppClick(app, root) }
             }
         }
     }
