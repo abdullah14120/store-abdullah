@@ -49,14 +49,16 @@ class UpdatesFragment : Fragment() {
                 putExtra("APP_DATA", app)
             }
             
-            // تحديد أيقونة التطبيق بدقة كعنصر مشترك للانتقال لسرعة الاستجابة
+            // 🟢 التعديل الحرج: جعل المعرف ديناميكياً ليتطابق مع الـ Adapter ويمنع تعارض الحركات
             val iconView = itemView.findViewById<View>(R.id.imgAppIcon)
-            ViewCompat.setTransitionName(iconView, "transition_app_icon")
+            val uniqueTransitionName = "transition_app_icon_${app.packageName}"
+            
+            ViewCompat.setTransitionName(iconView, uniqueTransitionName)
             
             val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
                 requireActivity(),
                 iconView,
-                "transition_app_icon"
+                uniqueTransitionName
             )
             
             startActivity(intent, options.toBundle())
@@ -89,6 +91,14 @@ class UpdatesFragment : Fragment() {
             } else {
                 binding.layoutAllUpdated.visibility = View.VISIBLE
             }
+        }
+    }
+
+    // 🟢 التعديل الهام: تحديث الواجهة عند العودة من شاشة التفاصيل لضمان تغيير حالة الأزرار
+    override fun onResume() {
+        super.onResume()
+        if (::appAdapter.isInitialized && !isFirstLoad) {
+            appAdapter.notifyDataSetChanged()
         }
     }
 
