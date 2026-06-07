@@ -52,13 +52,14 @@ class AllAppsFragment : Fragment() {
             
             val iconView = itemView.findViewById<View>(R.id.imgAppIcon)
             
-            // تأمين ربط معرف الانتقال المشترك ديناميكياً لضمان قراءته بشكل سريع بالنظام
-            ViewCompat.setTransitionName(iconView, "transition_app_icon")
+            // 🟢 التعديل الحرج: استخدام الاسم الديناميكي المتطابق مع الـ Adapter لمنع تعارض الحركات
+            val uniqueTransitionName = "transition_app_icon_${app.packageName}"
+            ViewCompat.setTransitionName(iconView, uniqueTransitionName)
             
             val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
                 requireActivity(),
                 iconView,
-                "transition_app_icon"
+                uniqueTransitionName
             )
 
             startActivity(intent, options.toBundle())
@@ -91,6 +92,15 @@ class AllAppsFragment : Fragment() {
             } else {
                 binding.tvNoResults.visibility = View.VISIBLE
             }
+        }
+    }
+
+    // 🟢 إضافة ذكية: تحديث مرئي سريع للقائمة عند عودة المستخدم من شاشة التفاصيل
+    // لضمان تحول الزر من "تنزيل" إلى "تثبيت" أو "فتح" إذا قام بالتحميل هناك
+    override fun onResume() {
+        super.onResume()
+        if (::appAdapter.isInitialized && !isFirstLoad) {
+            appAdapter.notifyDataSetChanged()
         }
     }
 
