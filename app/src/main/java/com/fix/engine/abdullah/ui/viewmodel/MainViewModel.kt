@@ -2,6 +2,7 @@ package com.fix.engine.abdullah.ui.viewmodel
 
 import android.app.Application
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -14,7 +15,7 @@ import kotlinx.coroutines.launch
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah - Pro View Model (Material 3 Secure Edition)
- * Logic: Handles Independent Multi-Fragment Search & Secure Encrypted Data Distribution
+ * Logic: Handles Independent Multi-Fragment Search, Secure Encrypted Data Distribution & Lifecycle Caching
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -43,6 +44,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * 🔐 جلب التطبيقات وفرزها في الخلفية بتوزيع متوازٍ
      */
     fun loadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
+        // 🟢 التعديل الأول: التحقق من الكاش الداخلي لمنع إعادة التحميل عند تدوير الشاشة (Screen Rotation)
+        if (fullAppsList.isNotEmpty()) {
+            _appsList.value = fullAppsList
+            _updatesList.value = fullUpdatesList
+            return
+        }
+
         // العمليات الثقيلة وفك التشفير تتم داخل الـ Thread المعزول لحماية الذاكرة والواجهة
         viewModelScope.launch(Dispatchers.IO) { 
             _isLoading.postValue(true)
@@ -57,7 +65,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // حساب وتصفية التطبيقات التي تمتلك تحديثات برمجية فوراً وتخزينها كنسخة مستقلة
                 fullUpdatesList = list.filter { app ->
                     try {
-                        val pInfo = packageManager.getPackageInfo(app.packageName, 0)
+                        // 🟢 التعديل الثاني: التوافق التام مع أندرويد 13+ (API 33) للـ PackageManager
+                        val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            packageManager.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(0))
+                        } else {
+                            @Suppress("DEPRECATION")
+                            packageManager.getPackageInfo(app.packageName, 0)
+                        }
+                        
                         val installedVer = pInfo.versionName ?: ""
                         // عمل trim لتفادي الفراغات المخفية في النصوص القادمة من السيرفر
                         app.versionName.trim() != installedVer.trim()
@@ -86,21 +101,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * 🛠️ تم تعديلها لتطابق الخصائص الحقيقية للسيرفر (name و developer) مع الحماية ضد الـ Null
      */
     fun filterApps(query: String) {
-        if (query.isBlank()) {
+        // استخدام trim يمنع البحث الخاطئ إذا قام المستخدم بكتابة مسافة فارغة بالخطأ
+        val cleanQuery = query.trim()
+        
+        if (cleanQuery.isBlank()) {
             _appsList.value = fullAppsList
             _updatesList.value = fullUpdatesList
         } else {
             // تصفية ذكية لصفحة التطبيقات بناءً على الاسم أو المطور الحالي
             val filteredApps = fullAppsList.filter { app ->
-                val nameMatch = app.name?.contains(query, ignoreCase = true) ?: false
-                val devMatch = app.developer?.contains(query, ignoreCase = true) ?: false
+                val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
+                val devMatch = app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
                 nameMatch || devMatch
             }
             
             // تصفية موازية ومستقلة لشاشة التحديثات المتاحة لتظل النتائج متناسقة
             val filteredUpdates = fullUpdatesList.filter { app ->
-                val nameMatch = app.name?.contains(query, ignoreCase = true) ?: false
-                val devMatch = app.developer?.contains(query, ignoreCase = true) ?: false
+                val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
+                val devMatch = app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
                 nameMatch || devMatch
             }
 
