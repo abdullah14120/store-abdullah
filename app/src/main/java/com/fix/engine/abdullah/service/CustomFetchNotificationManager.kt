@@ -12,12 +12,12 @@ import java.util.Locale
  */
 class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificationManager(context) {
 
-    // 🚀 1. حل الخطأ الأساسي: إخبار الإشعارات بربط نفسها بمحرك Fetch الافتراضي
+    // 🚀 ربط الإشعارات بمحرك Fetch الافتراضي
     override fun getFetchInstanceForNamespace(namespace: String): Fetch {
         return Fetch.getDefaultInstance()
     }
 
-    // 🚀 2. تخصيص النص الفرعي للإشعار ليعرض (المُحمّل / الإجمالي) بالميجابايت
+    // 🚀 تخصيص النص الفرعي للإشعار ليعرض (المُحمّل / الإجمالي) بالميجابايت
     override fun getSubtitleText(context: Context, downloadNotification: DownloadNotification): String {
         val downloadedBytes = downloadNotification.downloaded
         val totalBytes = downloadNotification.total
@@ -33,10 +33,5 @@ class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificatio
 
         // استخدام Locale.US لمنع انقلاب الأرقام والشرطة المائلة في الأجهزة العربية
         return String.format(Locale.US, "%.1f MB / %.1f MB", downloadedMB, totalMB)
-    }
-
-    // 🟢 لمسة احترافية بديلة: تغيير اسم "قناة الإشعارات" في إعدادات هاتف المستخدم
-    override fun getChannelName(): String {
-        return "تنزيلات متجر Abdullah"
     }
 }
