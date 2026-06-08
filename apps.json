@@ -51,11 +51,11 @@
     "id": 5,
     "name": "WhatsApp",
     "packageName": "com.fixwhatsapp2",
-    "versionName": "2.26.7.74",
+    "versionName": "2.26.21.76",
     "versionCode": 2147483647,
     "developer": "درع الحماية",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icon.png",
-    "downloadUrl": "https://drive.usercontent.google.com/download?id=1XgXCBgHDY6zjHERHVikYT0oDkdCAtuG7&export=download&confirm=t&uuid=9a4bb0fb-53f9-4081-ae14-8996ce677adb",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1oS8Wb25e1dtxZ7-05HeqUiTwQ57UTUlA&export=download&confirm=t&uuid=1c27b42e-0e00-4e21-ae58-f19f9fb4ed96",
     "size": "125263449",
     "description": "تحديث واتساب الأخضر درع الحماية."
   },
@@ -207,12 +207,12 @@
     "id": 18,
     "name": "WhatsApp",
     "packageName": "com.fixwhatsapp",
-    "versionName": "2.26.7.74",
+    "versionName": "2.26.21.76",
     "versionCode": 2147483647,
     "developer": "درع الحماية",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconf.png",
-    "downloadUrl": "https://drive.usercontent.google.com/download?id=17HcupB_1oiA3t1IG4Ancrs2Ox3rsYnMZ&export=download&confirm=t&uuid=a2254e71-5a4e-4309-9bf1-1a80928fdd39",
-    "size": "131471543",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1mmJrNVZEOGQr-1fZEbd8vbslm5ip2YBa&export=download&confirm=t&uuid=384efcd1-adfd-44dd-97d3-93c5e132073e",
+    "size": "141004319",
     "description": "تحديث جديد لواتساب درع الحماية الأزرق."
   }
 ]
