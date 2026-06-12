@@ -2,7 +2,10 @@ package com.fix.engine.abdullah.service
 
 import android.content.Context
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
+import com.tonyodev.fetch2.EnqueueAction
 import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.NetworkType
 import com.tonyodev.fetch2.Priority
@@ -12,7 +15,7 @@ import java.io.File
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Refactored: Powered by Fetch API for Multi-thread Downloading
+ * Refactored: Powered by Fetch API with Auto-Retry & Ghost Download Prevention
  */
 class AndroidDownloadManager(private val context: Context) {
 
@@ -30,11 +33,17 @@ class AndroidDownloadManager(private val context: Context) {
             val request = Request(url, filePath)
             request.priority = Priority.HIGH
             request.networkType = NetworkType.ALL // التحميل عبر الواي فاي أو البيانات
+            
+            // 🚀 التعديل الأول: تفعيل الاستئناف التلقائي بشراسة (محاولة إعادة الاتصال 10 مرات عند انقطاع الشبكة)
+            request.autoRetryMaxAttempts = 10 
+            
+            // 🚀 التعديل الثاني: استبدال أي طلب قديم عالق بنفس المسار لتفادي تكرار التحميلات ودمج الملفات الخاطئ
+            request.enqueueAction = EnqueueAction.REPLACE_EXISTING
 
             fetch.enqueue(request, { _ ->
                 // تم وضع الطلب في طابور التحميل بنجاح
             }, { error ->
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                Handler(Looper.getMainLooper()).post {
                     Toast.makeText(context, "فشل بدء التحميل: ${error.name}", Toast.LENGTH_SHORT).show()
                 }
             })
@@ -42,7 +51,7 @@ class AndroidDownloadManager(private val context: Context) {
             // Fetch يستخدم Int كمعرف (ID) بدلاً من Long
             request.id 
         } catch (e: Exception) {
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
+            Handler(Looper.getMainLooper()).post {
                 Toast.makeText(context, "فشل بدء التحميل: ${e.message}", Toast.LENGTH_SHORT).show()
             }
             -1
