@@ -1,4 +1,4 @@
-package com.fix.engine.abdullah.ui.viewmodel
+Package com.fix.engine.abdullah.ui.viewmodel
 
 import android.app.Application
 import android.content.pm.PackageManager
@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah - Pro View Model (Material 3 Secure Edition)
- * Logic: Handles Independent Multi-Fragment Search, Secure Encrypted Data Distribution, Lifecycle Caching & Anti-Hijack Filtering
+ * Logic: Handles Independent Multi-Fragment Search, Secure Encrypted Data Distribution & Lifecycle Caching
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -44,7 +44,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * 🔐 جلب التطبيقات وفرزها في الخلفية بتوزيع متوازٍ
      */
     fun loadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
-        // 🟢 التحقق من الكاش الداخلي لمنع إعادة التحميل عند تدوير الشاشة (Screen Rotation)
+        // 🟢 التعديل الأول: التحقق من الكاش الداخلي لمنع إعادة التحميل عند تدوير الشاشة (Screen Rotation)
         if (fullAppsList.isNotEmpty()) {
             _appsList.value = fullAppsList
             _updatesList.value = fullUpdatesList
@@ -65,13 +65,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // حساب وتصفية التطبيقات التي تمتلك تحديثات برمجية فوراً وتخزينها كنسخة مستقلة
                 fullUpdatesList = list.filter { app ->
                     try {
-                        // 🛡️ الفحص الأمني الأهم (Anti-Update Hijacking):
-                        // إذا كان التطبيق مثبتاً من مصدر خارجي (مثل جوجل بلاي)، نستبعده فوراً من القائمة
-                        if (!isAppInstalledByOurStore(app.packageName)) {
-                            return@filter false
-                        }
-
-                        // التوافق التام مع أندرويد 13+ (API 33) للـ PackageManager
+                        // 🟢 التعديل الثاني: التوافق التام مع أندرويد 13+ (API 33) للـ PackageManager
                         val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             packageManager.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(0))
                         } else {
@@ -104,20 +98,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * دالة البحث المباشر الذكية والمزدوجة
+     * 🛠️ تم تعديلها لتطابق الخصائص الحقيقية للسيرفر (name و developer) مع الحماية ضد الـ Null
      */
     fun filterApps(query: String) {
+        // استخدام trim يمنع البحث الخاطئ إذا قام المستخدم بكتابة مسافة فارغة بالخطأ
         val cleanQuery = query.trim()
         
         if (cleanQuery.isBlank()) {
             _appsList.value = fullAppsList
             _updatesList.value = fullUpdatesList
         } else {
+            // تصفية ذكية لصفحة التطبيقات بناءً على الاسم أو المطور الحالي
             val filteredApps = fullAppsList.filter { app ->
                 val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
                 val devMatch = app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
                 nameMatch || devMatch
             }
             
+            // تصفية موازية ومستقلة لشاشة التحديثات المتاحة لتظل النتائج متناسقة
             val filteredUpdates = fullUpdatesList.filter { app ->
                 val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
                 val devMatch = app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
@@ -134,27 +132,5 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun getUpdatesCount(): Int {
         return fullUpdatesList.size
-    }
-
-    /**
-     * 🛡️ دالة ذكية تفحص هل التطبيق المثبت تم تنزيله عبر متجرنا أم من مصدر خارجي
-     * تم دمجها هنا داخل الـ ViewModel لتنظيف البيانات من المنبع (Source of Truth)
-     */
-    private fun isAppInstalledByOurStore(targetPackageName: String): Boolean {
-        val pm = packageManager
-        val ourStorePackage = getApplication<Application>().packageName 
-
-        return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val sourceInfo = pm.getInstallSourceInfo(targetPackageName)
-                sourceInfo.initiatingPackageName == ourStorePackage || 
-                sourceInfo.installingPackageName == ourStorePackage
-            } else {
-                @Suppress("DEPRECATION")
-                pm.getInstallerPackageName(targetPackageName) == ourStorePackage
-            }
-        } catch (e: Exception) {
-            false
-        }
     }
 }
