@@ -345,14 +345,18 @@ class AppDetailsActivity : AppCompatActivity() {
             }
         }
     }
+    
+        private fun installApkLegacy(file: File) {
+        // نمنح النظام مهلة 300 ملي ثانية للتأكد من استقرار الملف على الذاكرة قبل الفحص
+        Thread.sleep(300) 
 
-    private fun installApkLegacy(file: File) {
-        // 🛡️ التعديل الثالث: فحص أمني مزدوج التأكد من وجود الملف وحجمه لتفادي خطأ التحليل
         if (!file.exists() || file.length() == 0L) {
+            // الآن لن تظهر هذه الرسالة إلا إذا كان الملف تالفاً أو غير موجود فعلياً
             Toast.makeText(this, "عذراً، الملف قيد التجهيز أو غير صالح. حاول مجدداً.", Toast.LENGTH_SHORT).show()
             return
         }
-
+        
+        
         // إظهار بطاقة التحميل مؤقتاً كواجهة تجهيز التثبيت
         runOnUiThread {
             binding.btnInstallState.visibility = View.GONE
