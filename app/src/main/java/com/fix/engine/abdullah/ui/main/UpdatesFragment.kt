@@ -1,6 +1,9 @@
 package com.fix.engine.abdullah.ui.main
 
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -19,7 +22,7 @@ import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Global UI Edition (Material 3 Dynamic Style)
- * Feature: Shared Element Transitions & Isolated Async Update Stream
+ * Feature: Shared Element Transitions & Isolated Async Update Stream with Anti-Hijack Filter
  */
 class UpdatesFragment : Fragment() {
 
@@ -75,9 +78,17 @@ class UpdatesFragment : Fragment() {
     private fun setupObserver() {
         // 🚨 تصحيح المسار: مراقبة الـ updatesList المفرزة والمجهزة مسبقاً في الخلفية بدلاً من appsList القديمة
         viewModel.updatesList.observe(viewLifecycleOwner) { updatesOnly ->
-            appAdapter.submitList(updatesOnly)
             
-            if (!updatesOnly.isNullOrEmpty()) {
+            // 🛡️ الفحص الأمني الحاسم (Anti-Update Hijacking):
+            // نقوم بتصفية القائمة بحيث نبقي فقط على التطبيقات التي تم تثبيتها بواسطة متجرنا
+            val securedUpdatesList = updatesOnly.filter { app ->
+                isAppInstalledByOurStore(requireContext(), app.packageName)
+            }
+
+            // إرسال القائمة المصفاة والآمنة للـ Adapter
+            appAdapter.submitList(securedUpdatesList)
+            
+            if (securedUpdatesList.isNotEmpty()) {
                 binding.layoutAllUpdated.visibility = View.GONE
                 
                 // تطبيق حركة الظهور الانسيابي لمرة واحدة فقط لمنع الوميض عند استخدام صندوق البحث المباشر
@@ -89,6 +100,7 @@ class UpdatesFragment : Fragment() {
                     binding.rvUpdates.alpha = 1f
                 }
             } else {
+                // إذا كانت القائمة فارغة (أو كانت تحتوي على تحديثات لتطبيقات خارجية وتم تصفيتها)
                 binding.layoutAllUpdated.visibility = View.VISIBLE
             }
         }
@@ -105,5 +117,26 @@ class UpdatesFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+}
+
+/**
+ * 🛡️ دالة ذكية تفحص هل التطبيق المثبت تم تنزيله عبر متجرنا أم من مصدر خارجي (مثل جوجل بلاي)
+ */
+private fun isAppInstalledByOurStore(context: Context, targetPackageName: String): Boolean {
+    val pm = context.packageManager
+    val ourStorePackage = context.packageName 
+
+    return try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val sourceInfo = pm.getInstallSourceInfo(targetPackageName)
+            sourceInfo.initiatingPackageName == ourStorePackage || 
+            sourceInfo.installingPackageName == ourStorePackage
+        } else {
+            @Suppress("DEPRECATION")
+            pm.getInstallerPackageName(targetPackageName) == ourStorePackage
+        }
+    } catch (e: Exception) {
+        false
     }
 }
