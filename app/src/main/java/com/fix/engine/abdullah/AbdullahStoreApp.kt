@@ -5,12 +5,12 @@ import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2.HttpUrlConnectionDownloader
 import com.tonyodev.fetch2core.Downloader
-import com.fix.engine.abdullah.service.CustomFetchNotificationManager // تأكد من صحة مسار الحزمة بناءً على مشروعك
+import com.fix.engine.abdullah.service.CustomFetchNotificationManager
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: Abdullah Store - Enterprise Edition
- * Feature: Ultra-Fast Parallel Downloading & Custom Notification Engine
+ * Feature: Ultra-Fast Parallel Downloading, Auto-Retry & Custom Notification Engine
  */
 class AbdullahStoreApp : Application() {
 
@@ -26,6 +26,9 @@ class AbdullahStoreApp : Application() {
             
             // 🔥 نظام التقطيع: استخدام PARALLEL لفتح اتصالات متعددة وسحب الملف بسرعة خيالية
             .setHttpDownloader(HttpUrlConnectionDownloader(Downloader.FileDownloaderType.PARALLEL))
+            
+            // 🛡️ إضافة درع المحاولات التلقائية (3 محاولات صامتة لمعالجة تذبذب الإنترنت قبل إعلان الفشل)
+            .setAutoRetryMaxAttempts(3)
             
             .setNamespace("AbdullahStoreDownloads") // عزل تحميلات المتجر تماماً عن أي تطبيق آخر في الجهاز
             .setNotificationManager(notificationManager) // ربط الإشعارات
