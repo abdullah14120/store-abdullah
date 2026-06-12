@@ -369,7 +369,7 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     // 🚀 نقل التثبيت للخلفية لتجنب تجميد واجهة المستخدم (UI Freeze)
-    private fun installApkLegacy(file: File) {
+        private fun installApkLegacy(file: File) {
         thread {
             // انتظار قصير لضمان اكتمال عملية إغلاق الملف (Flush) في ذاكرة الهاتف
             Thread.sleep(500) 
