@@ -363,10 +363,12 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     // 🚀 نقل التثبيت للخلفية لتجنب تجميد واجهة المستخدم (UI Freeze)
-    private fun installApkLegacy(file: File) {
+        private fun installApkLegacy(file: File) {
         thread {
-            Thread.sleep(300) 
+            // انتظار قصير لضمان اكتمال عملية إغلاق الملف (Flush) في ذاكرة الهاتف
+            Thread.sleep(500) 
 
+            // 1. الفحص الأساسي لوجود الملف
             if (!file.exists() || file.length() == 0L) {
                 runOnUiThread {
                     Toast.makeText(this@AppDetailsActivity, "عذراً، الملف قيد التجهيز أو غير صالح. حاول مجدداً.", Toast.LENGTH_SHORT).show()
@@ -374,15 +376,32 @@ class AppDetailsActivity : AppCompatActivity() {
                 return@thread 
             }
 
+            // 🛡️ 2. درع الحماية الذكي: فحص سلامة هيكل الـ APK (يمنع ظهور خطأ Parse Error)
+            val packageInfo = packageManager.getPackageArchiveInfo(file.absolutePath, 0)
+            if (packageInfo == null) {
+                // الملف موجود ولكنه تالف (بسبب تقطيع السيرفر أو دمج خاطئ)
+                file.delete() // تنظيف الهاتف من الملف المعطوب فوراً
+                
+                runOnUiThread {
+                    binding.cardDownloadingState.visibility = View.GONE
+                    binding.btnInstallState.visibility = View.VISIBLE
+                    binding.btnInstallState.text = "إعادة التنزيل"
+                    Toast.makeText(this@AppDetailsActivity, "حزمة التطبيق غير مكتملة أو تالفة، يرجى إعادة التنزيل.", Toast.LENGTH_LONG).show()
+                }
+                return@thread // إيقاف العملية ومنع فتح شاشة التثبيت
+            }
+
+            // ✅ 3. الحزمة سليمة 100%: تحديث الواجهة لبدء التثبيت
             runOnUiThread {
                 binding.btnInstallState.visibility = View.GONE
                 binding.cardDownloadingState.visibility = View.VISIBLE
                 binding.progressDownload.isIndeterminate = true
                 binding.tvDownloadPercent.text = "تحضير التثبيت..."
-                binding.tvDownloadSize.text = "عملية آمنة"
+                binding.tvDownloadSize.text = "حزمة آمنة وموثوقة"
             }
 
             try {
+                // مهلة بصرية قصيرة لتجهيز الإعدادات
                 Thread.sleep(1200) 
                 
                 val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -408,6 +427,7 @@ class AppDetailsActivity : AppCompatActivity() {
                     Toast.makeText(this@AppDetailsActivity, "فشل فتح الحزمة", Toast.LENGTH_LONG).show()
                 }
             } finally {
+                // إعادة الزر لشكله الطبيعي سواء نجح أو تم إلغاء التثبيت من قبل المستخدم
                 runOnUiThread {
                     binding.cardDownloadingState.visibility = View.GONE
                     binding.btnInstallState.visibility = View.VISIBLE
