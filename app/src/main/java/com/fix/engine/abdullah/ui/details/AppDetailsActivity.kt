@@ -36,7 +36,7 @@ import kotlin.concurrent.thread
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Refactored: Material 3 UI Integration with Fetch API & Secure APK Sharing
+ * Refactored: UI Thread Safe Installer, File Deletion & Sharing Features
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -119,34 +119,29 @@ class AppDetailsActivity : AppCompatActivity() {
         
         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         val finalFile = File(downloadFolder, fileName)
+        val tempFile = File(downloadFolder, "$fileName.tmp")
+
+        // 🗑️ إظهار زر المسح إذا كان هناك أي ملف (APK مكتمل أو TMP غير مكتمل/معطوب)
+        if (finalFile.exists() || tempFile.exists()) {
+            binding.btnDeleteApk.visibility = View.VISIBLE
+            binding.btnDeleteApk.setOnClickListener { deleteAppFiles(app) }
+        } else {
+            binding.btnDeleteApk.visibility = View.GONE
+        }
 
         // 1. حالة وجود ملف التثبيت مسبقاً
         if (finalFile.exists()) {
-            val packageInfo = pm.getPackageArchiveInfo(finalFile.absolutePath, 0)
+            binding.btnInstallState.text = "تثبيت"
+            binding.btnInstallState.visibility = View.VISIBLE
+            binding.layoutInstalledState.visibility = View.GONE
+            binding.cardDownloadingState.visibility = View.GONE
             
-            if (packageInfo != null) {
-                binding.btnInstallState.text = "تثبيت"
-                binding.btnInstallState.visibility = View.VISIBLE
-                binding.layoutInstalledState.visibility = View.GONE
-                binding.cardDownloadingState.visibility = View.GONE
-                binding.btnInstallState.setOnClickListener { installApkLegacy(finalFile) }
-                
-                // 🚀 تفعيل زر المشاركة وربطه بالملف الصالح
-                binding.btnShareApk.visibility = View.VISIBLE
-                binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, app.name) }
-
-                binding.btnInstallState.setOnLongClickListener {
-                    finalFile.delete()
-                    binding.btnShareApk.visibility = View.GONE // إخفاء زر المشاركة عند حذف الملف
-                    Toast.makeText(this, "تم حذف الملف المؤقت، يمكنك إعادة التنزيل الآن", Toast.LENGTH_SHORT).show()
-                    setupLogic(app)
-                    true
-                }
-                return
-            } else {
-                finalFile.delete()
-                binding.btnShareApk.visibility = View.GONE
-            }
+            // تفعيل زر المشاركة وربطه بالملف الصالح
+            binding.btnShareApk.visibility = View.VISIBLE
+            binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, app.name) }
+            
+            binding.btnInstallState.setOnClickListener { installApkLegacy(finalFile) }
+            return
         } else {
             binding.btnShareApk.visibility = View.GONE
         }
@@ -155,12 +150,14 @@ class AppDetailsActivity : AppCompatActivity() {
             val pInfo = pm.getPackageInfo(app.packageName, 0)
             val installedVer = pInfo.versionName ?: ""
 
+            // 2. حالة التحديث (مثبت بإصدار قديم)
             if (app.versionName.trim() != installedVer.trim()) {
                 binding.btnInstallState.text = "تحديث"
                 binding.btnInstallState.visibility = View.VISIBLE
                 binding.layoutInstalledState.visibility = View.GONE
                 binding.btnInstallState.setOnClickListener { checkStoragePermissionAndDownload(app) }
             } else {
+                // 3. حالة تم التثبيت والتحديث (الإصدار متطابق)
                 binding.btnInstallState.visibility = View.GONE
                 binding.layoutInstalledState.visibility = View.VISIBLE
                 
@@ -176,6 +173,7 @@ class AppDetailsActivity : AppCompatActivity() {
                 }
             }
         } catch (e: PackageManager.NameNotFoundException) {
+            // 4. حالة التطبيق غير مثبت نهائياً
             binding.btnInstallState.text = "تثبيت"
             binding.btnInstallState.visibility = View.VISIBLE
             binding.layoutInstalledState.visibility = View.GONE
@@ -224,6 +222,7 @@ class AppDetailsActivity : AppCompatActivity() {
                     binding.btnInstallState.visibility = View.GONE
                     binding.layoutInstalledState.visibility = View.GONE
                     binding.btnShareApk.visibility = View.GONE
+                    binding.btnDeleteApk.visibility = View.GONE // إخفاء زر الحذف أثناء التحميل
                     binding.cardDownloadingState.visibility = View.VISIBLE
                     startTrackingProcess(activeDownload.id)
                 }
@@ -295,6 +294,7 @@ class AppDetailsActivity : AppCompatActivity() {
         binding.btnInstallState.visibility = View.GONE
         binding.layoutInstalledState.visibility = View.GONE
         binding.btnShareApk.visibility = View.GONE
+        binding.btnDeleteApk.visibility = View.GONE
         binding.cardDownloadingState.visibility = View.VISIBLE
 
         binding.progressDownload.isIndeterminate = true
@@ -317,6 +317,9 @@ class AppDetailsActivity : AppCompatActivity() {
             binding.btnInstallState.visibility = View.VISIBLE
             binding.btnInstallState.text = "تثبيت"
             Toast.makeText(this, "تم إلغاء التنزيل", Toast.LENGTH_SHORT).show()
+            
+            // إعادة تقييم إظهار زر المسح والمشاركة
+            currentApp?.let { setupLogic(it) }
         }
 
         tracker.startTracking(downloadId) { progress, sizeLabel ->
@@ -343,10 +346,14 @@ class AppDetailsActivity : AppCompatActivity() {
                         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                         val finalFile = File(downloadFolder, currentApp!!.getUniqueFileName())
 
-                        // إظهار إشعار اكتمال التنزيل لـ Droid-ify وتفعيل زر المشاركة
                         showReadyToInstallNotification(currentApp!!.name, finalFile)
+                        
+                        // إظهار الأزرار بعد اكتمال التحميل
                         binding.btnShareApk.visibility = View.VISIBLE
                         binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, currentApp!!.name) }
+                        
+                        binding.btnDeleteApk.visibility = View.VISIBLE
+                        binding.btnDeleteApk.setOnClickListener { deleteAppFiles(currentApp!!) }
                         
                         installApkLegacy(finalFile)
                     }
@@ -355,20 +362,18 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-        private fun installApkLegacy(file: File) {
-        // 🚀 نقل عملية التأخير والفحص بالكامل إلى مسار فرعي (Background Thread) لمنع تجميد الشاشة
+    // 🚀 نقل التثبيت للخلفية لتجنب تجميد واجهة المستخدم (UI Freeze)
+    private fun installApkLegacy(file: File) {
         thread {
-            // نمنح النظام مهلة 300 ملي ثانية للتأكد من استقرار الملف على الذاكرة براحة تامة
             Thread.sleep(300) 
 
             if (!file.exists() || file.length() == 0L) {
                 runOnUiThread {
                     Toast.makeText(this@AppDetailsActivity, "عذراً، الملف قيد التجهيز أو غير صالح. حاول مجدداً.", Toast.LENGTH_SHORT).show()
                 }
-                return@thread // إيقاف التنفيذ هنا
+                return@thread 
             }
 
-            // تحديث الواجهة لإظهار الدائرة بعد التأكد من سلامة الملف
             runOnUiThread {
                 binding.btnInstallState.visibility = View.GONE
                 binding.cardDownloadingState.visibility = View.VISIBLE
@@ -378,7 +383,6 @@ class AppDetailsActivity : AppCompatActivity() {
             }
 
             try {
-                // مهلة تأثير بصري إضافية قبل إطلاق المثبت
                 Thread.sleep(1200) 
                 
                 val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -404,7 +408,6 @@ class AppDetailsActivity : AppCompatActivity() {
                     Toast.makeText(this@AppDetailsActivity, "فشل فتح الحزمة", Toast.LENGTH_LONG).show()
                 }
             } finally {
-                // إعادة الزر لشكله الطبيعي فور انتهاء العملية أو فشلها
                 runOnUiThread {
                     binding.cardDownloadingState.visibility = View.GONE
                     binding.btnInstallState.visibility = View.VISIBLE
@@ -415,7 +418,7 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     /**
-     * 🚀 دالة مشاركة ملف الـ APK بأمان متوافقة مع جميع إصدارات الأندرويد والتطبيقات الخارجية
+     * 🚀 دالة مشاركة ملف الـ APK بأمان متوافقة مع جميع إصدارات الأندرويد
      */
     private fun shareApkFile(file: File, appName: String) {
         if (!file.exists()) {
@@ -423,7 +426,6 @@ class AppDetailsActivity : AppCompatActivity() {
             return
         }
         try {
-            // توليد الرابط الآمن عبر FileProvider لمنع خطأ FileUriExposedException
             val contentUri: Uri = FileProvider.getUriForFile(
                 this,
                 "$packageName.fileprovider",
@@ -433,15 +435,38 @@ class AppDetailsActivity : AppCompatActivity() {
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "application/vnd.android.package-archive"
                 putExtra(Intent.EXTRA_STREAM, contentUri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) // منح التطبيق المستلم صلاحية قراءة الملف
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) 
             }
 
-            // إجبار النظام على عرض نافذة المشاركة واختيار التطبيق (بلوتوث، تلغرام، SHAREit، إلخ)
             startActivity(Intent.createChooser(shareIntent, "مشاركة تطبيق $appName عبر:"))
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "عذراً، واجهنا مشكلة أثناء محاولة مشاركة الملف", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /**
+     * 🗑️ دالة جديدة لمسح أي ملف متعلق بالتطبيق (APK أو TMP) وتنظيف المساحة
+     */
+    private fun deleteAppFiles(app: AppModel) {
+        val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val finalFile = File(downloadFolder, app.getUniqueFileName())
+        val tempFile = File(downloadFolder, "${app.getUniqueFileName()}.tmp")
+
+        var isDeleted = false
+        if (finalFile.exists() && finalFile.delete()) isDeleted = true
+        if (tempFile.exists() && tempFile.delete()) isDeleted = true
+
+        if (isDeleted) {
+            Toast.makeText(this, "تم تنظيف ملفات التنزيل الخاصة بالتطبيق", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "لا يوجد ملفات لمسحها", Toast.LENGTH_SHORT).show()
+        }
+
+        // إخفاء الأزرار وإعادة تحديث الواجهة
+        binding.btnShareApk.visibility = View.GONE
+        binding.btnDeleteApk.visibility = View.GONE
+        setupLogic(app)
     }
 
     private fun showReadyToInstallNotification(appName: String, file: File) {
