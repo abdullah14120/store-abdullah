@@ -302,7 +302,7 @@
                 </LinearLayout>
             </FrameLayout>
 
-            <!-- 🌟 زر مشاركة ملف APK المقتبس (يظهر فقط في حال توفر الملف محلياً) -->
+            <!-- 🌟 زر مشاركة ملف APK -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnShareApk"
                 style="@style/Widget.Material3.Button.TextButton.Icon"
@@ -319,7 +319,23 @@
                 app:layout_constraintTop_toBottomOf="@id/containerActions"
                 tools:visibility="visible"/>
 
-            <!-- 4. قسم الوصف (تم تعديل قيده ليكون أسفل زر المشاركة) -->
+            <!-- 🌟 زر مسح ملف التثبيت (APK أو TMP) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDeleteApk"
+                style="@style/Widget.Material3.Button.TextButton.Icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="مسح ملف التثبيت"
+                android:textColor="?attr/colorError"
+                app:icon="@android:drawable/ic_menu_delete"
+                app:iconTint="?attr/colorError"
+                android:visibility="gone"
+                app:layout_constraintEnd_toEndOf="@id/containerActions"
+                app:layout_constraintStart_toStartOf="@id/containerActions"
+                app:layout_constraintTop_toBottomOf="@id/btnShareApk"
+                tools:visibility="visible"/>
+
+            <!-- 4. قسم الوصف (تم تعديل قيده ليكون أسفل زر الحذف) -->
             <TextView
                 android:id="@+id/lblAbout"
                 android:layout_width="wrap_content"
@@ -331,7 +347,7 @@
                 android:textColor="?attr/colorOnSurface"
                 android:textStyle="bold"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/btnShareApk" />
+                app:layout_constraintTop_toBottomOf="@id/btnDeleteApk" />
 
             <TextView
                 android:id="@+id/txtDescription"
