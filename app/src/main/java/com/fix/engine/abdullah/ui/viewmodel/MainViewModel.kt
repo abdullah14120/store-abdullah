@@ -1,4 +1,4 @@
-Package com.fix.engine.abdullah.ui.viewmodel
+package com.fix.engine.abdullah.ui.viewmodel
 
 import android.app.Application
 import android.content.pm.PackageManager
@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah - Pro View Model (Material 3 Secure Edition)
- * Logic: Handles Independent Multi-Fragment Search, Secure Encrypted Data Distribution & Lifecycle Caching
+ * Logic: Handles Independent Multi-Fragment Search, Secure Encrypted Data Distribution, Lifecycle Caching & Meta-Data Tag Matching
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -44,7 +44,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * 🔐 جلب التطبيقات وفرزها في الخلفية بتوزيع متوازٍ
      */
     fun loadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
-        // 🟢 التعديل الأول: التحقق من الكاش الداخلي لمنع إعادة التحميل عند تدوير الشاشة (Screen Rotation)
+        // 🟢 التحقق من الكاش الداخلي لمنع إعادة التحميل عند تدوير الشاشة (Screen Rotation)
         if (fullAppsList.isNotEmpty()) {
             _appsList.value = fullAppsList
             _updatesList.value = fullUpdatesList
@@ -62,20 +62,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             result.onSuccess { list ->
                 fullAppsList = list
                 
-                // حساب وتصفية التطبيقات التي تمتلك تحديثات برمجية فوراً وتخزينها كنسخة مستقلة
+                // 🔄 التصفية الذكية المعتمدة على النصوص المخفية (Meta-Data Matching)
                 fullUpdatesList = list.filter { app ->
                     try {
-                        // 🟢 التعديل الثاني: التوافق التام مع أندرويد 13+ (API 33) للـ PackageManager
+                        // 1. استخدام علم GET_META_DATA لجلب النصوص المخفية من المانيفست المثبت
+                        val flags = PackageManager.GET_META_DATA
+                        
                         val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            packageManager.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(0))
+                            packageManager.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(flags.toLong()))
                         } else {
                             @Suppress("DEPRECATION")
-                            packageManager.getPackageInfo(app.packageName, 0)
+                            packageManager.getPackageInfo(app.packageName, flags)
                         }
                         
                         val installedVer = pInfo.versionName ?: ""
-                        // عمل trim لتفادي الفراغات المخفية في النصوص القادمة من السيرفر
-                        app.versionName.trim() != installedVer.trim()
+                        
+                        // 2. فحص هل يوجد تحديث فعلاً بناءً على رقم الإصدار؟ (Version Name)
+                        val hasNewVersion = app.versionName.trim() != installedVer.trim()
+                        
+                        if (hasNewVersion) {
+                            // 🛡️ 3. المطابقة الذكية للنص (Manifest Tag Matching)
+                            val serverTag = app.manifestTag
+                            
+                            // إذا قمت بتحديد نص فريد في السيرفر (JSON)، نُجري فحص التطابق
+                            if (!serverTag.isNullOrBlank()) {
+                                // قراءة الـ Bundle الذي يحتوي على الـ Meta-Data من التطبيق المثبت
+                                val bundle = pInfo.applicationInfo?.metaData
+                                
+                                // جلب القيمة المخفية تحت اسم ABDULLAH_STORE_TAG
+                                val installedTag = bundle?.getString("ABDULLAH_STORE_TAG")
+                                
+                                // إذا كان النص غير موجود في التطبيق المثبت، أو لا يطابق ما في السيرفر -> نخفي التحديث
+                                if (installedTag == null || installedTag.trim() != serverTag.trim()) {
+                                    return@filter false 
+                                }
+                            }
+                            
+                            // إذا تطابق النص، أو إذا تركت حقل السيرفر فارغاً -> نعرض التحديث
+                            return@filter true
+                        } else {
+                            // رقم الإصدار متطابق، لا حاجة للتحديث
+                            return@filter false
+                        }
+                        
                     } catch (e: PackageManager.NameNotFoundException) {
                         false // التطبيق غير مثبت، إذن لا يوجد له تحديث في التبويب الثاني
                     } catch (e: Exception) {
@@ -98,24 +127,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * دالة البحث المباشر الذكية والمزدوجة
-     * 🛠️ تم تعديلها لتطابق الخصائص الحقيقية للسيرفر (name و developer) مع الحماية ضد الـ Null
      */
     fun filterApps(query: String) {
-        // استخدام trim يمنع البحث الخاطئ إذا قام المستخدم بكتابة مسافة فارغة بالخطأ
         val cleanQuery = query.trim()
         
         if (cleanQuery.isBlank()) {
             _appsList.value = fullAppsList
             _updatesList.value = fullUpdatesList
         } else {
-            // تصفية ذكية لصفحة التطبيقات بناءً على الاسم أو المطور الحالي
             val filteredApps = fullAppsList.filter { app ->
                 val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
                 val devMatch = app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
                 nameMatch || devMatch
             }
             
-            // تصفية موازية ومستقلة لشاشة التحديثات المتاحة لتظل النتائج متناسقة
             val filteredUpdates = fullUpdatesList.filter { app ->
                 val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
                 val devMatch = app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
