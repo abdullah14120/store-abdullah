@@ -36,7 +36,7 @@ import kotlin.concurrent.thread
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Refactored: UI Thread Safe Installer, File Deletion & Sharing Features
+ * Refactored: UI Thread Safe Installer, File Deletion, Sharing Features & Temp File Rename Fix
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -344,7 +344,13 @@ class AppDetailsActivity : AppCompatActivity() {
                         btnInstallState.text = "تثبيت"
 
                         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                        val tempFile = File(downloadFolder, "${currentApp!!.getUniqueFileName()}.tmp")
                         val finalFile = File(downloadFolder, currentApp!!.getUniqueFileName())
+
+                        // 🚀 التعديل: تحويل الملف المؤقت إلى ملف APK نهائي صالح للتثبيت
+                        if (tempFile.exists()) {
+                            tempFile.renameTo(finalFile)
+                        }
 
                         showReadyToInstallNotification(currentApp!!.name, finalFile)
                         
@@ -363,7 +369,7 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     // 🚀 نقل التثبيت للخلفية لتجنب تجميد واجهة المستخدم (UI Freeze)
-        private fun installApkLegacy(file: File) {
+    private fun installApkLegacy(file: File) {
         thread {
             // انتظار قصير لضمان اكتمال عملية إغلاق الملف (Flush) في ذاكرة الهاتف
             Thread.sleep(500) 
