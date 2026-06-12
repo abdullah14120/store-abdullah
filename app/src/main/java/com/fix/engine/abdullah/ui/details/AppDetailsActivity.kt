@@ -36,7 +36,7 @@ import kotlin.concurrent.thread
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Refactored: Material 3 UI Integration with Fetch API & Smart States
+ * Refactored: Material 3 UI Integration with Fetch API & Secure APK Sharing
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -72,7 +72,6 @@ class AppDetailsActivity : AppCompatActivity() {
             Toast.makeText(this, "خطأ في الاتصال الأمني بقاعدة البيانات", Toast.LENGTH_SHORT).show()
         }
 
-        // 🚀 استقبال البيانات كـ Parcelable فائق السرعة
         val appData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra("APP_DATA", AppModel::class.java)
         } else {
@@ -97,7 +96,6 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    // 🔄 التعديل الثاني: الاعتماد على دورة حياة الأندرويد (Lifecycle)
     override fun onResume() {
         super.onResume()
         currentApp?.let { app ->
@@ -108,7 +106,14 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-        private fun setupLogic(app: AppModel) {
+    private fun setupToolbar() {
+        setSupportActionBar(binding.toolbarDetails)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = ""
+        binding.toolbarDetails.setNavigationOnClickListener { finish() }
+    }
+
+    private fun setupLogic(app: AppModel) {
         val pm = packageManager
         val fileName = app.getUniqueFileName()
         
@@ -117,54 +122,53 @@ class AppDetailsActivity : AppCompatActivity() {
 
         // 1. حالة وجود ملف التثبيت مسبقاً
         if (finalFile.exists()) {
-            // 🛡️ الفحص الاستباقي الذكي: هل هذا الملف APK حقيقي وصالح أم تالف؟
             val packageInfo = pm.getPackageArchiveInfo(finalFile.absolutePath, 0)
             
             if (packageInfo != null) {
-                // ✅ الملف سليم 100%
                 binding.btnInstallState.text = "تثبيت"
                 binding.btnInstallState.visibility = View.VISIBLE
                 binding.layoutInstalledState.visibility = View.GONE
                 binding.cardDownloadingState.visibility = View.GONE
                 binding.btnInstallState.setOnClickListener { installApkLegacy(finalFile) }
                 
-                // 🗑️ ميزة الضغط المطول لحذف الملف وإعادة التنزيل يدوياً
+                // 🚀 تفعيل زر المشاركة وربطه بالملف الصالح
+                binding.btnShareApk.visibility = View.VISIBLE
+                binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, app.name) }
+
                 binding.btnInstallState.setOnLongClickListener {
                     finalFile.delete()
+                    binding.btnShareApk.visibility = View.GONE // إخفاء زر المشاركة عند حذف الملف
                     Toast.makeText(this, "تم حذف الملف المؤقت، يمكنك إعادة التنزيل الآن", Toast.LENGTH_SHORT).show()
-                    setupLogic(app) // إعادة تحميل شكل الأزرار فوراً
+                    setupLogic(app)
                     true
                 }
                 return
             } else {
-                // 🗑️ الملف تالف (مقطوع أو معطوب)! نقوم بحذفه فوراً وبصمت
                 finalFile.delete()
-                // لا نضع return هنا، لكي يكمل الكود طريقه للأسفل ويظهر زر "تنزيل/تحديث"
+                binding.btnShareApk.visibility = View.GONE
             }
+        } else {
+            binding.btnShareApk.visibility = View.GONE
         }
 
         try {
             val pInfo = pm.getPackageInfo(app.packageName, 0)
             val installedVer = pInfo.versionName ?: ""
 
-            // 2. حالة التحديث (مثبت بإصدار قديم)
             if (app.versionName.trim() != installedVer.trim()) {
                 binding.btnInstallState.text = "تحديث"
                 binding.btnInstallState.visibility = View.VISIBLE
                 binding.layoutInstalledState.visibility = View.GONE
                 binding.btnInstallState.setOnClickListener { checkStoragePermissionAndDownload(app) }
             } else {
-                // 3. حالة تم التثبيت والتحديث (الإصدار متطابق)
                 binding.btnInstallState.visibility = View.GONE
                 binding.layoutInstalledState.visibility = View.VISIBLE
                 
-                // زر فتح التطبيق
                 binding.btnOpenApp.setOnClickListener { 
                     val launchIntent = pm.getLaunchIntentForPackage(app.packageName)
                     launchIntent?.let { startActivity(it) } ?: Toast.makeText(this, "لا يمكن فتح التطبيق", Toast.LENGTH_SHORT).show()
                 }
                 
-                // زر إلغاء التثبيت
                 binding.btnUninstall.setOnClickListener {
                     val intent = Intent(Intent.ACTION_DELETE)
                     intent.data = Uri.parse("package:${app.packageName}")
@@ -172,7 +176,6 @@ class AppDetailsActivity : AppCompatActivity() {
                 }
             }
         } catch (e: PackageManager.NameNotFoundException) {
-            // 4. حالة التطبيق غير مثبت نهائياً
             binding.btnInstallState.text = "تثبيت"
             binding.btnInstallState.visibility = View.VISIBLE
             binding.layoutInstalledState.visibility = View.GONE
@@ -220,6 +223,7 @@ class AppDetailsActivity : AppCompatActivity() {
                     isDownloading = true
                     binding.btnInstallState.visibility = View.GONE
                     binding.layoutInstalledState.visibility = View.GONE
+                    binding.btnShareApk.visibility = View.GONE
                     binding.cardDownloadingState.visibility = View.VISIBLE
                     startTrackingProcess(activeDownload.id)
                 }
@@ -233,7 +237,6 @@ class AppDetailsActivity : AppCompatActivity() {
             txtDetailsDev.text = app.developer
             txtDescription.text = app.description ?: "لا يوجد وصف متاح لهذا التطبيق."
             
-            // ربط الحقول الجديدة للتصميم (Material 3)
             txtStatVersion.text = app.versionName
             txtStatSize.text = app.getFormattedSize()
             txtStatDownloads.text = "..."
@@ -259,7 +262,6 @@ class AppDetailsActivity : AppCompatActivity() {
                         binding.txtStatDownloads.text = formatDownloads(count)
                     }
                 }
-
                 override fun onCancelled(error: DatabaseError) {
                     runOnUiThread {
                         binding.txtStatDownloads.text = "0"
@@ -290,12 +292,11 @@ class AppDetailsActivity : AppCompatActivity() {
     private fun startNewDownload(app: AppModel) {
         isDownloading = true
         
-        // التحويل البصري لشكل التحميل
         binding.btnInstallState.visibility = View.GONE
         binding.layoutInstalledState.visibility = View.GONE
+        binding.btnShareApk.visibility = View.GONE
         binding.cardDownloadingState.visibility = View.VISIBLE
 
-        // 🌟 التعديل الرابع: الوضع غير المحدد (Indeterminate Mode) عند بدء التحميل
         binding.progressDownload.isIndeterminate = true
         binding.tvDownloadPercent.text = "جاري الاتصال..."
         binding.tvDownloadSize.text = "جاري حساب الحجم"
@@ -307,13 +308,11 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     private fun startTrackingProcess(downloadId: Int) {
-        // زر الإلغاء الجديد (X)
         binding.btnCancelDownload.setOnClickListener {
             Fetch.Impl.getDefaultInstance().cancel(downloadId)
             tracker.stopTracking()
             isDownloading = false
             
-            // إعادة الواجهة للوضع الأساسي
             binding.cardDownloadingState.visibility = View.GONE
             binding.btnInstallState.visibility = View.VISIBLE
             binding.btnInstallState.text = "تثبيت"
@@ -323,7 +322,6 @@ class AppDetailsActivity : AppCompatActivity() {
         tracker.startTracking(downloadId) { progress, sizeLabel ->
             runOnUiThread {
                 binding.apply {
-                    // 🌟 التبديل الذكي بين الدوران المستمر والنسبة المئوية
                     if (progress > 0) {
                         progressDownload.isIndeterminate = false
                         progressDownload.progress = progress
@@ -338,7 +336,6 @@ class AppDetailsActivity : AppCompatActivity() {
                     if (progress >= 100) {
                         isDownloading = false
                         
-                        // إعادة الواجهة لوضع التثبيت في حال أراد المستخدم المحاولة مجدداً
                         cardDownloadingState.visibility = View.GONE
                         btnInstallState.visibility = View.VISIBLE
                         btnInstallState.text = "تثبيت"
@@ -346,29 +343,26 @@ class AppDetailsActivity : AppCompatActivity() {
                         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                         val finalFile = File(downloadFolder, currentApp!!.getUniqueFileName())
 
-                        // 🌟 التعديل الأول: إطلاق الإشعار المقتبس من Droid-ify
+                        // إظهار إشعار اكتمال التنزيل لـ Droid-ify وتفعيل زر المشاركة
                         showReadyToInstallNotification(currentApp!!.name, finalFile)
+                        binding.btnShareApk.visibility = View.VISIBLE
+                        binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, currentApp!!.name) }
                         
-                        // فتح التثبيت تلقائياً وأنت داخل التطبيق
                         installApkLegacy(finalFile)
                     }
                 }
             }
         }
     }
-    
-        private fun installApkLegacy(file: File) {
-        // نمنح النظام مهلة 300 ملي ثانية للتأكد من استقرار الملف على الذاكرة قبل الفحص
+
+    private fun installApkLegacy(file: File) {
         Thread.sleep(300) 
 
         if (!file.exists() || file.length() == 0L) {
-            // الآن لن تظهر هذه الرسالة إلا إذا كان الملف تالفاً أو غير موجود فعلياً
             Toast.makeText(this, "عذراً، الملف قيد التجهيز أو غير صالح. حاول مجدداً.", Toast.LENGTH_SHORT).show()
             return
         }
-        
-        
-        // إظهار بطاقة التحميل مؤقتاً كواجهة تجهيز التثبيت
+
         runOnUiThread {
             binding.btnInstallState.visibility = View.GONE
             binding.cardDownloadingState.visibility = View.VISIBLE
@@ -379,7 +373,6 @@ class AppDetailsActivity : AppCompatActivity() {
 
         thread {
             try {
-                // ⏳ زيادة وقت الانتظار قليلاً (1.5 ثانية) لضمان كتابة كامل الـ APK على ذاكرة الهاتف
                 Thread.sleep(1500) 
                 
                 val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -415,13 +408,39 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     /**
-     * 🌟 دالة مقتبسة من هندسة Droid-ify: إشعار احترافي يظهر عند اكتمال التحميل
+     * 🚀 دالة مشاركة ملف الـ APK بأمان متوافقة مع جميع إصدارات الأندرويد والتطبيقات الخارجية
      */
+    private fun shareApkFile(file: File, appName: String) {
+        if (!file.exists()) {
+            Toast.makeText(this, "عذراً، ملف الـ APK غير متوفر للمشاركة!", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            // توليد الرابط الآمن عبر FileProvider لمنع خطأ FileUriExposedException
+            val contentUri: Uri = FileProvider.getUriForFile(
+                this,
+                "$packageName.fileprovider",
+                file
+            )
+
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/vnd.android.package-archive"
+                putExtra(Intent.EXTRA_STREAM, contentUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) // منح التطبيق المستلم صلاحية قراءة الملف
+            }
+
+            // إجبار النظام على عرض نافذة المشاركة واختيار التطبيق (بلوتوث، تلغرام، SHAREit، إلخ)
+            startActivity(Intent.createChooser(shareIntent, "مشاركة تطبيق $appName عبر:"))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "عذراً، واجهنا مشكلة أثناء محاولة مشاركة الملف", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun showReadyToInstallNotification(appName: String, file: File) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "INSTALL_CHANNEL"
 
-        // 1. إنشاء قناة الإشعارات (إجباري لأندرويد 8+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
@@ -433,7 +452,6 @@ class AppDetailsActivity : AppCompatActivity() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        // 2. تجهيز الـ Intent الذي سيفتح ملف الـ APK عند الضغط على الإشعار
         val intent = Intent(Intent.ACTION_VIEW).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -453,12 +471,11 @@ class AppDetailsActivity : AppCompatActivity() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // 3. بناء الإشعار بأسلوب جمالي
         val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_download)
             .setContentTitle("اكتمل تنزيل $appName")
             .setContentText("اضغط هنا للبدء في التثبيت")
-            .setColor(Color.parseColor("#4CAF50")) // لون أخضر جذاب
+            .setColor(Color.parseColor("#4CAF50")) 
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
