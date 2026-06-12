@@ -35,8 +35,11 @@ data class AppModel(
     @SerializedName("icon") 
     val iconUrl: String,
     
-    @SerializedName("downloadUrl") 
+    @SerializedName("downloadUrl")
     val downloadUrl: String,
+
+    @SerializedName("manifestTag") 
+    val manifestTag: String? = null
 
     @SerializedName("size") 
     val size: String = "0", // يبقى String ليتعامل بسلاسة مع علامات التنصيص القادمة من JSON
