@@ -108,14 +108,7 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupToolbar() {
-        setSupportActionBar(binding.toolbarDetails)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = ""
-        binding.toolbarDetails.setNavigationOnClickListener { finish() }
-    }
-
-    private fun setupLogic(app: AppModel) {
+        private fun setupLogic(app: AppModel) {
         val pm = packageManager
         val fileName = app.getUniqueFileName()
         
@@ -124,12 +117,30 @@ class AppDetailsActivity : AppCompatActivity() {
 
         // 1. حالة وجود ملف التثبيت مسبقاً
         if (finalFile.exists()) {
-            binding.btnInstallState.text = "تثبيت"
-            binding.btnInstallState.visibility = View.VISIBLE
-            binding.layoutInstalledState.visibility = View.GONE
-            binding.cardDownloadingState.visibility = View.GONE
-            binding.btnInstallState.setOnClickListener { installApkLegacy(finalFile) }
-            return
+            // 🛡️ الفحص الاستباقي الذكي: هل هذا الملف APK حقيقي وصالح أم تالف؟
+            val packageInfo = pm.getPackageArchiveInfo(finalFile.absolutePath, 0)
+            
+            if (packageInfo != null) {
+                // ✅ الملف سليم 100%
+                binding.btnInstallState.text = "تثبيت"
+                binding.btnInstallState.visibility = View.VISIBLE
+                binding.layoutInstalledState.visibility = View.GONE
+                binding.cardDownloadingState.visibility = View.GONE
+                binding.btnInstallState.setOnClickListener { installApkLegacy(finalFile) }
+                
+                // 🗑️ ميزة الضغط المطول لحذف الملف وإعادة التنزيل يدوياً
+                binding.btnInstallState.setOnLongClickListener {
+                    finalFile.delete()
+                    Toast.makeText(this, "تم حذف الملف المؤقت، يمكنك إعادة التنزيل الآن", Toast.LENGTH_SHORT).show()
+                    setupLogic(app) // إعادة تحميل شكل الأزرار فوراً
+                    true
+                }
+                return
+            } else {
+                // 🗑️ الملف تالف (مقطوع أو معطوب)! نقوم بحذفه فوراً وبصمت
+                finalFile.delete()
+                // لا نضع return هنا، لكي يكمل الكود طريقه للأسفل ويظهر زر "تنزيل/تحديث"
+            }
         }
 
         try {
