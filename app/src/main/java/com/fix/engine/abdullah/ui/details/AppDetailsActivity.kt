@@ -355,25 +355,31 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    private fun installApkLegacy(file: File) {
-        Thread.sleep(300) 
-
-        if (!file.exists() || file.length() == 0L) {
-            Toast.makeText(this, "عذراً، الملف قيد التجهيز أو غير صالح. حاول مجدداً.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        runOnUiThread {
-            binding.btnInstallState.visibility = View.GONE
-            binding.cardDownloadingState.visibility = View.VISIBLE
-            binding.progressDownload.isIndeterminate = true
-            binding.tvDownloadPercent.text = "تحضير التثبيت..."
-            binding.tvDownloadSize.text = "عملية آمنة"
-        }
-
+        private fun installApkLegacy(file: File) {
+        // 🚀 نقل عملية التأخير والفحص بالكامل إلى مسار فرعي (Background Thread) لمنع تجميد الشاشة
         thread {
+            // نمنح النظام مهلة 300 ملي ثانية للتأكد من استقرار الملف على الذاكرة براحة تامة
+            Thread.sleep(300) 
+
+            if (!file.exists() || file.length() == 0L) {
+                runOnUiThread {
+                    Toast.makeText(this@AppDetailsActivity, "عذراً، الملف قيد التجهيز أو غير صالح. حاول مجدداً.", Toast.LENGTH_SHORT).show()
+                }
+                return@thread // إيقاف التنفيذ هنا
+            }
+
+            // تحديث الواجهة لإظهار الدائرة بعد التأكد من سلامة الملف
+            runOnUiThread {
+                binding.btnInstallState.visibility = View.GONE
+                binding.cardDownloadingState.visibility = View.VISIBLE
+                binding.progressDownload.isIndeterminate = true
+                binding.tvDownloadPercent.text = "تحضير التثبيت..."
+                binding.tvDownloadSize.text = "عملية آمنة"
+            }
+
             try {
-                Thread.sleep(1500) 
+                // مهلة تأثير بصري إضافية قبل إطلاق المثبت
+                Thread.sleep(1200) 
                 
                 val intent = Intent(Intent.ACTION_VIEW).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -398,6 +404,7 @@ class AppDetailsActivity : AppCompatActivity() {
                     Toast.makeText(this@AppDetailsActivity, "فشل فتح الحزمة", Toast.LENGTH_LONG).show()
                 }
             } finally {
+                // إعادة الزر لشكله الطبيعي فور انتهاء العملية أو فشلها
                 runOnUiThread {
                     binding.cardDownloadingState.visibility = View.GONE
                     binding.btnInstallState.visibility = View.VISIBLE
