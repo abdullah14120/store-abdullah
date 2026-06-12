@@ -7,7 +7,6 @@ import android.os.Build
 import com.tonyodev.fetch2.DefaultFetchNotificationManager
 import com.tonyodev.fetch2.DownloadNotification
 import com.tonyodev.fetch2.Fetch
-import com.tonyodev.fetch2.FetchNotificationManager
 import java.util.Locale
 
 /**
@@ -36,18 +35,18 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
         return String.format(Locale.US, "%.1f MB / %.1f MB", downloadedMB, totalMB)
     }
 
-    // 🛡️ الحل الاحترافي لانهيار أندرويد 12+: بناء الـ Intent الحقيقي لدعم عمل أزرار (إلغاء/إيقاف)
+    // 🛡️ الحل الاحترافي لانهيار أندرويد 12+: تمرير القيم النصية المباشرة التي يفهمها محرك Fetch
     override fun getActionPendingIntent(
         downloadNotification: DownloadNotification,
         actionType: DownloadNotification.ActionType
-    ): PendingIntent? {
-        // بناء الـ Intent الذي تفهمه مكتبة Fetch تماماً
-        val intent = Intent(FetchNotificationManager.ACTION_NOTIFICATION_ACTION).apply {
-            putExtra(FetchNotificationManager.EXTRA_NAMESPACE, downloadNotification.namespace)
-            putExtra(FetchNotificationManager.EXTRA_DOWNLOAD_ID, downloadNotification.notificationId)
-            putExtra(FetchNotificationManager.EXTRA_NOTIFICATION_ID, downloadNotification.notificationId)
-            putExtra(FetchNotificationManager.EXTRA_GROUP_ACTION, false)
-            putExtra(FetchNotificationManager.EXTRA_ACTION_TYPE, actionType.value)
+    ): PendingIntent {
+        
+        val intent = Intent("com.tonyodev.fetch2.action.NOTIFICATION_ACTION").apply {
+            putExtra("com.tonyodev.fetch2.extra.NAMESPACE", downloadNotification.namespace)
+            putExtra("com.tonyodev.fetch2.extra.DOWNLOAD_ID", downloadNotification.notificationId)
+            putExtra("com.tonyodev.fetch2.extra.NOTIFICATION_ID", downloadNotification.notificationId)
+            putExtra("com.tonyodev.fetch2.extra.GROUP_ACTION", false)
+            putExtra("com.tonyodev.fetch2.extra.ACTION_TYPE", actionType.name)
         }
 
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -56,23 +55,23 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
             PendingIntent.FLAG_UPDATE_CURRENT
         }
         
-        // استخدام requestCode فريد لكل زر لكي لا تتداخل أوامر الإلغاء مع الإيقاف المؤقت
-        val requestCode = downloadNotification.notificationId + actionType.value
-        return PendingIntent.getBroadcast(context, requestCode, intent, flags)
+        val requestCode = downloadNotification.notificationId + actionType.hashCode()
+        return PendingIntent.getBroadcast(context, requestCode, intent, flags)!!
     }
 
-    // 🛡️ تطبيق نفس الحماية والوظائف على إشعارات المجموعات (Group Notifications)
+    // 🛡️ تطبيق الحماية على إشعارات المجموعات
     override fun getGroupActionPendingIntent(
         groupId: Int,
         downloadNotifications: List<DownloadNotification>,
         actionType: DownloadNotification.ActionType
-    ): PendingIntent? {
-        val intent = Intent(FetchNotificationManager.ACTION_NOTIFICATION_ACTION).apply {
-            putExtra(FetchNotificationManager.EXTRA_NAMESPACE, downloadNotifications.firstOrNull()?.namespace ?: Fetch.getDefaultInstance().namespace)
-            putExtra(FetchNotificationManager.EXTRA_DOWNLOAD_ID, groupId)
-            putExtra(FetchNotificationManager.EXTRA_NOTIFICATION_ID, groupId)
-            putExtra(FetchNotificationManager.EXTRA_GROUP_ACTION, true)
-            putExtra(FetchNotificationManager.EXTRA_ACTION_TYPE, actionType.value)
+    ): PendingIntent {
+        
+        val intent = Intent("com.tonyodev.fetch2.action.NOTIFICATION_ACTION").apply {
+            putExtra("com.tonyodev.fetch2.extra.NAMESPACE", downloadNotifications.firstOrNull()?.namespace ?: Fetch.getDefaultInstance().namespace)
+            putExtra("com.tonyodev.fetch2.extra.DOWNLOAD_ID", groupId)
+            putExtra("com.tonyodev.fetch2.extra.NOTIFICATION_ID", groupId)
+            putExtra("com.tonyodev.fetch2.extra.GROUP_ACTION", true)
+            putExtra("com.tonyodev.fetch2.extra.ACTION_TYPE", actionType.name)
         }
 
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -81,7 +80,7 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
             PendingIntent.FLAG_UPDATE_CURRENT
         }
         
-        val requestCode = groupId + actionType.value
-        return PendingIntent.getBroadcast(context, requestCode, intent, flags)
+        val requestCode = groupId + actionType.hashCode()
+        return PendingIntent.getBroadcast(context, requestCode, intent, flags)!!
     }
 }
