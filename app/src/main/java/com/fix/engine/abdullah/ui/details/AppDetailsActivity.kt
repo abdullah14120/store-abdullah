@@ -1,9 +1,13 @@
 package com.fix.engine.abdullah.ui.details
 
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -11,6 +15,7 @@ import android.os.Environment
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationCompat
 import androidx.core.content.FileProvider
 import com.bumptech.glide.Glide
 import com.fix.engine.abdullah.R
@@ -89,6 +94,17 @@ class AppDetailsActivity : AppCompatActivity() {
         } else {
             Toast.makeText(this, "بيانات التطبيق غير صالحة", Toast.LENGTH_SHORT).show()
             finish()
+        }
+    }
+
+    // 🔄 التعديل الثاني: الاعتماد على دورة حياة الأندرويد (Lifecycle)
+    override fun onResume() {
+        super.onResume()
+        currentApp?.let { app ->
+            if (!isDownloading) {
+                setupLogic(app)
+                checkCurrentStatus(app)
+            }
         }
     }
 
@@ -268,6 +284,11 @@ class AppDetailsActivity : AppCompatActivity() {
         binding.layoutInstalledState.visibility = View.GONE
         binding.cardDownloadingState.visibility = View.VISIBLE
 
+        // 🌟 التعديل الرابع: الوضع غير المحدد (Indeterminate Mode) عند بدء التحميل
+        binding.progressDownload.isIndeterminate = true
+        binding.tvDownloadPercent.text = "جاري الاتصال..."
+        binding.tvDownloadSize.text = "جاري حساب الحجم"
+
         incrementDownloadCount(app.packageName)
 
         val downloadId: Int = downloadManager.enqueueDownload(app.downloadUrl, app.getUniqueFileName())
@@ -291,8 +312,16 @@ class AppDetailsActivity : AppCompatActivity() {
         tracker.startTracking(downloadId) { progress, sizeLabel ->
             runOnUiThread {
                 binding.apply {
-                    progressDownload.progress = progress
-                    tvDownloadPercent.text = "جاري التنزيل... $progress%"
+                    // 🌟 التبديل الذكي بين الدوران المستمر والنسبة المئوية
+                    if (progress > 0) {
+                        progressDownload.isIndeterminate = false
+                        progressDownload.progress = progress
+                        tvDownloadPercent.text = "جاري التنزيل... $progress%"
+                    } else {
+                        progressDownload.isIndeterminate = true
+                        tvDownloadPercent.text = "جاري بدء التنزيل..."
+                    }
+                    
                     tvDownloadSize.text = sizeLabel
                     
                     if (progress >= 100) {
@@ -302,6 +331,15 @@ class AppDetailsActivity : AppCompatActivity() {
                         cardDownloadingState.visibility = View.GONE
                         btnInstallState.visibility = View.VISIBLE
                         btnInstallState.text = "تثبيت"
+
+                        val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                        val finalFile = File(downloadFolder, currentApp!!.getUniqueFileName())
+
+                        // 🌟 التعديل الأول: إطلاق الإشعار المقتبس من Droid-ify
+                        showReadyToInstallNotification(currentApp!!.name, finalFile)
+                        
+                        // فتح التثبيت تلقائياً وأنت داخل التطبيق
+                        installApkLegacy(finalFile)
                     }
                 }
             }
@@ -309,8 +347,9 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     private fun installApkLegacy(file: File) {
-        if (!file.exists()) {
-            Toast.makeText(this, "المعذرة، ملف الـ APK غير موجود!", Toast.LENGTH_SHORT).show()
+        // 🛡️ التعديل الثالث: فحص أمني مزدوج التأكد من وجود الملف وحجمه لتفادي خطأ التحليل
+        if (!file.exists() || file.length() == 0L) {
+            Toast.makeText(this, "عذراً، الملف قيد التجهيز أو غير صالح. حاول مجدداً.", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -318,14 +357,15 @@ class AppDetailsActivity : AppCompatActivity() {
         runOnUiThread {
             binding.btnInstallState.visibility = View.GONE
             binding.cardDownloadingState.visibility = View.VISIBLE
-            binding.progressDownload.progress = 100
+            binding.progressDownload.isIndeterminate = true
             binding.tvDownloadPercent.text = "تحضير التثبيت..."
-            binding.tvDownloadSize.text = "يرجى الانتظار"
+            binding.tvDownloadSize.text = "عملية آمنة"
         }
 
         thread {
             try {
-                Thread.sleep(800) // تأثير بصري سلس
+                // ⏳ زيادة وقت الانتظار قليلاً (1.5 ثانية) لضمان كتابة كامل الـ APK على ذاكرة الهاتف
+                Thread.sleep(1500) 
                 
                 val intent = Intent(Intent.ACTION_VIEW).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -357,6 +397,59 @@ class AppDetailsActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * 🌟 دالة مقتبسة من هندسة Droid-ify: إشعار احترافي يظهر عند اكتمال التحميل
+     */
+    private fun showReadyToInstallNotification(appName: String, file: File) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "INSTALL_CHANNEL"
+
+        // 1. إنشاء قناة الإشعارات (إجباري لأندرويد 8+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "تثبيت التطبيقات",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "إشعارات التطبيقات الجاهزة للتثبيت"
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        // 2. تجهيز الـ Intent الذي سيفتح ملف الـ APK عند الضغط على الإشعار
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val uri = FileProvider.getUriForFile(this@AppDetailsActivity, "$packageName.fileprovider", file)
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } else {
+                setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive")
+            }
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            appName.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // 3. بناء الإشعار بأسلوب جمالي
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_download)
+            .setContentTitle("اكتمل تنزيل $appName")
+            .setContentText("اضغط هنا للبدء في التثبيت")
+            .setColor(Color.parseColor("#4CAF50")) // لون أخضر جذاب
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+
+        notificationManager.notify(appName.hashCode(), notification)
     }
 
     override fun onDestroy() {
