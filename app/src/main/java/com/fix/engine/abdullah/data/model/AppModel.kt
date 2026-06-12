@@ -9,7 +9,7 @@ import java.util.Locale
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah - Enterprise Data Model (Secure & High Performance Edition)
- * Feature: ProGuard Protected Architecture, Smart Size Formatting, Unique File Identity & Parcelize Speed
+ * Feature: ProGuard Protected Architecture, Smart Size Formatting, Unique File Identity, Parcelize Speed & Meta-Data Tag
  */
 @Keep 
 @Parcelize // 🚀 التعديل الجوهري: استخدام تقنية أندرويد الأصلية لتمرير البيانات بسرعة فائقة بين الشاشات
@@ -39,7 +39,7 @@ data class AppModel(
     val downloadUrl: String,
 
     @SerializedName("manifestTag") 
-    val manifestTag: String? = null
+    val manifestTag: String? = null, // 🛠️ تم إضافة الفاصلة هنا لمنع خطأ الترجمة (Compilation Error)
 
     @SerializedName("size") 
     val size: String = "0", // يبقى String ليتعامل بسلاسة مع علامات التنصيص القادمة من JSON
