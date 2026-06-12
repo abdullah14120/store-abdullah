@@ -1,4 +1,4 @@
-Package com.fix.engine.abdullah.ui.main
+package com.fix.engine.abdullah.ui.main
 
 import android.content.Intent
 import android.os.Bundle
@@ -73,8 +73,10 @@ class UpdatesFragment : Fragment() {
     }
 
     private fun setupObserver() {
-        // 🚨 تصحيح المسار: مراقبة الـ updatesList المفرزة والمجهزة مسبقاً في الخلفية بدلاً من appsList القديمة
+        // مراقبة الـ updatesList المفرزة والمجهزة مسبقاً من الـ ViewModel (بناءً على فحص الـ Meta-Data)
         viewModel.updatesList.observe(viewLifecycleOwner) { updatesOnly ->
+            
+            // إرسال القائمة الجاهزة مباشرة للـ Adapter
             appAdapter.submitList(updatesOnly)
             
             if (!updatesOnly.isNullOrEmpty()) {
