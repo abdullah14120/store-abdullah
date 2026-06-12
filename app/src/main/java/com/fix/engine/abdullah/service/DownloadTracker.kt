@@ -18,7 +18,7 @@ import java.util.Locale
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: Abdullah Store - Performance Tracker & Auto Installer
- * Feature: Integrated FetchListener with Auto-Rename and Install
+ * Feature: Integrated FetchListener with Auto-Rename, Install & Silent Auto-Retry
  */
 class DownloadTracker(private val context: Context) {
 
@@ -65,8 +65,14 @@ class DownloadTracker(private val context: Context) {
 
             override fun onError(download: Download, error: Error, throwable: Throwable?) {
                 if (download.id == downloadId) {
-                    handler.post { onProgress(0, "فشل في التحميل") }
-                    stopTracking()
+                    // 🛡️ ميزة إعادة المحاولة التلقائية الصامتة:
+                    // تحديث الواجهة بنص يطمئن المستخدم بدلاً من إعلان الفشل
+                    handler.post { onProgress(download.progress, "جاري استعادة الاتصال...") }
+                    
+                    // تأخير 3 ثوانٍ لتجنب إرهاق المعالج والشبكة، ثم أمر Fetch بالاستئناف
+                    handler.postDelayed({
+                        fetch.retry(download.id)
+                    }, 3000)
                 }
             }
 
@@ -130,7 +136,7 @@ class DownloadTracker(private val context: Context) {
         } catch (e: Exception) {
             e.printStackTrace()
             handler.post {
-                Toast.makeText(context, "اكتمل التحميل: يرجى الضغط على 'تثبيت الآن' من داخل المتجر", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "اكتمل التحميل: يرجى الضغط على 'تثبيت' من داخل المتجر", Toast.LENGTH_LONG).show()
             }
         }
     }
