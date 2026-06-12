@@ -302,19 +302,36 @@
                 </LinearLayout>
             </FrameLayout>
 
-            <!-- 4. قسم الوصف -->
+            <!-- 🌟 زر مشاركة ملف APK المقتبس (يظهر فقط في حال توفر الملف محلياً) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnShareApk"
+                style="@style/Widget.Material3.Button.TextButton.Icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="مشاركة ملف التطبيق (APK)"
+                android:textColor="?attr/colorPrimary"
+                app:icon="@android:drawable/ic_menu_share"
+                app:iconTint="?attr/colorPrimary"
+                android:visibility="gone"
+                app:layout_constraintEnd_toEndOf="@id/containerActions"
+                app:layout_constraintStart_toStartOf="@id/containerActions"
+                app:layout_constraintTop_toBottomOf="@id/containerActions"
+                tools:visibility="visible"/>
+
+            <!-- 4. قسم الوصف (تم تعديل قيده ليكون أسفل زر المشاركة) -->
             <TextView
                 android:id="@+id/lblAbout"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="24dp"
-                android:layout_marginTop="32dp"
+                android:layout_marginTop="24dp"
                 android:text="لمحة عن التطبيق"
                 android:textAppearance="?attr/textAppearanceTitleMedium"
                 android:textColor="?attr/colorOnSurface"
                 android:textStyle="bold"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/containerActions" />
+                app:layout_constraintTop_toBottomOf="@id/btnShareApk" />
 
             <TextView
                 android:id="@+id/txtDescription"
