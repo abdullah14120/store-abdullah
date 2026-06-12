@@ -7,11 +7,12 @@ import android.os.Build
 import com.tonyodev.fetch2.DefaultFetchNotificationManager
 import com.tonyodev.fetch2.DownloadNotification
 import com.tonyodev.fetch2.Fetch
+import com.tonyodev.fetch2.FetchNotificationManager
 import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Feature: Professional Custom Notification Manager (Android 12+ Crash Fix)
+ * Feature: Professional Custom Notification Manager (Android 12+ Crash Fix & Active Actions)
  */
 class CustomFetchNotificationManager(private val context: Context) : DefaultFetchNotificationManager(context) {
 
@@ -35,34 +36,52 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
         return String.format(Locale.US, "%.1f MB / %.1f MB", downloadedMB, totalMB)
     }
 
-    // 🛡️ الحل الجذري لانهيار أندرويد 12 (API 31+):
-    // بما أن المترجم يرفض قيمة Null، سنقوم بإنشاء PendingIntent وهمي وآمن جداً
-    // يحتوي على علامة FLAG_IMMUTABLE الإجبارية لمنع الانهيار.
+    // 🛡️ الحل الاحترافي لانهيار أندرويد 12+: بناء الـ Intent الحقيقي لدعم عمل أزرار (إلغاء/إيقاف)
     override fun getActionPendingIntent(
         downloadNotification: DownloadNotification,
         actionType: DownloadNotification.ActionType
-    ): PendingIntent {
-        val dummyIntent = Intent("com.fix.engine.abdullah.DUMMY_ACTION")
+    ): PendingIntent? {
+        // بناء الـ Intent الذي تفهمه مكتبة Fetch تماماً
+        val intent = Intent(FetchNotificationManager.ACTION_NOTIFICATION_ACTION).apply {
+            putExtra(FetchNotificationManager.EXTRA_NAMESPACE, downloadNotification.namespace)
+            putExtra(FetchNotificationManager.EXTRA_DOWNLOAD_ID, downloadNotification.notificationId)
+            putExtra(FetchNotificationManager.EXTRA_NOTIFICATION_ID, downloadNotification.notificationId)
+            putExtra(FetchNotificationManager.EXTRA_GROUP_ACTION, false)
+            putExtra(FetchNotificationManager.EXTRA_ACTION_TYPE, actionType.value)
+        }
+
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         } else {
             PendingIntent.FLAG_UPDATE_CURRENT
         }
-        return PendingIntent.getBroadcast(context, downloadNotification.notificationId, dummyIntent, flags)
+        
+        // استخدام requestCode فريد لكل زر لكي لا تتداخل أوامر الإلغاء مع الإيقاف المؤقت
+        val requestCode = downloadNotification.notificationId + actionType.value
+        return PendingIntent.getBroadcast(context, requestCode, intent, flags)
     }
 
-    // 🛡️ تطبيق نفس الحماية المنيعة على إشعارات المجموعات
+    // 🛡️ تطبيق نفس الحماية والوظائف على إشعارات المجموعات (Group Notifications)
     override fun getGroupActionPendingIntent(
         groupId: Int,
         downloadNotifications: List<DownloadNotification>,
         actionType: DownloadNotification.ActionType
-    ): PendingIntent {
-        val dummyIntent = Intent("com.fix.engine.abdullah.DUMMY_GROUP_ACTION")
+    ): PendingIntent? {
+        val intent = Intent(FetchNotificationManager.ACTION_NOTIFICATION_ACTION).apply {
+            putExtra(FetchNotificationManager.EXTRA_NAMESPACE, downloadNotifications.firstOrNull()?.namespace ?: Fetch.getDefaultInstance().namespace)
+            putExtra(FetchNotificationManager.EXTRA_DOWNLOAD_ID, groupId)
+            putExtra(FetchNotificationManager.EXTRA_NOTIFICATION_ID, groupId)
+            putExtra(FetchNotificationManager.EXTRA_GROUP_ACTION, true)
+            putExtra(FetchNotificationManager.EXTRA_ACTION_TYPE, actionType.value)
+        }
+
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         } else {
             PendingIntent.FLAG_UPDATE_CURRENT
         }
-        return PendingIntent.getBroadcast(context, groupId, dummyIntent, flags)
+        
+        val requestCode = groupId + actionType.value
+        return PendingIntent.getBroadcast(context, requestCode, intent, flags)
     }
 }
