@@ -6,14 +6,14 @@ plugins {
     id 'com.google.gms.google-services' 
 }
 
-
 android {
     namespace 'com.fix.engine.abdullah'
     compileSdk 35 
 
-    // 🚀 التعديل المطلوب: تفعيل ميزة BuildConfig لحل خطأ المترجم في RetrofitClient
+    // 🚀 دمج ميزات البناء (Build Features) في بلوك واحد
     buildFeatures {
-        buildConfig = true
+        buildConfig true
+        viewBinding true 
     }
 
     signingConfigs {
@@ -35,6 +35,11 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         multiDexEnabled true 
+        
+        // 🛡️ [إضافة هامة] تحديد المعماريات المدعومة لملفات NDK (لتقليل حجم الـ APK)
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+        }
     }
 
     lintOptions {
@@ -60,17 +65,15 @@ android {
         jvmTarget = '17'
     }
 
-    buildFeatures {
-        viewBinding true 
-    }
-
+    // 🛠️ تم التصحيح: إغلاق بلوك packagingOptions بشكل سليم
     packagingOptions {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
-
         }
+    }
 
-           externalNativeBuild {
+    // 🛠️ تم التصحيح: نقل externalNativeBuild ليكون داخل بلوك android بشكل مباشر
+    externalNativeBuild {
         cmake {
             path file('CMakeLists.txt')
             version '3.22.1' 
@@ -131,10 +134,10 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     implementation 'com.google.firebase:firebase-database-ktx'
     implementation 'com.google.firebase:firebase-common-ktx'
-        // 12. مكتبة Fetch لتحميل الملفات بسرعة فائقة ودعم تعدد المسارات
+    
+    // 12. مكتبة Fetch لتحميل الملفات بسرعة فائقة ودعم تعدد المسارات
     implementation 'com.github.tonyofrancis.Fetch:xfetch2:3.1.6'
 
-    
     // الاختبارات
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
