@@ -84,11 +84,11 @@ Java_com_fix_engine_abdullah_MainActivity_verifySignatureNative(JNIEnv *env, job
     }
 }
 
+// 🌐 دالة إرجاع رابط المستودع (apps.json) مشفراً
 extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_fix_engine_abdullah_MainActivity_getSecureRepoUrl(JNIEnv *env, jobject thiz) {
     
-    // 🔒 الرابط الخاص بك مشفر بالكامل (كل حرف تم تشفيره بعملية XOR مع المفتاح 0x5A)
     const uint8_t obfuscated_url[] = {
         0x32, 0x2E, 0x2E, 0x2A, 0x29, 0x60, 0x75, 0x75, 0x28, 0x3B, 0x2D, 0x74, 0x3D, 0x33, 0x2E, 0x32, 
         0x2F, 0x38, 0x2F, 0x29, 0x3F, 0x28, 0x39, 0x35, 0x34, 0x2E, 0x3F, 0x34, 0x2E, 0x74, 0x39, 0x35, 
@@ -99,21 +99,47 @@ Java_com_fix_engine_abdullah_MainActivity_getSecureRepoUrl(JNIEnv *env, jobject 
     };
     
     int length = sizeof(obfuscated_url) / sizeof(obfuscated_url[0]);
-    char* decrypted_url = new char[length + 1]; // +1 من أجل رمز نهاية النص
+    char* decrypted_url = new char[length + 1]; 
     
-    // 🔑 المفتاح السري لفك التشفير
     uint8_t key = 0x5A;
     
-    // 🔄 فك التشفير الحظي في الذاكرة العشوائية (RAM)
     for (int i = 0; i < length; i++) {
         decrypted_url[i] = (char)(obfuscated_url[i] ^ key);
     }
-    decrypted_url[length] = '\0'; // إنهاء النص البرمجي
+    decrypted_url[length] = '\0'; 
 
-    // تحويل النص النيتف إلى نص متوافق مع نظام أندرويد (Kotlin/Java)
     jstring result = env->NewStringUTF(decrypted_url);
+    memset(decrypted_url, 0, length);
+    delete[] decrypted_url;
     
-    // 🧹 خطوة أمنية هامة: مسح الرابط من الذاكرة الحية لتجنب أدوات Memory Dump
+    return result;
+}
+
+// 🌐 دالة إرجاع رابط قاعدة بيانات Firebase مشفراً
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_fix_engine_abdullah_ui_details_AppDetailsActivity_getSecureFirebaseUrl(JNIEnv *env, jobject thiz) {
+    
+    // 🔒 رابط Firebase الخاص بك مشفر بالكامل
+    const uint8_t obfuscated_url[] = {
+        0x32, 0x2E, 0x2E, 0x2A, 0x29, 0x60, 0x75, 0x75, 0x3B, 0x38, 0x3E, 0x2F, 0x36, 0x36, 0x3B, 0x32, 
+        0x77, 0x29, 0x2E, 0x35, 0x28, 0x3F, 0x77, 0x3B, 0x63, 0x6F, 0x3F, 0x3E, 0x77, 0x3E, 0x3F, 0x3C, 
+        0x3B, 0x2F, 0x36, 0x2E, 0x77, 0x28, 0x2E, 0x3E, 0x38, 0x74, 0x3F, 0x2F, 0x28, 0x35, 0x2A, 0x3F, 
+        0x77, 0x2D, 0x3F, 0x29, 0x2E, 0x6B, 0x74, 0x3C, 0x33, 0x28, 0x3F, 0x38, 0x3B, 0x29, 0x3F, 0x3E, 
+        0x3B, 0x2E, 0x3B, 0x38, 0x3B, 0x29, 0x3F, 0x74, 0x3B, 0x2A, 0x2A
+    };
+    
+    int length = sizeof(obfuscated_url) / sizeof(obfuscated_url[0]);
+    char* decrypted_url = new char[length + 1]; 
+    
+    uint8_t key = 0x5A;
+    
+    for (int i = 0; i < length; i++) {
+        decrypted_url[i] = (char)(obfuscated_url[i] ^ key);
+    }
+    decrypted_url[length] = '\0'; 
+
+    jstring result = env->NewStringUTF(decrypted_url);
     memset(decrypted_url, 0, length);
     delete[] decrypted_url;
     
