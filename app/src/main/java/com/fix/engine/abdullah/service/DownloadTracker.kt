@@ -4,27 +4,31 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.tonyodev.fetch2.AbstractFetchListener
 import com.tonyodev.fetch2.Download
 import com.tonyodev.fetch2.Error
 import com.tonyodev.fetch2.Fetch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: Abdullah Store - Performance Tracker & Auto Installer
- * Feature: Integrated FetchListener with Auto-Rename, Install & Silent Auto-Retry
+ * Feature: Integrated FetchListener with Auto-Rename & Safe Intent Dispatching
  */
 class DownloadTracker(private val context: Context) {
 
-    private val fetch = Fetch.Impl.getDefaultInstance()
+    // 🚀 الاستدعاء الآمن والرسمي
+    private val fetch = Fetch.getDefaultInstance()
     private var currentListener: AbstractFetchListener? = null
-    private val handler = Handler(Looper.getMainLooper())
+    
+    // 🚀 استخدام Coroutines للتواصل السريع والآمن مع خيط الواجهة
+    private val uiScope = CoroutineScope(Dispatchers.Main)
 
     fun startTracking(downloadId: Int, onProgress: (Int, String) -> Unit) {
         stopTracking() 
@@ -38,8 +42,6 @@ class DownloadTracker(private val context: Context) {
             override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
                 if (download.id == downloadId) {
                     val progress = download.progress
-                    
-                    // حساب دقيق للميجابايت
                     val downloadedMb = download.downloaded / (1024.0 * 1024.0)
                     val totalMb = download.total / (1024.0 * 1024.0)
                     
@@ -49,15 +51,13 @@ class DownloadTracker(private val context: Context) {
                         "جاري جلب حجم الملف..."
                     }
                     
-                    handler.post { onProgress(progress, sizeText) }
+                    uiScope.launch { onProgress(progress, sizeText) }
                 }
             }
 
             override fun onCompleted(download: Download) {
                 if (download.id == downloadId) {
-                    handler.post { onProgress(100, "اكتمل التحميل") }
-                    
-                    // 🚀 دمج منطق التثبيت وتغيير الاسم فوراً بمجرد الاكتمال
+                    uiScope.launch { onProgress(100, "اكتمل التحميل") }
                     processDownloadedFile(download.file)
                     stopTracking() 
                 }
@@ -65,20 +65,16 @@ class DownloadTracker(private val context: Context) {
 
             override fun onError(download: Download, error: Error, throwable: Throwable?) {
                 if (download.id == downloadId) {
-                    // 🛡️ ميزة إعادة المحاولة التلقائية الصامتة:
-                    // تحديث الواجهة بنص يطمئن المستخدم بدلاً من إعلان الفشل
-                    handler.post { onProgress(download.progress, "جاري استعادة الاتصال...") }
-                    
-                    // تأخير 3 ثوانٍ لتجنب إرهاق المعالج والشبكة، ثم أمر Fetch بالاستئناف
-                    handler.postDelayed({
-                        fetch.retry(download.id)
-                    }, 3000)
+                    // 🛡️ إذا وصلنا هنا، يعني أن الـ 10 محاولات التلقائية فشلت.
+                    // نكتفي بإبلاغ المستخدم دون الدخول في حلقة لا نهائية.
+                    uiScope.launch { onProgress(0, "فشل التحميل. يرجى المحاولة لاحقاً.") }
+                    stopTracking()
                 }
             }
 
             override fun onPaused(download: Download) {
                 if (download.id == downloadId) {
-                    handler.post { onProgress(download.progress, "تم الإيقاف مؤقتاً") }
+                    uiScope.launch { onProgress(download.progress, "تم الإيقاف مؤقتاً") }
                 }
             }
         }
@@ -93,9 +89,6 @@ class DownloadTracker(private val context: Context) {
         }
     }
 
-    /**
-     * 🟢 تم نقل منطق DownloadReceiver القديم إلى هنا بشكل أنظف ومباشر
-     */
     private fun processDownloadedFile(filePath: String) {
         val tempFile = File(filePath)
         
@@ -135,8 +128,9 @@ class DownloadTracker(private val context: Context) {
             context.startActivity(installIntent)
         } catch (e: Exception) {
             e.printStackTrace()
-            handler.post {
-                Toast.makeText(context, "اكتمل التحميل: يرجى الضغط على 'تثبيت' من داخل المتجر", Toast.LENGTH_LONG).show()
+            // 🛡️ معالجة الفشل بصمت إذا كان التطبيق في الخلفية (قيود أندرويد 10+)
+            uiScope.launch {
+                Toast.makeText(context, "اكتمل التحميل. اضغط على التطبيق للتثبيت", Toast.LENGTH_LONG).show()
             }
         }
     }
