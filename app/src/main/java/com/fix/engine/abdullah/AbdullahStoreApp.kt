@@ -1,11 +1,13 @@
 package com.fix.engine.abdullah
 
 import android.app.Application
+import com.fix.engine.abdullah.service.CustomFetchNotificationManager
 import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
-import com.tonyodev.fetch2.HttpUrlConnectionDownloader
 import com.tonyodev.fetch2core.Downloader
-import com.fix.engine.abdullah.service.CustomFetchNotificationManager
+import com.tonyodev.fetch2okhttp.OkHttpUrlConnectionDownloader // 🚀 تأكد من إضافة مكتبة دعم OkHttp لـ Fetch إذا لم تكن موجودة
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
 /**
  * Developed by: Abdullah Al-Tamimi
@@ -17,24 +19,32 @@ class AbdullahStoreApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // 🚀 1. تهيئة مدير الإشعارات الاحترافي (لعرض الميجابايت وحماية التطبيق من الإغلاق في الخلفية)
+        // 1. تهيئة مدير الإشعارات الاحترافي
         val notificationManager = CustomFetchNotificationManager(this)
 
-        // ⚡ 2. إعداد محرك Fetch بأقصى طاقة ممكنة متوافقة مع البنية التحتية المتطورة (Cloudflare)
-        val fetchConfiguration = FetchConfiguration.Builder(this)
-            .setDownloadConcurrentLimit(2) // السماح بتحميل تطبيقين كحد أقصى في نفس الوقت لمنع اختناق شبكة المستخدم
-            
-            // 🔥 نظام التقطيع: استخدام PARALLEL لفتح اتصالات متعددة وسحب الملف بسرعة خيالية
-            .setHttpDownloader(HttpUrlConnectionDownloader(Downloader.FileDownloaderType.PARALLEL))
-            
-            // 🛡️ إضافة درع المحاولات التلقائية (3 محاولات صامتة لمعالجة تذبذب الإنترنت قبل إعلان الفشل)
-            .setAutoRetryMaxAttempts(3)
-            
-            .setNamespace("AbdullahStoreDownloads") // عزل تحميلات المتجر تماماً عن أي تطبيق آخر في الجهاز
-            .setNotificationManager(notificationManager) // ربط الإشعارات
+        // ⚡ 2. إعداد عميل OkHttp مخصص للتعامل مع الشبكات الضعيفة (Yemen Networks)
+        val okHttpClient = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS) // زيادة وقت انتظار الاتصال
+            .readTimeout(20, TimeUnit.SECONDS)    // زيادة وقت قراءة البيانات
             .build()
 
-        // 3. تطبيق هذه الإعدادات لتصبح الإعدادات الافتراضية لكامل المتجر
+        // 🚀 3. إعداد محرك Fetch بأقصى طاقة ممكنة متوافقة مع البنية التحتية
+        val fetchConfiguration = FetchConfiguration.Builder(this)
+            .setDownloadConcurrentLimit(2) 
+            
+            // 🔥 الترقية إلى OkHttpDownloader للتعامل المثالي مع Cloudflare والشبكات المتقطعة
+            .setHttpDownloader(OkHttpUrlConnectionDownloader(okHttpClient, Downloader.FileDownloaderType.PARALLEL))
+            
+            .setAutoRetryMaxAttempts(3)
+            .setNamespace("AbdullahStoreDownloads") 
+            .setNotificationManager(notificationManager) 
+            .build()
+
         Fetch.setDefaultInstanceConfiguration(fetchConfiguration)
+
+        // 🧹 4. تنظيف حالة التحميلات عند إقلاع التطبيق (إيقاف مؤقت لأي تحميل معلق من جلسة سابقة)
+        // هذا يمنع استنزاف باقة الإنترنت للمستخدم بشكل مفاجئ عند فتح التطبيق
+        val fetch = Fetch.getDefaultInstance()
+        fetch.pauseAll()
     }
 }
