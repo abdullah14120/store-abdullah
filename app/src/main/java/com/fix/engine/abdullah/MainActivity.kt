@@ -19,7 +19,6 @@ import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater 
-import android.widget.TextView 
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -33,20 +32,16 @@ import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 import com.google.android.material.button.MaterialButton 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
-import java.security.MessageDigest
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Official Runtime Core)
- * Feature: Production SHA-256 Signature Attestation, Base64 String Obfuscation & M3 Layouts
+ * Feature: JNI C++ SHA-256 Signature Attestation, XOR String Obfuscation & M3 Layouts
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
-
-    // 🔒 الرابط الخام لـ "apps.json" مشفر بترميز Base64 لحمايته من الفحص الثابت وحل مشاكل الـ XOR
-    private val repoSecUrlBase64 = "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2FiZHVsbGFoMTQxMjAvc3RvcmUtYWJkdWxsYWgvcmVmcy9oZWFkcy9tYWluL2FwcHMuanNvbg=="
     
     // 🌐 أدوات مراقبة حالة الشبكة الفورية في الخلفية مع عودة الاتصال
     private lateinit var connectivityManager: ConnectivityManager
@@ -56,14 +51,22 @@ class MainActivity : AppCompatActivity() {
     // 🛡️ شرط الأمان الذكي: لمنع تحديث الواجهة تلقائياً والمستخدم يتصفح في حال كان لديه بيانات مسبقة
     private var isDataLoadedSuccessfully = false
 
+    companion object {
+        // 🛡️ تحميل مكتبة الحماية المبرمجة بـ C++ عند تشغيل الكلاس
+        init {
+            System.loadLibrary("native-lib")
+        }
+    }
+
+    // 🛡️ دوال الـ JNI المتصلة بمكتبة C++
+    private external fun verifySignatureNative(context: Context)
+    private external fun getSecureRepoUrl(): String
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // 🚨 1. تشغيل فحص المطابقة الرقمية للـ SHA-256 لمنع التعديل؛ ينغلق التطبيق فوراً إذا تم توقيعه بمفتاح غريب
-        if (!verifyAppSignature()) {
-            finishAffinity()
-            return
-        }
+        // 🚨 1. تشغيل درع الحماية النيتف فوراً، التطبيق سينهار ذاتياً هنا عبر C++ إذا تم التلاعب بالبصمة
+        verifySignatureNative(applicationContext)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -84,46 +87,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 🛡️ درع الحماية الرسمي والنهائي لـ "متجر Abdullah" المعتمد على مطابقة بصمة الـ SHA-256 للشهادة الأصلية.
-     */
-    private fun verifyAppSignature(): Boolean {
-        return try {
-            val pm = packageManager
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                PackageManager.GET_SIGNING_CERTIFICATES
-            } else {
-                @Suppress("DEPRECATION")
-                PackageManager.GET_SIGNATURES
-            }
-            
-            val packageInfo = pm.getPackageInfo(packageName, flags)
-            val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                packageInfo.signingInfo?.apkContentsSigners
-            } else {
-                @Suppress("DEPRECATION")
-                packageInfo.signatures
-            }
-
-            if (signatures != null && signatures.isNotEmpty()) {
-                // توليد الـ SHA-256 للبصمة الحالية المتواجدة بالحزمة
-                val md = MessageDigest.getInstance("SHA-256")
-                val publicKey = md.digest(signatures[0].toByteArray())
-                val hexString = publicKey.joinToString(":") { String.format("%02X", it) }
-                
-                // 🔒 بصمة الـ SHA-256 الرسمية المأخوذة مباشرة من شهادة مستودع توقيعك الفعلي
-                val myTargetSignature = "A3:45:9B:83:CC:90:AB:39:AF:A5:E3:F8:01:51:AC:D1:4F:2D:7A:4C:B9:76:74:0C:6C:A4:19:72:33:7C:B7:47"
-                
-                // مطابقة صامتة وحازمة تتجاهل حالة الأحرف تجنباً لأي اختلافات بناء أثناء الـ Compiler
-                hexString.equals(myTargetSignature, ignoreCase = true)
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            false // سد منافذ الثغرات عند حدوث أي محاولة تخطي بالـ Runtime الالتفافي
-        }
-    }
-
-    /**
      * 🔄 دالة مراقبة الاتصال الذكي بالإنترنت لإنعاش المتجر فورياً في حال عودة الشبكة
      */
     private fun registerNetworkMonitoring() {
@@ -139,7 +102,7 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this@MainActivity, "تم استعادة الاتصال! جاري مزامنة المتجر... 🔄", Toast.LENGTH_SHORT).show()
                         refreshData()
                     } else {
-                        // في حال كانت التطبيقات معروضة ومستقرة، نكتفي بإشعار صامت دون تخريب تصفح المستخدم بإعادة تحميل الصفحة
+                        // في حال كانت التطبيقات معروضة ومستقرة، نكتفي بإشعار صامت دون تخريب تصفح المستخدم
                         Toast.makeText(this@MainActivity, "متصل بالإنترنت ✨", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -163,13 +126,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        // بدء الاستماع الذكي لحالة الشبكة فور ظهور التطبيق في الواجهة
         registerNetworkMonitoring()
     }
 
     override fun onStop() {
         super.onStop()
-        // تعطيل الاستماع فور خروج التطبيق للخلفية لحفظ طاقة بطارية هواتف المستخدمين ومنع تسريب الذاكرة
         if (isNetworkCallbackRegistered) {
             connectivityManager.unregisterNetworkCallback(networkCallback)
             isNetworkCallbackRegistered = false
@@ -208,9 +169,6 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    /**
-     * ديالوج تفاعلي لإضافة تطبيقات المطورين بالارتباط مع رقم واتساب المباشر
-     */
     private fun showAddAppDeveloperDialog() {
         if (isFinishing || isDestroyed) return
 
@@ -339,7 +297,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         val builder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_notification_transparent) // استخدا  تم التعديل على الأيقونة لتقرأ من الـ mipmap المستقرة الجديدة
+            .setSmallIcon(R.drawable.ic_notification_transparent) 
             .setContentTitle("تحديثات متوفرة لـ تطبيقاتك! 🚀")
             .setContentText("يوجد عدد ($updatesCount) من تطبيقاتك تمتلك إصدارات محدثة، قم بتثبيتها الآن.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -390,9 +348,7 @@ class MainActivity : AppCompatActivity() {
         viewModel.isLoading.observe(this) { binding.progressBar.isVisible = it }
         viewModel.appsList.observe(this) { apps ->
             if (!apps.isNullOrEmpty()) {
-                // 🚀 تأكيد النجاح: تم تحميل البيانات وعرضها بنجاح، مما يقفل شرط الأمان من أي تحديث عشوائي
                 isDataLoadedSuccessfully = true
-                
                 checkMandatoryUpdate(apps)
                 calculateUpdates(apps)
             }
@@ -400,7 +356,6 @@ class MainActivity : AppCompatActivity() {
         viewModel.errorMessage.observe(this) { 
             it?.let { 
                 Toast.makeText(this, it, Toast.LENGTH_LONG).show() 
-                // في حال حدوث خطأ أو فشل جلب البيانات لأي سبب، نفتح الباب للتحديث التلقائي فور عودة الإنترنت
                 isDataLoadedSuccessfully = false
             } 
         }
@@ -433,13 +388,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshData() {
         try {
-            // 🛠️ فك تشفير الـ Base64 بلغة نظام الأندرويد المتوافقة مع أندرويد 6.0 وحتى أندرويد 15
-            val decodedBytes = android.util.Base64.decode(repoSecUrlBase64, android.util.Base64.DEFAULT)
+            // 🛠️ جلب الرابط السري المفكوك لحظياً من الذاكرة العشوائية عبر JNI C++
+            val secureUrl = getSecureRepoUrl()
             
-            // تمرير مصفوفة البايتات المفكوكة مع مفتاح الملح 0 لإعلام الـ Repository باعتماد الـ Base64
-            viewModel.loadApps(decodedBytes, 0.toByte())
+            // تحويل النص إلى مصفوفة بايتات لتمريرها إلى الـ ViewModel
+            val urlBytes = secureUrl.toByteArray(Charsets.UTF_8)
+            
+            // تمرير مصفوفة البايتات مع مفتاح الملح 0 لإعلام الـ Repository
+            viewModel.loadApps(urlBytes, 0.toByte())
         } catch (e: Exception) {
-            // عرض رسالة خطأ مباشرة في الواجهة دون التعديل على LiveData المحمية الخارجية
             Toast.makeText(this, "خطأ في معالجة بوابة الأمان", Toast.LENGTH_LONG).show()
             isDataLoadedSuccessfully = false
         }
