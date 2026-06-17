@@ -4,6 +4,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.core.app.NotificationCompat
+import com.fix.engine.abdullah.R // تأكد من استيراد موارد تطبيقك
 import com.tonyodev.fetch2.DefaultFetchNotificationManager
 import com.tonyodev.fetch2.DownloadNotification
 import com.tonyodev.fetch2.Fetch
@@ -11,7 +13,7 @@ import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Feature: Professional Custom Notification Manager (Android 12+ Crash Fix & Active Actions)
+ * Feature: Professional Custom Notification Manager (Android 12+ Crash Fix, Speed Info & UI Polishing)
  */
 class CustomFetchNotificationManager(private val context: Context) : DefaultFetchNotificationManager(context) {
 
@@ -20,10 +22,26 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
         return Fetch.getDefaultInstance()
     }
 
-    // 🚀 تخصيص النص الفرعي للإشعار ليعرض (المُحمّل / الإجمالي) بالميجابايت
+    // 🎨 الحل الاحترافي لمشكلة "المربع الأبيض" في الإشعارات
+    override fun getNotificationBuilder(
+        notificationId: Int,
+        groupId: Int
+    ): NotificationCompat.Builder {
+        val builder = super.getNotificationBuilder(notificationId, groupId)
+        // استخدام أيقونة شفافة مخصصة لشريط الحالة بدلاً من أيقونة التطبيق الملونة
+        builder.setSmallIcon(R.drawable.ic_notification_transparent)
+        // تخصيص لون الأيقونة لتتماشى مع هوية المتجر (مثلاً اللون الأساسي)
+        builder.color = context.getColor(R.color.md_theme_d_primary) 
+        return builder
+    }
+
+    // 🚀 تخصيص النص الفرعي ليعرض الحجم المتبقي بالإضافة إلى سرعة التحميل اللحظية
     override fun getSubtitleText(context: Context, downloadNotification: DownloadNotification): String {
         val downloadedBytes = downloadNotification.downloaded
         val totalBytes = downloadNotification.total
+        
+        // Fetch2 يوفر سرعة التحميل بالبايت في الثانية، سنقوم بتحويلها لعرض احترافي
+        val downloadedBytesPerSecond = downloadNotification.downloadedBytesPerSecond
 
         if (totalBytes <= 0L) {
             return "جاري حساب الحجم..."
@@ -31,11 +49,21 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
 
         val downloadedMB = downloadedBytes / (1024.0 * 1024.0)
         val totalMB = totalBytes / (1024.0 * 1024.0)
+        
+        // حساب سرعة التحميل بصيغة (KB/s أو MB/s)
+        val speedKB = downloadedBytesPerSecond / 1024.0
+        val speedText = if (speedKB >= 1024.0) {
+            val speedMB = speedKB / 1024.0
+            String.format(Locale.US, "%.1f MB/s", speedMB)
+        } else {
+            String.format(Locale.US, "%.1f KB/s", speedKB)
+        }
 
-        return String.format(Locale.US, "%.1f MB / %.1f MB", downloadedMB, totalMB)
+        // النتيجة: "2.4 MB/s • 15.5 MB / 50.0 MB"
+        return String.format(Locale.US, "%s • %.1f MB / %.1f MB", speedText, downloadedMB, totalMB)
     }
 
-    // 🛡️ الحل الاحترافي لانهيار أندرويد 12+: تمرير القيم النصية المباشرة التي يفهمها محرك Fetch
+    // 🛡️ الحل الاحترافي لانهيار أندرويد 12+
     override fun getActionPendingIntent(
         downloadNotification: DownloadNotification,
         actionType: DownloadNotification.ActionType
@@ -81,6 +109,6 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
         }
         
         val requestCode = groupId + actionType.hashCode()
-        return PendingIntent.getBroadcast(context, requestCode, intent, flags)!!
+        return PendingIntent.getBroadcast(context, requestCode, flags)!!
     }
 }
