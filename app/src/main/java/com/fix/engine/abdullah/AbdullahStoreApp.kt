@@ -5,7 +5,7 @@ import com.fix.engine.abdullah.service.CustomFetchNotificationManager
 import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2core.Downloader
-import com.tonyodev.fetch2okhttp.OkHttpUrlConnectionDownloader // 🚀 تأكد من إضافة مكتبة دعم OkHttp لـ Fetch إذا لم تكن موجودة
+import com.tonyodev.fetch2okhttp.OkHttpDownloader
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
