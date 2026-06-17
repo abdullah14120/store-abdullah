@@ -388,7 +388,7 @@ class AppDetailsActivity : AppCompatActivity() {
                 val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    params.setRequireUserAction(PackageInstaller.SessionParams.REQUIRE_USER_ACTION_UNSPECIFIED)
+                    params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
                 }
 
                 val sessionId = packageInstaller.createSession(params)
