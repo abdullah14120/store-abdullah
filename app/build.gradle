@@ -137,7 +137,7 @@ dependencies {
     
     // 12. مكتبة Fetch لتحميل الملفات بسرعة فائقة ودعم تعدد المسارات
     implementation 'com.github.tonyofrancis.Fetch:xfetch2:3.1.6'
-    implementation 'com.github.tonyofrancis.Fetch:fetch2okhttp:3.1.6'
+    implementation 'com.github.tonyofrancis.Fetch:xfetch2okhttp:3.1.6'
 
     // الاختبارات
     testImplementation 'junit:junit:4.13.2'
