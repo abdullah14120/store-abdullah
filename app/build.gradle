@@ -6,6 +6,7 @@ plugins {
     id 'com.google.gms.google-services' 
 }
 
+
 android {
     namespace 'com.fix.engine.abdullah'
     compileSdk 35 
@@ -66,6 +67,13 @@ android {
     packagingOptions {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
+
+        }
+
+           externalNativeBuild {
+        cmake {
+            path file('CMakeLists.txt')
+            version '3.22.1' 
         }
     }
 }
