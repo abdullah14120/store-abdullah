@@ -109,6 +109,6 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
         }
         
         val requestCode = groupId + actionType.hashCode()
-        return PendingIntent.getBroadcast(context, requestCode, flags)!!
+return PendingIntent.getBroadcast(context, requestCode, intent, flags)!!
     }
 }
