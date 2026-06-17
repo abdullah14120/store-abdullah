@@ -7,10 +7,14 @@ on:
     branches: [ "main", "master" ]
 
 jobs:
-  build:
+  build-and-release:
+    name: Native Build & Assembly
     runs-on: ubuntu-latest
 
     steps:
+      # ==========================================
+      # ⚙️ 1. Core Logic: Environment & Toolchains
+      # ==========================================
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -21,30 +25,41 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Generate New Gradle Wrapper
-        run: gradle wrapper --gradle-version 8.2
+      # 🚀 إضافة أساسية: إعداد بيئة NDK لتجميع مكتبات الـ C++ (JNI) الخاصة بطبقة الحماية
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r25c # قم بتعديلها إذا كنت تستخدم إصداراً محدداً في local.properties
 
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
 
+      # ==========================================
+      # 🛡️ 2. Core Logic: Security & Injection
+      # ==========================================
       - name: Decode Keystore
-        # 🛠️ تم تصحيح المحاذاة والمسافات هنا لتفادي انهيار البناء (Parsing Error)
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/fixengine.jks
 
+      # ==========================================
+      # 🚀 3. Core Logic: Build Engine
+      # ==========================================
       - name: Build Release APK
-        # 🛠️ تم إخراج الـ run خارج الـ env لكي ينفذ الجرادل الأمر الفعلي للتوقيع والـ Build
         env:
           SIGNING_STORE_FILE: fixengine.jks
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --stacktrace --no-daemon
+        # ⚡ تحسين الأداء: تفعيل التخزين المؤقت (Build Cache) والمعالجة المتوازية (Parallel)
+        run: ./gradlew assembleRelease --build-cache --parallel --no-daemon
 
-      - name: Upload APK Artifact
+      # ==========================================
+      # 📦 4. UI / Presentation: Artifact Distribution
+      # ==========================================
+      - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Abdullah-Store-Build-${{ github.run_number }}
-          # 🛠️ تم تعديل المسار هنا ليرفع لك النسختين (الـ Release الموقعة الفولاذية والـ Debug معا) لكي تحمل ما تشاء منها
           path: app/build/outputs/apk/**/*.apk
           retention-days: 5
