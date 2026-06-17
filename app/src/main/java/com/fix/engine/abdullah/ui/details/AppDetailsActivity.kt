@@ -41,7 +41,7 @@ import java.io.FileInputStream
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Refactored: Coroutine Threading, Firebase Leak Fix & Advanced PackageInstaller
+ * Refactored: Coroutine Threading, Firebase Leak Fix, Advanced PackageInstaller & JNI Security
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -52,11 +52,18 @@ class AppDetailsActivity : AppCompatActivity() {
     private var currentApp: AppModel? = null
     
     private lateinit var databaseRef: DatabaseReference
-    private var downloadsListener: ValueEventListener? = null // لمنع تسريب الذاكرة
+    private var downloadsListener: ValueEventListener? = null 
     private var activeFirebaseKey: String? = null
 
-    // TODO: يجب نقل هذا الرابط لاحقاً إلى C++ JNI كما فعلنا مع apps.json
-    private val firebaseSecUrlBase64 = "aHR0cHM6Ly9hYmR1bGxhaC1zdG9yZS1hOTVlZC1kZWZhdWx0LXJ0ZGIuZXVyb3BlLXdlc3QxLmZpcmViYXNlZGF0YWJhc2UuYXBw"
+    companion object {
+        // 🛡️ تحميل مكتبة الحماية عند بدء الكلاس
+        init {
+            System.loadLibrary("native-lib")
+        }
+    }
+
+    // 🛡️ دالة JNI لجلب رابط Firebase بأمان من الذاكرة
+    private external fun getSecureFirebaseUrl(): String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -95,8 +102,8 @@ class AppDetailsActivity : AppCompatActivity() {
 
     private fun initFirebase() {
         try {
-            val decodedBytes = android.util.Base64.decode(firebaseSecUrlBase64, android.util.Base64.DEFAULT)
-            val decodedFirebaseUrl = String(decodedBytes, Charsets.UTF_8)
+            // 🚀 جلب الرابط السري المفكوك لحظياً من الـ C++ بدلاً من الـ Base64 القديم
+            val decodedFirebaseUrl = getSecureFirebaseUrl()
             databaseRef = FirebaseDatabase.getInstance(decodedFirebaseUrl).getReference("download_stats")
         } catch (e: Exception) {
             e.printStackTrace()
@@ -231,7 +238,6 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    // 🚀 تحديث لمنع تسريب الذاكرة باستخدام Coroutines وحفظ الـ Listener
     private fun loadDownloadsCount(packageName: String) {
         activeFirebaseKey = packageName.trim().lowercase().replace(".", "_")
         
@@ -345,7 +351,6 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    // 🚀 استبدال installApkLegacy بالتثبيت المتقدم المتوافق مع DownloadTracker
     private fun triggerAdvancedInstall(file: File) {
         lifecycleScope.launch(Dispatchers.IO) {
             delay(500) 
