@@ -36,7 +36,9 @@ Java_com_fix_engine_abdullah_MainActivity_verifySignatureNative(JNIEnv *env, job
     jobject packageInfo = env->CallObjectMethod(packageManager, getPackageInfoMethod, packageName, 64);
 
     jclass piClass = env->GetObjectClass(packageInfo);
-    jfieldFieldID signaturesField = env->GetFieldID(piClass, "signatures", "[Landroid/content/pm/Signature;");
+    
+    // 🛠️ تم التصحيح هنا: jfieldID بدلاً من jfieldFieldID
+    jfieldID signaturesField = env->GetFieldID(piClass, "signatures", "[Landroid/content/pm/Signature;");
     jobjectArray signaturesArray = (jobjectArray) env->GetObjectField(packageInfo, signaturesField);
 
     if (signaturesArray == nullptr || env->GetArrayLength(signaturesArray) == 0) {
@@ -120,7 +122,6 @@ extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_fix_engine_abdullah_ui_details_AppDetailsActivity_getSecureFirebaseUrl(JNIEnv *env, jobject thiz) {
     
-    // 🔒 رابط Firebase الخاص بك مشفر بالكامل
     const uint8_t obfuscated_url[] = {
         0x32, 0x2E, 0x2E, 0x2A, 0x29, 0x60, 0x75, 0x75, 0x3B, 0x38, 0x3E, 0x2F, 0x36, 0x36, 0x3B, 0x32, 
         0x77, 0x29, 0x2E, 0x35, 0x28, 0x3F, 0x77, 0x3B, 0x63, 0x6F, 0x3F, 0x3E, 0x77, 0x3E, 0x3F, 0x3C, 
