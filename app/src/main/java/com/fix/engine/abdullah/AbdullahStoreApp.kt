@@ -33,7 +33,7 @@ class AbdullahStoreApp : Application() {
             .setDownloadConcurrentLimit(2) 
             
             // 🔥 الترقية إلى OkHttpDownloader للتعامل المثالي مع Cloudflare والشبكات المتقطعة
-            .setHttpDownloader(OkHttpUrlConnectionDownloader(okHttpClient, Downloader.FileDownloaderType.PARALLEL))
+            .setHttpDownloader(OkHttpDownloader(okHttpClient, Downloader.FileDownloaderType.PARALLEL))
             
             .setAutoRetryMaxAttempts(3)
             .setNamespace("AbdullahStoreDownloads") 
