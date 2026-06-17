@@ -1,10 +1,12 @@
 package com.fix.engine.abdullah.service
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -16,16 +18,37 @@ import com.fix.engine.abdullah.R
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Background Update Checker
- * Feature: Smart Notifications & Material 3 Theme Integration (M3 Olive Style)
+ * Feature: Smart Notifications, Battery Optimization & M3 Theme Integration
  */
 class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result {
-        return try {
-            // 1. هنا تقوم بجلب ملف الـ JSON الخاص بك وفحص الإصدارات
-            val isUpdateAvailable = checkForUpdatesInJson()
+    companion object {
+        // 🛡️ تحميل مكتبة الحماية للوصول إلى الرابط المشفر في الخلفية
+        init {
+            System.loadLibrary("native-lib")
+        }
+    }
 
-            // 2. إرسال الإشعار فقط إذا كان هناك تحديث فعلي
+    private external fun getSecureRepoUrl(): String
+
+    override suspend fun doWork(): Result {
+        // 🛡️ 1. التحقق من صلاحية الإشعارات أولاً (لتوفير طاقة البطارية والبيانات)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permission = ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS)
+            if (permission != PackageManager.PERMISSION_GRANTED) {
+                // إذا لم تكن الصلاحية ممنوحة، لا داعي لاستهلاك الإنترنت والبحث عن تحديثات
+                return Result.success()
+            }
+        }
+
+        return try {
+            // 2. جلب الرابط الآمن من مكتبة C++
+            val secureUrl = getSecureRepoUrl()
+
+            // 3. جلب الـ JSON وفحص الإصدارات (قم بتمرير الرابط للدالة الخاصة بك)
+            val isUpdateAvailable = checkForUpdatesInJson(secureUrl)
+
+            // 4. إرسال الإشعار
             if (isUpdateAvailable) {
                 sendNotification(
                     "تحديثات جديدة متوفرة لـ تطبيقاتك! 🚀", 
@@ -36,14 +59,14 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             Result.success()
         } catch (e: Exception) {
             e.printStackTrace()
-            // في حال فشل الاتصال بالإنترنت أو فشل قراءة JSON
+            // إعادة المحاولة في حال فشل الشبكة
             Result.retry() 
         }
     }
 
-    // دالة افتراضية لمحاكاة فحص التحديثات (قم بتعديلها بمنطقك الخاص)
-    private suspend fun checkForUpdatesInJson(): Boolean {
-        // TODO: تنفيذ منطق جلب الـ JSON ومقارنة أرقام الإصدارات
+    // TODO: دمج منطق الـ Repository الخاص بك هنا لتحميل الـ JSON عبر Retrofit أو Fetch
+    private suspend fun checkForUpdatesInJson(url: String): Boolean {
+        // هنا ستقوم بمقارنة versionCode للتطبيقات المثبتة مع القادمة من url
         return true 
     }
 
@@ -80,7 +103,6 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         )
 
         val notification = NotificationCompat.Builder(applicationContext, channelId)
-            // 🟢 التعديل الجوهري: استخدام أيقونة شفافة (Vector) لمنع المربع الرمادي
             .setSmallIcon(R.drawable.ic_notification_transparent) 
             .setContentTitle(title)
             .setContentText(message)
