@@ -45,13 +45,14 @@ import java.io.FileInputStream
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Refactored: UI State Sync, Advanced PackageInstaller Listener, Storage Checker & Coroutine Threading
+ * Architecture: Clean Core Logic Separation, Advanced PackageInstaller Engine, Dynamic UI State Sync.
  */
 class AppDetailsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAppDetailsBinding
     private lateinit var downloadManager: AndroidDownloadManager
     private lateinit var tracker: DownloadTracker
+    
     private var isDownloading = false
     private var currentApp: AppModel? = null
     
@@ -82,8 +83,15 @@ class AppDetailsActivity : AppCompatActivity() {
                         binding.btnInstallState.isEnabled = true 
                         
                         if (isSuccess) {
+                            // التنظيف التلقائي الصامت للـ APK لتوفير المساحة بعد نجاح التثبيت
+                            val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                            currentApp?.getUniqueFileName()?.let { fileName ->
+                                File(downloadFolder, fileName).delete()
+                                File(downloadFolder, "$fileName.tmp").delete()
+                            }
                             currentApp?.let { setupLogic(it) }
                         } else {
+                            // إعادة الواجهة لحالة التثبيت عند الفشل
                             binding.btnInstallState.text = "تثبيت"
                             binding.btnInstallState.visibility = View.VISIBLE
                             binding.cardDownloadingState.visibility = View.GONE
@@ -212,6 +220,7 @@ class AppDetailsActivity : AppCompatActivity() {
         binding.btnDeleteApk.visibility = View.GONE
         binding.cardDownloadingState.visibility = View.VISIBLE
 
+        binding.btnCancelDownload.visibility = View.VISIBLE
         binding.progressDownload.isIndeterminate = true
         binding.tvDownloadPercent.text = "جاري الاتصال..."
         binding.tvDownloadSize.text = "جاري حساب الحجم"
@@ -240,10 +249,12 @@ class AppDetailsActivity : AppCompatActivity() {
             runOnUiThread {
                 binding.apply {
                     if (progress > 0) {
+                        btnCancelDownload.visibility = View.VISIBLE
                         progressDownload.isIndeterminate = false
                         progressDownload.progress = progress
                         tvDownloadPercent.text = "جاري التنزيل... $progress%"
                     } else {
+                        btnCancelDownload.visibility = View.VISIBLE
                         progressDownload.isIndeterminate = true
                         tvDownloadPercent.text = "جاري بدء التنزيل..."
                     }
@@ -271,7 +282,6 @@ class AppDetailsActivity : AppCompatActivity() {
                         binding.btnDeleteApk.setOnClickListener { deleteAppFiles(currentApp!!) }
                         
                         binding.btnInstallState.setOnClickListener { triggerAdvancedInstall(finalFile) }
-                        
                         triggerAdvancedInstall(finalFile)
                     }
                 }
@@ -285,7 +295,7 @@ class AppDetailsActivity : AppCompatActivity() {
 
             if (!file.exists() || file.length() == 0L) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@AppDetailsActivity, "عذراً، الملف قيد التجهيز أو غير صالح.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@AppDetailsActivity, "عذراً، الملف غير صالح للتثبيت.", Toast.LENGTH_SHORT).show()
                 }
                 return@launch
             }
@@ -297,16 +307,19 @@ class AppDetailsActivity : AppCompatActivity() {
                     binding.cardDownloadingState.visibility = View.GONE
                     binding.btnInstallState.visibility = View.VISIBLE
                     binding.btnInstallState.text = "إعادة التنزيل"
-                    Toast.makeText(this@AppDetailsActivity, "حزمة التطبيق غير مكتملة، يرجى إعادة التنزيل.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@AppDetailsActivity, "حزمة التطبيق تالفة، يرجى إعادة التنزيل.", Toast.LENGTH_LONG).show()
                 }
                 return@launch
             }
 
+            // UX Trick: التبديل لوضع التثبيت داخل البطاقة الدائرية
             withContext(Dispatchers.Main) {
-                binding.cardDownloadingState.visibility = View.GONE
-                binding.btnInstallState.visibility = View.VISIBLE
-                binding.btnInstallState.text = "جاري التثبيت..."
-                binding.btnInstallState.isEnabled = false 
+                binding.btnInstallState.visibility = View.GONE
+                binding.cardDownloadingState.visibility = View.VISIBLE
+                binding.btnCancelDownload.visibility = View.GONE 
+                binding.progressDownload.isIndeterminate = true
+                binding.tvDownloadPercent.text = "جاري التثبيت في الخلفية..."
+                binding.tvDownloadSize.text = "يرجى الانتظار، سيتم الفتح تلقائياً"
             }
 
             try {
@@ -351,9 +364,10 @@ class AppDetailsActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@AppDetailsActivity, "فشل تهيئة التثبيت: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@AppDetailsActivity, "فشل تهيئة محرك التثبيت.", Toast.LENGTH_LONG).show()
                     binding.btnInstallState.text = "تثبيت"
-                    binding.btnInstallState.isEnabled = true
+                    binding.btnInstallState.visibility = View.VISIBLE
+                    binding.cardDownloadingState.visibility = View.GONE
                 }
             }
         }
@@ -381,6 +395,7 @@ class AppDetailsActivity : AppCompatActivity() {
                     binding.btnShareApk.visibility = View.GONE
                     binding.btnDeleteApk.visibility = View.GONE
                     binding.cardDownloadingState.visibility = View.VISIBLE
+                    binding.btnCancelDownload.visibility = View.VISIBLE
                     startTrackingProcess(activeDownload.id)
                 }
             }
@@ -398,6 +413,7 @@ class AppDetailsActivity : AppCompatActivity() {
         val finalFile = File(downloadFolder, fileName)
         val tempFile = File(downloadFolder, "$fileName.tmp")
 
+        // 1. فحص وجود الملفات لإظهار زر الحذف
         if (finalFile.exists() || tempFile.exists()) {
             binding.btnDeleteApk.visibility = View.VISIBLE
             binding.btnDeleteApk.setOnClickListener { deleteAppFiles(app) }
@@ -405,33 +421,21 @@ class AppDetailsActivity : AppCompatActivity() {
             binding.btnDeleteApk.visibility = View.GONE
         }
 
-        if (finalFile.exists()) {
-            binding.btnInstallState.text = "تثبيت"
-            binding.btnInstallState.visibility = View.VISIBLE
-            binding.layoutInstalledState.visibility = View.GONE
-            binding.cardDownloadingState.visibility = View.GONE
-            
-            binding.btnShareApk.visibility = View.VISIBLE
-            binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, app.name) }
-            
-            binding.btnInstallState.setOnClickListener { triggerAdvancedInstall(finalFile) }
-            return
-        } else {
-            binding.btnShareApk.visibility = View.GONE
-        }
-
+        // 2. الفحص الهندسي للأولويات (حالة النظام أولاً)
         try {
             val pInfo = pm.getPackageInfo(app.packageName, 0)
             val installedVer = pInfo.versionName ?: ""
 
             if (app.versionName.trim() != installedVer.trim()) {
-                binding.btnInstallState.text = "تحديث"
-                binding.btnInstallState.visibility = View.VISIBLE
-                binding.layoutInstalledState.visibility = View.GONE
-                binding.btnInstallState.setOnClickListener { checkStoragePermissionAndDownload(app) }
+                handleInstallOrUpdateState(app, finalFile, isUpdate = true)
             } else {
                 binding.btnInstallState.visibility = View.GONE
                 binding.layoutInstalledState.visibility = View.VISIBLE
+                
+                binding.btnShareApk.visibility = if (finalFile.exists()) View.VISIBLE else View.GONE
+                if (finalFile.exists()) {
+                    binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, app.name) }
+                }
                 
                 binding.btnOpenApp.setOnClickListener { 
                     val launchIntent = pm.getLaunchIntentForPackage(app.packageName)
@@ -445,9 +449,23 @@ class AppDetailsActivity : AppCompatActivity() {
                 }
             }
         } catch (e: PackageManager.NameNotFoundException) {
+            handleInstallOrUpdateState(app, finalFile, isUpdate = false)
+        }
+    }
+
+    private fun handleInstallOrUpdateState(app: AppModel, finalFile: File, isUpdate: Boolean) {
+        binding.layoutInstalledState.visibility = View.GONE
+        binding.cardDownloadingState.visibility = View.GONE
+        binding.btnInstallState.visibility = View.VISIBLE
+        
+        if (finalFile.exists()) {
             binding.btnInstallState.text = "تثبيت"
-            binding.btnInstallState.visibility = View.VISIBLE
-            binding.layoutInstalledState.visibility = View.GONE
+            binding.btnShareApk.visibility = View.VISIBLE
+            binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, app.name) }
+            binding.btnInstallState.setOnClickListener { triggerAdvancedInstall(finalFile) }
+        } else {
+            binding.btnInstallState.text = if (isUpdate) "تحديث" else "تنزيل"
+            binding.btnShareApk.visibility = View.GONE
             binding.btnInstallState.setOnClickListener { checkStoragePermissionAndDownload(app) }
         }
     }
