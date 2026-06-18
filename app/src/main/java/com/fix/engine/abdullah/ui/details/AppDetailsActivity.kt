@@ -1,11 +1,14 @@
 package com.fix.engine.abdullah.ui.details
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -13,6 +16,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.Settings
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -41,7 +45,7 @@ import java.io.FileInputStream
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Refactored: Coroutine Threading, Firebase Leak Fix, Advanced PackageInstaller & JNI Security
+ * Refactored: UI State Sync, Advanced PackageInstaller Listener, Storage Checker & Coroutine Threading
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -56,14 +60,39 @@ class AppDetailsActivity : AppCompatActivity() {
     private var activeFirebaseKey: String? = null
 
     companion object {
-        // 🛡️ تحميل مكتبة الحماية عند بدء الكلاس
         init {
             System.loadLibrary("native-lib")
         }
     }
 
-    // 🛡️ دالة JNI لجلب رابط Firebase بأمان من الذاكرة
     private external fun getSecureFirebaseUrl(): String
+
+    // ====================================================================
+    // [1] CORE LOGIC: Receivers & Lifecycle Management
+    // ====================================================================
+
+    private val installStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == "com.fix.engine.abdullah.UPDATE_UI") {
+                val pkgName = intent.getStringExtra("PACKAGE_NAME")
+                val isSuccess = intent.getBooleanExtra("IS_SUCCESS", false)
+                
+                if (pkgName == currentApp?.packageName) {
+                    runOnUiThread {
+                        binding.btnInstallState.isEnabled = true 
+                        
+                        if (isSuccess) {
+                            currentApp?.let { setupLogic(it) }
+                        } else {
+                            binding.btnInstallState.text = "تثبيت"
+                            binding.btnInstallState.visibility = View.VISIBLE
+                            binding.cardDownloadingState.visibility = View.GONE
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,6 +105,7 @@ class AppDetailsActivity : AppCompatActivity() {
 
         setupToolbar()
         initFirebase()
+        registerInstallReceiver()
 
         val appData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra("APP_DATA", AppModel::class.java)
@@ -100,9 +130,35 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        currentApp?.let { app ->
+            setupLogic(app)
+            checkCurrentStatus(app)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::tracker.isInitialized) tracker.stopTracking()
+        unregisterReceiver(installStateReceiver)
+        
+        if (::databaseRef.isInitialized && activeFirebaseKey != null && downloadsListener != null) {
+            databaseRef.child(activeFirebaseKey!!).removeEventListener(downloadsListener!!)
+        }
+    }
+
+    private fun registerInstallReceiver() {
+        val filter = IntentFilter("com.fix.engine.abdullah.UPDATE_UI")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(installStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(installStateReceiver, filter)
+        }
+    }
+
     private fun initFirebase() {
         try {
-            // 🚀 جلب الرابط السري المفكوك لحظياً من الـ C++ بدلاً من الـ Base64 القديم
             val decodedFirebaseUrl = getSecureFirebaseUrl()
             databaseRef = FirebaseDatabase.getInstance(decodedFirebaseUrl).getReference("download_stats")
         } catch (e: Exception) {
@@ -111,76 +167,32 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupToolbar() {
-        setSupportActionBar(binding.toolbarDetails)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = ""
-        binding.toolbarDetails.setNavigationOnClickListener { finish() }
+    // ====================================================================
+    // [2] CORE LOGIC: Storage Validation
+    // ====================================================================
+
+    private fun hasEnoughStorage(appSizeInBytes: Long = 0L): Boolean {
+        val usableSpace = Environment.getDataDirectory().usableSpace
+        val minimumRequired = if (appSizeInBytes > 0L) {
+            (appSizeInBytes * 2) + (100 * 1024 * 1024L) 
+        } else {
+            300 * 1024 * 1024L 
+        }
+        return usableSpace >= minimumRequired
     }
 
-    private fun setupLogic(app: AppModel) {
-        val pm = packageManager
-        val fileName = app.getUniqueFileName()
-        val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-        val finalFile = File(downloadFolder, fileName)
-        val tempFile = File(downloadFolder, "$fileName.tmp")
-
-        if (finalFile.exists() || tempFile.exists()) {
-            binding.btnDeleteApk.visibility = View.VISIBLE
-            binding.btnDeleteApk.setOnClickListener { deleteAppFiles(app) }
-        } else {
-            binding.btnDeleteApk.visibility = View.GONE
-        }
-
-        if (finalFile.exists()) {
-            binding.btnInstallState.text = "تثبيت"
-            binding.btnInstallState.visibility = View.VISIBLE
-            binding.layoutInstalledState.visibility = View.GONE
-            binding.cardDownloadingState.visibility = View.GONE
-            
-            binding.btnShareApk.visibility = View.VISIBLE
-            binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, app.name) }
-            
-            // 🚀 استخدام محرك التثبيت المتقدم
-            binding.btnInstallState.setOnClickListener { triggerAdvancedInstall(finalFile) }
-            return
-        } else {
-            binding.btnShareApk.visibility = View.GONE
-        }
-
-        try {
-            val pInfo = pm.getPackageInfo(app.packageName, 0)
-            val installedVer = pInfo.versionName ?: ""
-
-            if (app.versionName.trim() != installedVer.trim()) {
-                binding.btnInstallState.text = "تحديث"
-                binding.btnInstallState.visibility = View.VISIBLE
-                binding.layoutInstalledState.visibility = View.GONE
-                binding.btnInstallState.setOnClickListener { checkStoragePermissionAndDownload(app) }
-            } else {
-                binding.btnInstallState.visibility = View.GONE
-                binding.layoutInstalledState.visibility = View.VISIBLE
-                
-                binding.btnOpenApp.setOnClickListener { 
-                    val launchIntent = pm.getLaunchIntentForPackage(app.packageName)
-                    launchIntent?.let { startActivity(it) } ?: Toast.makeText(this, "لا يمكن فتح التطبيق", Toast.LENGTH_SHORT).show()
-                }
-                
-                binding.btnUninstall.setOnClickListener {
-                    val intent = Intent(Intent.ACTION_DELETE)
-                    intent.data = Uri.parse("package:${app.packageName}")
-                    startActivity(intent)
-                }
-            }
-        } catch (e: PackageManager.NameNotFoundException) {
-            binding.btnInstallState.text = "تثبيت"
-            binding.btnInstallState.visibility = View.VISIBLE
-            binding.layoutInstalledState.visibility = View.GONE
-            binding.btnInstallState.setOnClickListener { checkStoragePermissionAndDownload(app) }
-        }
-    }
+    // ====================================================================
+    // [3] CORE LOGIC: Downloading & Installing Engine
+    // ====================================================================
 
     private fun checkStoragePermissionAndDownload(app: AppModel) {
+        val appSize = 0L 
+        
+        if (!hasEnoughStorage(appSize)) {
+            showStorageFullDialog()
+            return 
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startNewDownload(app)
         } else {
@@ -189,91 +201,6 @@ class AppDetailsActivity : AppCompatActivity() {
             } else {
                 requestPermissions(arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE), 101)
             }
-        }
-    }
-
-    @SuppressLint("Range")
-    private fun checkCurrentStatus(app: AppModel) {
-        val fileName = app.getUniqueFileName()
-        val tempFileName = "$fileName.tmp"
-        val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-        val tempFile = File(downloadFolder, tempFileName)
-
-        val fetch = Fetch.getDefaultInstance()
-        fetch.getDownloads { downloads ->
-            val activeDownload = downloads.find { 
-                it.file == tempFile.absolutePath && 
-                (it.status == Status.DOWNLOADING || it.status == Status.QUEUED || it.status == Status.PAUSED) 
-            }
-            
-            if (activeDownload != null) {
-                runOnUiThread {
-                    isDownloading = true
-                    binding.btnInstallState.visibility = View.GONE
-                    binding.layoutInstalledState.visibility = View.GONE
-                    binding.btnShareApk.visibility = View.GONE
-                    binding.btnDeleteApk.visibility = View.GONE
-                    binding.cardDownloadingState.visibility = View.VISIBLE
-                    startTrackingProcess(activeDownload.id)
-                }
-            }
-        }
-    }
-
-    private fun displayDetails(app: AppModel) {
-        binding.apply {
-            txtDetailsName.text = app.name
-            txtDetailsDev.text = app.developer
-            txtDescription.text = app.description ?: "لا يوجد وصف متاح لهذا التطبيق."
-            txtStatVersion.text = app.versionName
-            txtStatSize.text = app.getFormattedSize()
-            txtStatDownloads.text = "..."
-
-            Glide.with(this@AppDetailsActivity)
-                .load(app.iconUrl)
-                .placeholder(R.mipmap.ic_launcher) 
-                .error(R.mipmap.ic_launcher)       
-                .dontAnimate() 
-                .into(imgDetailsIcon)
-        }
-    }
-
-    private fun loadDownloadsCount(packageName: String) {
-        activeFirebaseKey = packageName.trim().lowercase().replace(".", "_")
-        
-        lifecycleScope.launch(Dispatchers.IO) {
-            if (!::databaseRef.isInitialized) return@launch
-            
-            downloadsListener = object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val count = if (snapshot.exists()) snapshot.getValue(Long::class.java) ?: 0L else 0L
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        binding.txtStatDownloads.text = formatDownloads(count)
-                    }
-                }
-                override fun onCancelled(error: DatabaseError) {
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        binding.txtStatDownloads.text = "0"
-                    }
-                }
-            }
-            databaseRef.child(activeFirebaseKey!!).addValueEventListener(downloadsListener!!)
-        }
-    }
-
-    private fun incrementDownloadCount(packageName: String) {
-        val safeKey = packageName.trim().lowercase().replace(".", "_")
-        lifecycleScope.launch(Dispatchers.IO) {
-            if (!::databaseRef.isInitialized) return@launch
-            databaseRef.child(safeKey).setValue(com.google.firebase.database.ServerValue.increment(1))
-        }
-    }
-
-    private fun formatDownloads(count: Long): String {
-        return when {
-            count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-            count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
-            else -> count.toString()
         }
     }
 
@@ -343,7 +270,8 @@ class AppDetailsActivity : AppCompatActivity() {
                         binding.btnDeleteApk.visibility = View.VISIBLE
                         binding.btnDeleteApk.setOnClickListener { deleteAppFiles(currentApp!!) }
                         
-                        // بدء التثبيت المتطور تلقائياً بعد التحميل
+                        binding.btnInstallState.setOnClickListener { triggerAdvancedInstall(finalFile) }
+                        
                         triggerAdvancedInstall(finalFile)
                     }
                 }
@@ -362,7 +290,6 @@ class AppDetailsActivity : AppCompatActivity() {
                 return@launch
             }
 
-            // فحص سلامة الحزمة
             val packageInfo = packageManager.getPackageArchiveInfo(file.absolutePath, 0)
             if (packageInfo == null) {
                 file.delete() 
@@ -370,17 +297,16 @@ class AppDetailsActivity : AppCompatActivity() {
                     binding.cardDownloadingState.visibility = View.GONE
                     binding.btnInstallState.visibility = View.VISIBLE
                     binding.btnInstallState.text = "إعادة التنزيل"
-                    Toast.makeText(this@AppDetailsActivity, "حزمة التطبيق غير مكتملة أو تالفة، يرجى إعادة التنزيل.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@AppDetailsActivity, "حزمة التطبيق غير مكتملة، يرجى إعادة التنزيل.", Toast.LENGTH_LONG).show()
                 }
                 return@launch
             }
 
             withContext(Dispatchers.Main) {
-                binding.btnInstallState.visibility = View.GONE
-                binding.cardDownloadingState.visibility = View.VISIBLE
-                binding.progressDownload.isIndeterminate = true
-                binding.tvDownloadPercent.text = "تحضير التثبيت المتقدم..."
-                binding.tvDownloadSize.text = "جاري إنشاء جلسة آمنة"
+                binding.cardDownloadingState.visibility = View.GONE
+                binding.btnInstallState.visibility = View.VISIBLE
+                binding.btnInstallState.text = "جاري التثبيت..."
+                binding.btnInstallState.isEnabled = false 
             }
 
             try {
@@ -425,52 +351,184 @@ class AppDetailsActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@AppDetailsActivity, "فشل تهيئة محرك التثبيت: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            } finally {
-                withContext(Dispatchers.Main) {
-                    binding.cardDownloadingState.visibility = View.GONE
-                    binding.btnInstallState.visibility = View.VISIBLE
+                    Toast.makeText(this@AppDetailsActivity, "فشل تهيئة التثبيت: ${e.message}", Toast.LENGTH_LONG).show()
                     binding.btnInstallState.text = "تثبيت"
+                    binding.btnInstallState.isEnabled = true
                 }
             }
         }
     }
 
-    private fun shareApkFile(file: File, appName: String) {
-        if (!file.exists()) {
-            Toast.makeText(this, "عذراً، ملف الـ APK غير متوفر للمشاركة!", Toast.LENGTH_SHORT).show()
-            return
-        }
-        try {
-            val contentUri: Uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/vnd.android.package-archive"
-                putExtra(Intent.EXTRA_STREAM, contentUri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) 
+    @SuppressLint("Range")
+    private fun checkCurrentStatus(app: AppModel) {
+        val fileName = app.getUniqueFileName()
+        val tempFileName = "$fileName.tmp"
+        val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val tempFile = File(downloadFolder, tempFileName)
+
+        val fetch = Fetch.getDefaultInstance()
+        fetch.getDownloads { downloads ->
+            val activeDownload = downloads.find { 
+                it.file == tempFile.absolutePath && 
+                (it.status == Status.DOWNLOADING || it.status == Status.QUEUED || it.status == Status.PAUSED) 
             }
-            startActivity(Intent.createChooser(shareIntent, "مشاركة تطبيق $appName عبر:"))
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Toast.makeText(this, "خطأ أثناء محاولة مشاركة الملف", Toast.LENGTH_SHORT).show()
+            
+            if (activeDownload != null) {
+                runOnUiThread {
+                    isDownloading = true
+                    binding.btnInstallState.visibility = View.GONE
+                    binding.layoutInstalledState.visibility = View.GONE
+                    binding.btnShareApk.visibility = View.GONE
+                    binding.btnDeleteApk.visibility = View.GONE
+                    binding.cardDownloadingState.visibility = View.VISIBLE
+                    startTrackingProcess(activeDownload.id)
+                }
+            }
         }
     }
 
-    private fun deleteAppFiles(app: AppModel) {
+    // ====================================================================
+    // [4] UI / PRESENTATION: Data Binding & Layout States
+    // ====================================================================
+
+    private fun setupLogic(app: AppModel) {
+        val pm = packageManager
+        val fileName = app.getUniqueFileName()
         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-        val finalFile = File(downloadFolder, app.getUniqueFileName())
-        val tempFile = File(downloadFolder, "${app.getUniqueFileName()}.tmp")
+        val finalFile = File(downloadFolder, fileName)
+        val tempFile = File(downloadFolder, "$fileName.tmp")
 
-        var isDeleted = false
-        if (finalFile.exists() && finalFile.delete()) isDeleted = true
-        if (tempFile.exists() && tempFile.delete()) isDeleted = true
-
-        if (isDeleted) {
-            Toast.makeText(this, "تم تنظيف ملفات التنزيل بنجاح", Toast.LENGTH_SHORT).show()
+        if (finalFile.exists() || tempFile.exists()) {
+            binding.btnDeleteApk.visibility = View.VISIBLE
+            binding.btnDeleteApk.setOnClickListener { deleteAppFiles(app) }
+        } else {
+            binding.btnDeleteApk.visibility = View.GONE
         }
-        binding.btnShareApk.visibility = View.GONE
-        binding.btnDeleteApk.visibility = View.GONE
-        setupLogic(app)
+
+        if (finalFile.exists()) {
+            binding.btnInstallState.text = "تثبيت"
+            binding.btnInstallState.visibility = View.VISIBLE
+            binding.layoutInstalledState.visibility = View.GONE
+            binding.cardDownloadingState.visibility = View.GONE
+            
+            binding.btnShareApk.visibility = View.VISIBLE
+            binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, app.name) }
+            
+            binding.btnInstallState.setOnClickListener { triggerAdvancedInstall(finalFile) }
+            return
+        } else {
+            binding.btnShareApk.visibility = View.GONE
+        }
+
+        try {
+            val pInfo = pm.getPackageInfo(app.packageName, 0)
+            val installedVer = pInfo.versionName ?: ""
+
+            if (app.versionName.trim() != installedVer.trim()) {
+                binding.btnInstallState.text = "تحديث"
+                binding.btnInstallState.visibility = View.VISIBLE
+                binding.layoutInstalledState.visibility = View.GONE
+                binding.btnInstallState.setOnClickListener { checkStoragePermissionAndDownload(app) }
+            } else {
+                binding.btnInstallState.visibility = View.GONE
+                binding.layoutInstalledState.visibility = View.VISIBLE
+                
+                binding.btnOpenApp.setOnClickListener { 
+                    val launchIntent = pm.getLaunchIntentForPackage(app.packageName)
+                    launchIntent?.let { startActivity(it) } ?: Toast.makeText(this, "لا يمكن فتح التطبيق", Toast.LENGTH_SHORT).show()
+                }
+                
+                binding.btnUninstall.setOnClickListener {
+                    val intent = Intent(Intent.ACTION_DELETE)
+                    intent.data = Uri.parse("package:${app.packageName}")
+                    startActivity(intent)
+                }
+            }
+        } catch (e: PackageManager.NameNotFoundException) {
+            binding.btnInstallState.text = "تثبيت"
+            binding.btnInstallState.visibility = View.VISIBLE
+            binding.layoutInstalledState.visibility = View.GONE
+            binding.btnInstallState.setOnClickListener { checkStoragePermissionAndDownload(app) }
+        }
+    }
+
+    private fun setupToolbar() {
+        setSupportActionBar(binding.toolbarDetails)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = ""
+        binding.toolbarDetails.setNavigationOnClickListener { finish() }
+    }
+
+    private fun displayDetails(app: AppModel) {
+        binding.apply {
+            txtDetailsName.text = app.name
+            txtDetailsDev.text = app.developer
+            txtDescription.text = app.description ?: "لا يوجد وصف متاح لهذا التطبيق."
+            txtStatVersion.text = app.versionName
+            txtStatSize.text = app.getFormattedSize()
+            txtStatDownloads.text = "..."
+
+            Glide.with(this@AppDetailsActivity)
+                .load(app.iconUrl)
+                .placeholder(R.mipmap.ic_launcher) 
+                .error(R.mipmap.ic_launcher)       
+                .dontAnimate() 
+                .into(imgDetailsIcon)
+        }
+    }
+
+    private fun loadDownloadsCount(packageName: String) {
+        activeFirebaseKey = packageName.trim().lowercase().replace(".", "_")
+        
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (!::databaseRef.isInitialized) return@launch
+            
+            downloadsListener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val count = if (snapshot.exists()) snapshot.getValue(Long::class.java) ?: 0L else 0L
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        binding.txtStatDownloads.text = formatDownloads(count)
+                    }
+                }
+                override fun onCancelled(error: DatabaseError) {
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        binding.txtStatDownloads.text = "0"
+                    }
+                }
+            }
+            databaseRef.child(activeFirebaseKey!!).addValueEventListener(downloadsListener!!)
+        }
+    }
+
+    private fun incrementDownloadCount(packageName: String) {
+        val safeKey = packageName.trim().lowercase().replace(".", "_")
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (!::databaseRef.isInitialized) return@launch
+            databaseRef.child(safeKey).setValue(com.google.firebase.database.ServerValue.increment(1))
+        }
+    }
+
+    private fun formatDownloads(count: Long): String {
+        return when {
+            count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
+            count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
+            else -> count.toString()
+        }
+    }
+
+    private fun showStorageFullDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("مساحة التخزين ممتلئة ⚠️")
+            .setMessage("عذراً، لا توجد مساحة كافية في جهازك لتنزيل وتثبيت هذا التطبيق. يرجى تفريغ بعض المساحة والمحاولة مجدداً.")
+            .setPositiveButton("حسناً") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setNegativeButton("إدارة التخزين") { dialog, _ ->
+                startActivity(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS))
+                dialog.dismiss()
+            }
+            .setCancelable(false)
+            .show()
     }
 
     private fun showReadyToInstallNotification(appName: String, file: File) {
@@ -508,13 +566,39 @@ class AppDetailsActivity : AppCompatActivity() {
         notificationManager.notify(appName.hashCode(), notification)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        if (::tracker.isInitialized) tracker.stopTracking()
-        
-        // 🧹 تنظيف الذاكرة ومنع التسريب بإزالة مستمع الفايربيس
-        if (::databaseRef.isInitialized && activeFirebaseKey != null && downloadsListener != null) {
-            databaseRef.child(activeFirebaseKey!!).removeEventListener(downloadsListener!!)
+    private fun shareApkFile(file: File, appName: String) {
+        if (!file.exists()) {
+            Toast.makeText(this, "عذراً، ملف الـ APK غير متوفر للمشاركة!", Toast.LENGTH_SHORT).show()
+            return
         }
+        try {
+            val contentUri: Uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/vnd.android.package-archive"
+                putExtra(Intent.EXTRA_STREAM, contentUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) 
+            }
+            startActivity(Intent.createChooser(shareIntent, "مشاركة تطبيق $appName عبر:"))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "خطأ أثناء محاولة مشاركة الملف", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun deleteAppFiles(app: AppModel) {
+        val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val finalFile = File(downloadFolder, app.getUniqueFileName())
+        val tempFile = File(downloadFolder, "${app.getUniqueFileName()}.tmp")
+
+        var isDeleted = false
+        if (finalFile.exists() && finalFile.delete()) isDeleted = true
+        if (tempFile.exists() && tempFile.delete()) isDeleted = true
+
+        if (isDeleted) {
+            Toast.makeText(this, "تم تنظيف ملفات التنزيل بنجاح", Toast.LENGTH_SHORT).show()
+        }
+        binding.btnShareApk.visibility = View.GONE
+        binding.btnDeleteApk.visibility = View.GONE
+        setupLogic(app)
     }
 }
