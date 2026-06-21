@@ -32,9 +32,9 @@ jobs:
         with:
           ndk-version: r25c 
 
-      # 🛠️ توليد ملفات Gradle Wrapper برمجياً داخل السيرفر بناءً على طلبك
+      # 🛠️ تم التصحيح: توليد Gradle Wrapper بإصدار 8.4 ليتوافق مع Kotlin 2.1.0 وإعداداتنا السابقة
       - name: Generate Gradle Wrapper
-        run: gradle wrapper --gradle-version 8.2
+        run: gradle wrapper --gradle-version 8.4
 
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
@@ -45,6 +45,12 @@ jobs:
       - name: Decode Keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/fixengine.jks
+
+      # 🔥 التعديل الحرج: حقن ملف إعدادات Firebase لمنع انهيار بلجن google-services أثناء البناء
+      # تأكد من إضافة GOOGLE_SERVICES_JSON_BASE64 إلى Github Secrets
+      - name: Decode Google Services JSON
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > app/google-services.json
 
       # ==========================================
       # 🚀 3. Core Logic: Build Engine
@@ -65,5 +71,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Abdullah-Store-Build-${{ github.run_number }}
-          path: app/build/outputs/apk/**/*.apk
+          # 🎯 تم تحسين المسار ليكون دقيقاً لملفات الـ Release فقط
+          path: app/build/outputs/apk/release/*.apk
           retention-days: 5
