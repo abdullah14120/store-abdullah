@@ -10,24 +10,24 @@ import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Enterprise Edition
- * Feature: ProGuard Protected Multi-Repo Support, RTL Fixed Time Formatting & Parcelize Speed
+ * Architecture: Enterprise Multi-Repo Data Model
+ * Features: ProGuard Protection, Parcelize Speed & RTL Safe Time Formatting
  */
-@Keep // 🚨 درع الحماية: يمنع تدمير أو تشويه أسماء المتغيرات أثناء تشفير الـ APK الخارجي
-@Parcelize // 🚀 التعديل الجوهري: استخدام تقنية أندرويد الأصلية لتمرير البيانات بسرعة فائقة
+@Keep 
+@Parcelize 
 data class RepoModel(
     @SerializedName("id")
-    val id: String, // 💡 ملاحظة: إذا كان السيرفر يرسل الـ ID كرقم خام (بدون علامات تنصيص)، فقم بتغييرها إلى Int كما فعلنا في AppModel
+    val id: String, 
     
     @SerializedName("label")
-    val label: String, // اسم المستودع (مثلاً: تطبيقات عبدالله المعدلة)
+    val label: String, 
     
     @SerializedName("url")
-    val url: String, // رابط ملف الـ JSON الخام الخاص بالمستودع الفرعي
+    val url: String, 
     
     @SerializedName("lastUpdated")
     val lastUpdated: Long = System.currentTimeMillis()
-) : Parcelable { // 🚀 التعديل الجوهري: استبدال Serializable البطيئة
+) : Parcelable { 
 
     /**
      * تحويل وقت التحديث إلى تنسيق تاريخ رقمي منسق ومستقر تماماً في الواجهات العربية.
@@ -35,7 +35,7 @@ data class RepoModel(
     fun getFormattedLastUpdate(): String {
         return try {
             val date = Date(lastUpdated)
-            // استخدام Locale.US يضمن ظهور الأرقام والشرطات بالترتيب الصحيح (السنة/الشهر/اليوم) دون انقلابه بسبب اتجاه نظام الهاتف
+            // استخدام Locale.US يمنع انقلاب التاريخ في الأجهزة التي تعمل باللغة العربية
             val format = SimpleDateFormat("yyyy/MM/dd", Locale.US)
             format.format(date)
         } catch (e: Exception) {
