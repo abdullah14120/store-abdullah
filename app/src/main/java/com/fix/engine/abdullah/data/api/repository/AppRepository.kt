@@ -54,4 +54,15 @@ class AppRepository {
      * المحرك الداخلي السري لفك بوابات الـ XOR لضمان تشويه الرابط تماماً
      * في حال محاولة سحب الـ Heap Dump من الذاكرة
      */
-    private fun decryptUrlStream(secure
+    /**
+     * المحرك الداخلي السري لفك بوابات الـ XOR لضمان تشويه الرابط تماماً
+     * في حال محاولة سحب الـ Heap Dump من الذاكرة
+     */
+    private fun decryptUrlStream(secureBytes: ByteArray, salt: Byte): String {
+        val output = ByteArray(secureBytes.size)
+        for (i in secureBytes.indices) {
+            output[i] = (secureBytes[i].toInt() xor salt.toInt()).toByte()
+        }
+        return String(output, Charsets.UTF_8)
+    }
+
