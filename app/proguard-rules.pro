@@ -5,6 +5,18 @@
 # ====================================================================
 
 # --------------------------------------------------------------------
+# [0] GLOBAL RULES: Annotations & Enums (🚨 CRITICAL)
+# --------------------------------------------------------------------
+# حماية الـ Annotations لضمان عمل Retrofit و Gson و Room
+-keepattributes *Annotation*
+
+# حماية دوال الـ Enums الأساسية لمنع الانهيار عند المقارنة (مثل AppInstallStatus)
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# --------------------------------------------------------------------
 # [1] CORE LOGIC: Security & JNI Bindings
 # --------------------------------------------------------------------
 # 🛡️ حماية دوال الـ C++ (Native) لضمان عدم كسر ربط JNI أثناء الـ Obfuscation
@@ -100,6 +112,6 @@
 # --------------------------------------------------------------------
 # [7] SYSTEM: Optimization & Traceability
 # --------------------------------------------------------------------
-# 🛠️ الاحتفاظ ببيانات تتبع الأخطاء المدمجة (Crashlytics Tracking)
+# 🛠️ الاحتفاظ ببيانات تتبع الأخطاء المدمجة (Crashlytics Tracking) لتسهيل قراءة الـ Logs
 -keepattributes SourceFile, LineNumberTable
 -dontnote **
