@@ -18,8 +18,8 @@ import java.io.File
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Architecture: Clean State Management, Background IO Processing, Secure Meta-Data Matching
- * Refactored: Resolved Type Inference Compiler Bug for getPackageInfo across SDK versions.
+ * Architecture: Hybrid State Management (JSON + Firebase Realtime DB)
+ * Refactored: Resolved Type Inference Compiler Bug & Integrated Dynamic Download Counters.
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -30,7 +30,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var fullAppsList: List<AppModel> = emptyList()
     private var fullUpdatesList: List<AppModel> = emptyList()
 
-    //  الاحتفاظ بنص البحث النشط لضمان عدم ضياع الفلترة عند تحديث الحالة
+    // 📊 خريطة لحفظ التنزيلات الحية: (مفتاح التطبيق -> عدد التنزيلات) من الفايربيس
+    private var downloadsMap: Map<Int, Long> = emptyMap()
+
+    // الاحتفاظ بنص البحث النشط لضمان عدم ضياع الفلترة عند تحديث الحالة
     private var currentSearchQuery: String = ""
 
     // 🟢 1. مسار مراقبة صفحة "كل التطبيقات" (يعتمد على واجهة الحالة الجاهزة)
@@ -64,6 +67,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             
             result.onSuccess { list ->
                 fullAppsList = list
+                
+                // 🚀 تشغيل مراقب الفايربيس الحي للعدادات
+                viewModelScope.launch(Dispatchers.IO) {
+                    repository.observeDownloads().collect { newMap ->
+                        downloadsMap = newMap
+                        refreshAppStates() // تحديث الشاشة فوراً عند تغير أرقام التنزيلات
+                    }
+                }
                 
                 // 🔄 التصفية الذكية المعتمدة على النصوص المخفية (Meta-Data Matching)
                 fullUpdatesList = list.filter { app ->
@@ -177,6 +188,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * 🚀 استدعاء هذه الدالة عند ضغط المستخدم على زر التنزيل لزيادة العداد في الفايربيس
+     */
+    fun onAppDownloadStarted(appId: Int) {
+        repository.incrementDownloadCount(appId)
+    }
+
+    /**
      * 🧠 معالج الحالات المرئية (State Mapper): 
      * يقوم بتحويل الموديل الخام إلى نموذج UI جاهز للعرض مباشرة في الـ Adapter
      */
@@ -192,7 +210,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             var installedVerName = ""
             var isInstalled = false
 
-            // 🛡️ إصلاح التباس استنتاج النوع (Type Inference Fix) بفصل الاستدعاءين تماماً لمنع أخطاء الـ Compiling
+            // 🛡️ إصلاح التباس استنتاج النوع (Type Inference Fix)
             try {
                 val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     pm.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(0L))
@@ -214,7 +232,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 else -> AppInstallStatus.NOT_INSTALLED
             }
 
-            AppItemUiState(app, status, installedVerName)
+            // 📊 جلب رقم العداد الخاص بهذا التطبيق من الذاكرة الحية (أو 0 إذا لم يوجد)
+            val currentDownloads = downloadsMap[app.id] ?: 0L
+
+            AppItemUiState(app, status, installedVerName, currentDownloads)
         }
     }
 }
