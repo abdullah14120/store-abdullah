@@ -19,6 +19,7 @@ import java.io.File
 /**
  * Developed by: Abdullah Al-Tamimi
  * Architecture: Clean State Management, Background IO Processing, Secure Meta-Data Matching
+ * Refactored: Resolved Type Inference Compiler Bug for getPackageInfo across SDK versions.
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -29,7 +30,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var fullAppsList: List<AppModel> = emptyList()
     private var fullUpdatesList: List<AppModel> = emptyList()
 
-    // الاحتفاظ بنص البحث النشط لضمان عدم ضياع الفلترة عند تحديث الحالة
+    //  الاحتفاظ بنص البحث النشط لضمان عدم ضياع الفلترة عند تحديث الحالة
     private var currentSearchQuery: String = ""
 
     // 🟢 1. مسار مراقبة صفحة "كل التطبيقات" (يعتمد على واجهة الحالة الجاهزة)
@@ -191,19 +192,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             var installedVerName = ""
             var isInstalled = false
 
+            // 🛡️ إصلاح التباس استنتاج النوع (Type Inference Fix) بفصل الاستدعاءين تماماً لمنع أخطاء الـ Compiling
             try {
-                val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    PackageManager.PackageInfoFlags.of(0L)
+                val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    pm.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(0L))
                 } else {
                     @Suppress("DEPRECATION")
-                    0
+                    pm.getPackageInfo(app.packageName, 0)
                 }
-                
-                val pInfo = pm.getPackageInfo(app.packageName, flags)
                 installedVerName = pInfo.versionName ?: ""
                 isInstalled = true
             } catch (e: PackageManager.NameNotFoundException) {
-                // التطبيق غير مثبت
+                // التطبيق غير مثبت، تترك القيم الافتراضية
             }
 
             // تحديد الحالة النهائية التي ستبنى عليها ألوان ونصوص الواجهة
