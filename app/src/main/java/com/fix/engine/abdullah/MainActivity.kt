@@ -32,15 +32,13 @@ import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 import com.google.android.material.button.MaterialButton 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Official Runtime Core)
- * Feature: JNI C++ Security, Coroutines Async Loading & M3 Layouts
+ * Feature: JNI C++ Security, Coroutines Async Loading, M3 Layouts & Clean Architecture Observers
  */
 class MainActivity : AppCompatActivity() {
 
@@ -52,6 +50,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var networkCallback: ConnectivityManager.NetworkCallback
     private var isNetworkCallbackRegistered = false
     private var isDataLoadedSuccessfully = false
+    
+    // 🔔 متغير لمنع تكرار الإشعار المزعج عند تدوير الشاشة أو البحث
+    private var isNotificationSent = false
 
     // 🛡️ مسجل طلب الصلاحيات الحديث (Activity Result API)
     private val requestPermissionLauncher = registerForActivityResult(
@@ -183,7 +184,6 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    // 🚀 تم التحديث إلى مسجل الصلاحيات الحديث بدلاً من الدالة المتهالكة
     private fun checkNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -228,7 +228,6 @@ class MainActivity : AppCompatActivity() {
         val storeApp = apps.find { it.packageName == packageName } ?: return
 
         try {
-            // 🚀 التوافق مع دوال API 33+
             val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
             } else {
@@ -326,56 +325,45 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupObservers() {
         viewModel.isLoading.observe(this) { binding.progressBar.isVisible = it }
-        viewModel.appsList.observe(this) { apps ->
-            if (!apps.isNullOrEmpty()) {
+        
+        // 🟢 استبدال المراقبة لتتوافق مع المعمارية الجديدة (AppItemUiState)
+        viewModel.appsUiStateList.observe(this) { uiStates ->
+            if (!uiStates.isNullOrEmpty()) {
                 isDataLoadedSuccessfully = true
+                // استخراج كائنات AppModel الأصلية لفحص التحديث الإجباري
+                val apps = uiStates.map { it.app }
                 checkMandatoryUpdate(apps)
-                calculateUpdates(apps)
             }
         }
+        
+        // 🚀 الاعتماد المباشر على ViewModel لإدارة إشعارات التحديثات بدلاً من الحساب اليدوي
+        viewModel.updatesUiStateList.observe(this) { updateStates ->
+            if (updateStates != null) {
+                val updateCount = updateStates.size
+                val updatesTab = binding.tabLayoutMain.getTabAt(1)
+                val badge = updatesTab?.orCreateBadge
+                
+                if (updateCount > 0) {
+                    badge?.isVisible = true
+                    badge?.number = updateCount
+                    badge?.backgroundColor = ContextCompat.getColor(this@MainActivity, R.color.md_theme_d_error)
+                    
+                    // منع إرسال الإشعار بشكل متكرر أثناء البحث أو تدوير الشاشة
+                    if (binding.etSearch.text.isNullOrBlank() && !isNotificationSent) {
+                        sendUpdateNotification(updateCount)
+                        isNotificationSent = true
+                    }
+                } else {
+                    badge?.isVisible = false
+                }
+            }
+        }
+        
         viewModel.errorMessage.observe(this) { 
             it?.let { 
                 Toast.makeText(this, it, Toast.LENGTH_LONG).show() 
                 isDataLoadedSuccessfully = false
             } 
-        }
-    }
-
-    // 🚀 تم النقل إلى Coroutines لمنع اختناق الواجهة أثناء جلب معلومات التطبيقات
-    private fun calculateUpdates(apps: List<com.fix.engine.abdullah.data.model.AppModel>) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val pm = packageManager
-            var updateCount = 0
-            for (app in apps) {
-                try {
-                    val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        pm.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(0))
-                    } else {
-                        @Suppress("DEPRECATION")
-                        pm.getPackageInfo(app.packageName, 0)
-                    }
-                    val installedVerName = pInfo.versionName ?: ""
-                    
-                    // الاعتماد على versionName نظراً لاعتمادكم على 2147483647 كـ versionCode
-                    if (app.versionName.trim() != installedVerName.trim()) {
-                        updateCount++
-                    }
-                } catch (e: Exception) { }
-            }
-
-            // 🚀 العودة للواجهة الرئيسية لتحديث الـ Badge وإرسال الإشعار
-            withContext(Dispatchers.Main) {
-                val updatesTab = binding.tabLayoutMain.getTabAt(1)
-                val badge = updatesTab?.orCreateBadge
-                if (updateCount > 0) {
-                    badge?.isVisible = true
-                    badge?.number = updateCount
-                    badge?.backgroundColor = ContextCompat.getColor(this@MainActivity, R.color.md_theme_l_error)
-                    sendUpdateNotification(updateCount)
-                } else {
-                    badge?.isVisible = false
-                }
-            }
         }
     }
 
