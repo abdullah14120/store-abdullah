@@ -18,7 +18,7 @@ android {
 
     signingConfigs {
         release {
-            // 🛠️ تم التصحيح الفعلي: توحيد الاسم الاحتياطي ليتوافق مع ملف جيت هاب لمنع أي خطأ تضارب
+            // 🛠️ توحيد الاسم الاحتياطي ليتوافق مع ملف جيت هاب لمنع أي خطأ تضارب
             storeFile file(System.getenv("SIGNING_STORE_FILE") ?: "fixengine.jks")
             storePassword System.getenv("SIGNING_STORE_PASSWORD")
             keyAlias System.getenv("SIGNING_KEY_ALIAS")
@@ -28,21 +28,21 @@ android {
 
     defaultConfig {
         applicationId "com.fix.engine.abdullah"
-        minSdk 23
+        minSdk 23 // 💡 بما أن الحد الأدنى 23، الـ MultiDex مدعوم تلقائياً من النظام
         targetSdk 35
         versionCode 3 
         versionName "1.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        multiDexEnabled true 
         
-        // 🛡️ [إضافة هامة] تحديد المعماريات المدعومة لملفات NDK (لتقليل حجم الـ APK)
+        // 🛡️ تحديد المعماريات المدعومة لملفات NDK لتقليل حجم الـ APK بشكل كبير
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
         }
     }
 
-    lintOptions {
+    // 🛠️ تم التحديث: استخدام 'lint' بدلاً من 'lintOptions' المتوافقة مع Gradle 8+
+    lint {
         checkReleaseBuilds false
         abortOnError false
     }
@@ -65,14 +65,13 @@ android {
         jvmTarget = '17'
     }
 
-    // 🛠️ تم التصحيح: إغلاق بلوك packagingOptions بشكل سليم
-    packagingOptions {
+    // 🛠️ تم التحديث: استخدام 'packaging' بدلاً من 'packagingOptions' 
+    packaging {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
     }
 
-    // 🛠️ تم التصحيح: نقل externalNativeBuild ليكون داخل بلوك android بشكل مباشر
     externalNativeBuild {
         cmake {
             path file('CMakeLists.txt')
@@ -126,16 +125,15 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.8.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.0'
 
-    // 10. MultiDex و الـ Layouts المتقدمة
-    implementation 'androidx.multidex:multidex:2.0.1'
+    // 10. الـ Layouts المتقدمة (تم إزالة MultiDex لأنه غير ضروري لـ minSdk 23)
     implementation "androidx.coordinatorlayout:coordinatorlayout:1.2.0"
 
-    // 11. 🛠️ تم الإضافة: الهيكل القياسي الموحد لخدمات الفايربيس لضمان استقرار قنوات الاتصال
+    // 11. الهيكل القياسي الموحد لخدمات الفايربيس (BOM)
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     implementation 'com.google.firebase:firebase-database-ktx'
     implementation 'com.google.firebase:firebase-common-ktx'
     
-    // 12. مكتبة Fetch لتحميل الملفات بسرعة فائقة ودعم تعدد المسارات
+    // 12. مكتبة Fetch لتحميل الملفات
     implementation 'com.github.tonyofrancis.Fetch:xfetch2:3.1.6'
     implementation 'com.github.tonyofrancis.Fetch:xfetch2okhttp:3.1.6'
 
