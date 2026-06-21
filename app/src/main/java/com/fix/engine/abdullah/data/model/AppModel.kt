@@ -8,14 +8,14 @@ import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: متجر Abdullah - Enterprise Data Model (Secure & High Performance Edition)
- * Feature: ProGuard Protected Architecture, Smart Size Formatting, Unique File Identity, Parcelize Speed & Meta-Data Tag
+ * Architecture: Enterprise Data Model (Secure & High Performance Edition)
+ * Features: ProGuard Protection, Parcelize Speed, Dynamic Size Formatting & Unique Identity
  */
 @Keep 
-@Parcelize // 🚀 التعديل الجوهري: استخدام تقنية أندرويد الأصلية لتمرير البيانات بسرعة فائقة بين الشاشات
+@Parcelize
 data class AppModel(
     @SerializedName("id") 
-    val id: Int, // 🟢 تم توحيد النوع برمجياً ليطابق التعليق والسيرفر
+    val id: Int,
 
     @SerializedName("name") 
     val name: String,
@@ -27,7 +27,7 @@ data class AppModel(
     val versionName: String,
     
     @SerializedName("versionCode") 
-    val versionCode: Long, // 🟢 تم التصحيح إلى Long لدعم الأرقام الصحيحة الضخمة بدون أخطاء الفاصلة العشرية
+    val versionCode: Long,
     
     @SerializedName("developer") 
     val developer: String,
@@ -39,14 +39,14 @@ data class AppModel(
     val downloadUrl: String,
 
     @SerializedName("manifestTag") 
-    val manifestTag: String? = null, // 🛠️ تم إضافة الفاصلة هنا لمنع خطأ الترجمة (Compilation Error)
+    val manifestTag: String? = null,
 
     @SerializedName("size") 
-    val size: String = "0", // يبقى String ليتعامل بسلاسة مع علامات التنصيص القادمة من JSON
+    val size: String = "0",
     
     @SerializedName("description") 
     val description: String? = "لا يوجد وصف متاح لهذا التطبيق حالياً."
-) : Parcelable { // 🚀 استبدال Serializable بـ Parcelable
+) : Parcelable {
     
     /**
      * توليد اسم الملف الفريد الموحد لكل أجزاء التطبيق.
@@ -60,7 +60,6 @@ data class AppModel(
      * وظيفة احترافية لتحويل الحجم ديناميكياً (MB أو KB) بالاعتماد على النظام القياسي
      */
     fun getFormattedSize(): String {
-        // تحويل النص الآتي من السيرفر إلى رقم طويل (Long) بأمان
         val sizeInBytes = size.toLongOrNull() ?: 0L
         
         if (sizeInBytes <= 0L) return "حجم غير معروف"
