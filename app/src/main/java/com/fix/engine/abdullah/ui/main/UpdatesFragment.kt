@@ -18,8 +18,7 @@ import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: FIX ENGINE - Global UI Edition (Material 3 Dynamic Style)
- * Feature: Shared Element Transitions & Isolated Async Update Stream
+ * Refactored: UI State Observation, Clean Architecture Navigation & Janky-Free Scrolling
  */
 class UpdatesFragment : Fragment() {
 
@@ -29,7 +28,6 @@ class UpdatesFragment : Fragment() {
     private val viewModel: MainViewModel by activityViewModels()
     private lateinit var appAdapter: AppAdapter
     
-    // متغير للتحكم بحركة التدرج وتطبيقها لمرة واحدة فقط عند الفتح منعا للوميض المزعج (Flicker)
     private var isFirstLoad = true
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -49,7 +47,6 @@ class UpdatesFragment : Fragment() {
                 putExtra("APP_DATA", app)
             }
             
-            // 🟢 التعديل الحرج: جعل المعرف ديناميكياً ليتطابق مع الـ Adapter ويمنع تعارض الحركات
             val iconView = itemView.findViewById<View>(R.id.imgAppIcon)
             val uniqueTransitionName = "transition_app_icon_${app.packageName}"
             
@@ -68,21 +65,19 @@ class UpdatesFragment : Fragment() {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = appAdapter
             setHasFixedSize(true)
-            setItemViewCacheSize(20) // كاش سريع لضمان تمرير فائق النعومة والاستقرار للأيقونات المحدثة
+            setItemViewCacheSize(20) 
         }
     }
 
     private fun setupObserver() {
-        // مراقبة الـ updatesList المفرزة والمجهزة مسبقاً من الـ ViewModel (بناءً على فحص الـ Meta-Data)
-        viewModel.updatesList.observe(viewLifecycleOwner) { updatesOnly ->
+        // 🚨 التعديل الجوهري: مراقبة حالة الواجهة للتحديثات (UI States) بدلاً من البيانات الخام
+        viewModel.updatesUiStateList.observe(viewLifecycleOwner) { uiStates ->
             
-            // إرسال القائمة الجاهزة مباشرة للـ Adapter
-            appAdapter.submitList(updatesOnly)
+            appAdapter.submitList(uiStates)
             
-            if (!updatesOnly.isNullOrEmpty()) {
+            if (!uiStates.isNullOrEmpty()) {
                 binding.layoutAllUpdated.visibility = View.GONE
                 
-                // تطبيق حركة الظهور الانسيابي لمرة واحدة فقط لمنع الوميض عند استخدام صندوق البحث المباشر
                 if (isFirstLoad) {
                     binding.rvUpdates.alpha = 0f
                     binding.rvUpdates.animate().alpha(1f).setDuration(350).start()
@@ -96,11 +91,11 @@ class UpdatesFragment : Fragment() {
         }
     }
 
-    // 🟢 التعديل الهام: تحديث الواجهة عند العودة من شاشة التفاصيل لضمان تغيير حالة الأزرار
     override fun onResume() {
         super.onResume()
-        if (::appAdapter.isInitialized && !isFirstLoad) {
-            appAdapter.notifyDataSetChanged()
+        // 🟢 التعديل الهندسي: طلب تحديث الحالات من الخلفية بصمت عند العودة للشاشة
+        if (!isFirstLoad) {
+            viewModel.refreshAppStates()
         }
     }
 
