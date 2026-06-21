@@ -7,7 +7,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: متجر Abdullah - Professional Data Repository (Secure Data Hub)
+ * Architecture: Professional Data Repository (Secure Data Hub)
  * Logic: Bridge between Cryptographic API Streams and ViewModels
  */
 class AppRepository {
@@ -21,11 +21,11 @@ class AppRepository {
     suspend fun fetchApps(encryptedUrl: ByteArray, cryptoSalt: Byte): Result<List<AppModel>> {
         return withContext(Dispatchers.IO) {
             try {
-                // 🛠️ فحص ذكي: إذا كان المفتاح 0 فهذا يعني أن الرابط قادم من بوابة Base64 وجاهز تماماً كنص صافٍ
+                // 🛠️ فحص ذكي: إذا كان المفتاح 0 فهذا يعني أن الرابط جاهز كنص صافٍ
                 val rawUrl = if (cryptoSalt == 0.toByte()) {
                     String(encryptedUrl, Charsets.UTF_8)
                 } else {
-                    // كود الـ XOR الاحتياطي الخاص بك في حال قررت العودة إليه مستقبلاً
+                    // كود الـ XOR الاحتياطي في حال قررت تفعيله مستقبلاً
                     decryptUrlStream(encryptedUrl, cryptoSalt)
                 }
                 
@@ -51,13 +51,7 @@ class AppRepository {
     }
 
     /**
-     * المحرك الداخلي السري لفك بوابات الـ XOR لضمان تشويه الرابط تماماً في حال محاولة سحب الـ Heap Dump
+     * المحرك الداخلي السري لفك بوابات الـ XOR لضمان تشويه الرابط تماماً
+     * في حال محاولة سحب الـ Heap Dump من الذاكرة
      */
-    private fun decryptUrlStream(secureBytes: ByteArray, salt: Byte): String {
-        val output = ByteArray(secureBytes.size)
-        for (i in secureBytes.indices) {
-            output[i] = (secureBytes[i].toInt() xor salt.toInt()).toByte()
-        }
-        return String(output, Charsets.UTF_8)
-    }
-}
+    private fun decryptUrlStream(secure
