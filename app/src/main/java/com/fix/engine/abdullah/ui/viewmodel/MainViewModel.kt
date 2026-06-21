@@ -3,36 +3,42 @@ package com.fix.engine.abdullah.ui.viewmodel
 import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Environment
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.fix.engine.abdullah.data.model.AppInstallStatus
+import com.fix.engine.abdullah.data.model.AppItemUiState
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.data.repository.AppRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.File
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: متجر Abdullah - Pro View Model (Material 3 Secure Edition)
- * Logic: Handles Independent Multi-Fragment Search, Secure Encrypted Data Distribution, Lifecycle Caching & Meta-Data Tag Matching
+ * Architecture: Clean State Management, Background IO Processing, Secure Meta-Data Matching
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AppRepository()
     private val packageManager: PackageManager = application.packageManager
     
-    // حفظ النسخ الأصلية المستقرة القادمة من السيرفر لمنع تداخل الواجهات
+    // حفظ النسخ الأصلية الخام لمنع إعادة التحميل من السيرفر عند كل بحث
     private var fullAppsList: List<AppModel> = emptyList()
     private var fullUpdatesList: List<AppModel> = emptyList()
 
-    // 🟢 1. مسار مراقبة صفحة "كل التطبيقات"
-    private val _appsList = MutableLiveData<List<AppModel>>()
-    val appsList: LiveData<List<AppModel>> get() = _appsList
+    // الاحتفاظ بنص البحث النشط لضمان عدم ضياع الفلترة عند تحديث الحالة
+    private var currentSearchQuery: String = ""
 
-    // 🔵 2. مسار مراقبة صفحة "التحديثات"
-    private val _updatesList = MutableLiveData<List<AppModel>>()
-    val updatesList: LiveData<List<AppModel>> get() = _updatesList
+    // 🟢 1. مسار مراقبة صفحة "كل التطبيقات" (يعتمد على واجهة الحالة الجاهزة)
+    private val _appsUiStateList = MutableLiveData<List<AppItemUiState>>()
+    val appsUiStateList: LiveData<List<AppItemUiState>> get() = _appsUiStateList
+
+    // 🔵 2. مسار مراقبة صفحة "التحديثات" (يعتمد على واجهة الحالة الجاهزة)
+    private val _updatesUiStateList = MutableLiveData<List<AppItemUiState>>()
+    val updatesUiStateList: LiveData<List<AppItemUiState>> get() = _updatesUiStateList
 
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> get() = _isLoading
@@ -41,12 +47,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val errorMessage: LiveData<String?> get() = _errorMessage
 
     /**
-     * 🔐 جلب التطبيقات وفرزها في الخلفية بتوزيع متوازٍ
+     * 🔐 جلب التطبيقات من السيرفر، فرز التحديثات، وتوليد الحالات الأولية
      */
     fun loadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
         if (fullAppsList.isNotEmpty()) {
-            _appsList.value = fullAppsList
-            _updatesList.value = fullUpdatesList
+            refreshAppStates() // تحديث الحالات من الذاكرة المحلية إذا كانت محملة مسبقاً
             return
         }
 
@@ -75,9 +80,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         val hasNewVersion = app.versionName.trim() != installedVer.trim()
                         
                         if (hasNewVersion) {
-                            // 🛡️ 3. المطابقة الذكية للنص (Manifest Tag Matching)
+                            // 🛡️ المطابقة الذكية للنص (Manifest Tag Matching) لضمان مصدر التحديث
                             val serverTag = app.manifestTag
-                            
                             if (!serverTag.isNullOrBlank()) {
                                 val bundle = pInfo.applicationInfo?.metaData
                                 val installedTag = bundle?.getString("ABDULLAH_STORE_TAG")
@@ -98,8 +102,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
-                _appsList.postValue(fullAppsList)
-                _updatesList.postValue(fullUpdatesList)
+                // بعد الفرز، نقوم بتوليد الحالات المرئية وإرسالها للواجهة
+                _appsUiStateList.postValue(mapToUiState(fullAppsList))
+                _updatesUiStateList.postValue(mapToUiState(fullUpdatesList))
                 _isLoading.postValue(false)
                 
             }.onFailure { exception ->
@@ -111,19 +116,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * دالة البحث المباشر الذكية والمزدوجة 
-     * 🚀 تم النقل إلى Coroutines لحماية الواجهة من الاختناق أثناء كتابة المستخدم
      */
     fun filterApps(query: String) {
         val cleanQuery = query.trim()
+        currentSearchQuery = cleanQuery // حفظ النص الحالي
         
         if (cleanQuery.isBlank()) {
-            // استخدام value هنا آمن لأننا نتحقق من النص الفارغ في الـ Main Thread
-            _appsList.value = fullAppsList
-            _updatesList.value = fullUpdatesList
+            refreshAppStates()
             return
         }
 
-        // إطلاق عملية البحث الثقيلة في مسار المعالجة الخلفية
         viewModelScope.launch(Dispatchers.Default) {
             val filteredApps = fullAppsList.filter { app ->
                 val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
@@ -137,9 +139,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 nameMatch || devMatch
             }
 
-            // ضخ البيانات المفلترة إلى الواجهة باستخدام postValue لضمان سلامة الـ Thread
-            _appsList.postValue(filteredApps)
-            _updatesList.postValue(filteredUpdates)
+            // تحويل النتائج المفلترة إلى حالات UI
+            _appsUiStateList.postValue(mapToUiState(filteredApps))
+            _updatesUiStateList.postValue(mapToUiState(filteredUpdates))
+        }
+    }
+
+    /**
+     * 🚀 المحرك الأساسي: تحديث حالات الأزرار (تنزيل، تحديث، فتح) في الواجهة بسلاسة
+     * تُستدعى تلقائياً من الـ Fragments في onResume
+     */
+    fun refreshAppStates() {
+        if (fullAppsList.isEmpty()) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            if (currentSearchQuery.isNotBlank()) {
+                // إذا كان المستخدم يبحث حالياً، نحدث فقط العناصر الظاهرة في البحث
+                val filteredApps = fullAppsList.filter { it.name?.contains(currentSearchQuery, true) == true || it.developer?.contains(currentSearchQuery, true) == true }
+                val filteredUpdates = fullUpdatesList.filter { it.name?.contains(currentSearchQuery, true) == true || it.developer?.contains(currentSearchQuery, true) == true }
+                
+                _appsUiStateList.postValue(mapToUiState(filteredApps))
+                _updatesUiStateList.postValue(mapToUiState(filteredUpdates))
+            } else {
+                // تحديث القوائم الكاملة
+                _appsUiStateList.postValue(mapToUiState(fullAppsList))
+                _updatesUiStateList.postValue(mapToUiState(fullUpdatesList))
+            }
         }
     }
 
@@ -148,5 +173,48 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun getUpdatesCount(): Int {
         return fullUpdatesList.size
+    }
+
+    /**
+     * 🧠 معالج الحالات المرئية (State Mapper): 
+     * يقوم بتحويل الموديل الخام إلى نموذج UI جاهز للعرض مباشرة في الـ Adapter
+     */
+    private fun mapToUiState(apps: List<AppModel>): List<AppItemUiState> {
+        val pm = packageManager
+        val downloadsDir = getApplication<Application>().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+
+        return apps.map { app ->
+            val fileName = app.getUniqueFileName()
+            val localFile = File(downloadsDir, fileName)
+            val isDownloaded = localFile.exists()
+
+            var installedVerName = ""
+            var isInstalled = false
+
+            try {
+                val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    PackageManager.PackageInfoFlags.of(0L)
+                } else {
+                    @Suppress("DEPRECATION")
+                    0
+                }
+                
+                val pInfo = pm.getPackageInfo(app.packageName, flags)
+                installedVerName = pInfo.versionName ?: ""
+                isInstalled = true
+            } catch (e: PackageManager.NameNotFoundException) {
+                // التطبيق غير مثبت
+            }
+
+            // تحديد الحالة النهائية التي ستبنى عليها ألوان ونصوص الواجهة
+            val status = when {
+                isDownloaded -> AppInstallStatus.DOWNLOADED
+                isInstalled && app.versionName.trim() != installedVerName.trim() -> AppInstallStatus.UPDATE_AVAILABLE
+                isInstalled -> AppInstallStatus.INSTALLED
+                else -> AppInstallStatus.NOT_INSTALLED
+            }
+
+            AppItemUiState(app, status, installedVerName)
+        }
     }
 }
