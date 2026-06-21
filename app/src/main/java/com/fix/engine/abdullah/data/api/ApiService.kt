@@ -7,21 +7,16 @@ import retrofit2.http.Url
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Professional API Engine
- * Feature: Dynamic JSON Fetching with Error Handling Support
+ * Architecture: Dynamic Multi-Repo API Engine
+ * Feature: Dynamic JSON Fetching with Safe Response Handling
  */
 interface ApiService {
 
     /**
-     * جلب قائمة التطبيقات من مستودع GitHub.
-     * تم استخدام Response<List<AppModel>> لضمان استقرار التطبيق عند حدوث أخطاء في الشبكة.
+     * جلب قائمة التطبيقات من أي مستودع خارجي.
+     * التغليف بـ Response يضمن استقرار التطبيق والتقاط أخطاء الـ HTTP (مثل 404 أو 500) بأمان.
      */
     @GET
     suspend fun getAppsList(@Url url: String): Response<List<AppModel>>
-
-    /**
-     * ملاحظة تقنية: 
-     * استخدام @Url يمنح متجر Abdullah مرونة عالية، حيث يمكنك تغيير مصدر 
-     * التطبيقات (الـ JSON) برمجياً دون الحاجة لتحديث التطبيق نفسه.
-     */
+    
 }
