@@ -6,13 +6,27 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.fix.engine.abdullah.ui.main.AllAppsFragment
 import com.fix.engine.abdullah.ui.main.UpdatesFragment
 
+/**
+ * Developed by: Abdullah Al-Tamimi
+ * Architecture: Strict Index Mapping & Exception Handling for ViewPager2
+ */
 class MainPagerAdapter(fragmentActivity: FragmentActivity) : FragmentStateAdapter(fragmentActivity) {
-    override fun getItemCount(): Int = 2 // عدد التبويبات
 
+    // Core Logic: تعريف ثوابت التوجيه الهيكلية
+    companion object {
+        private const val TABS_COUNT = 2
+        private const val INDEX_ALL_APPS = 0
+        private const val INDEX_UPDATES = 1
+    }
+
+    override fun getItemCount(): Int = TABS_COUNT
+
+    // UI Instantiation: بناء الواجهات بناءً على التوجيه المعماري
     override fun createFragment(position: Int): Fragment {
         return when (position) {
-            0 -> AllAppsFragment() // قائمة كل التطبيقات (يمين)
-            else -> UpdatesFragment() // قائمة التحديثات (يسار)
+            INDEX_ALL_APPS -> AllAppsFragment()
+            INDEX_UPDATES -> UpdatesFragment()
+            else -> throw IllegalArgumentException("Invalid ViewPager position: $position. Expected 0 or 1.")
         }
     }
 }
