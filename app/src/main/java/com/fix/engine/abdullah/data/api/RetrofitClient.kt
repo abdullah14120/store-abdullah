@@ -5,15 +5,16 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
-import com.fix.engine.abdullah.BuildConfig // تأكد من استيراد الـ BuildConfig الخاص بتطبيقك
+import com.fix.engine.abdullah.BuildConfig 
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - High Performance Network Client
+ * Architecture: High Performance & Secure Network Client
  * Feature: Optimized for slow connections & Dynamic API Calls with Production Security
  */
 object RetrofitClient {
     
+    // الرابط الأساسي، ويتم تجاوزه (Override) بفضل @Url في ApiService
     private const val BASE_URL = "https://raw.githubusercontent.com/"
 
     private val okHttpClient: OkHttpClient by lazy {
@@ -32,7 +33,7 @@ object RetrofitClient {
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true) // إعادة المحاولة تلقائياً عند الفشل
+            .retryOnConnectionFailure(true) 
             .build()
     }
 
@@ -46,12 +47,12 @@ object RetrofitClient {
 
     /**
      * الوصول الموحد للخدمة (Singleton Instance)
-     * يتم استخدامه في AppRepository لجلب البيانات
+     * يتم استخدامه في AppRepository لجلب البيانات بكفاءة وبدون استهلاك للذاكرة
      */
     val instance: ApiService by lazy {
         retrofit.create(ApiService::class.java)
     }
 
-    // دعم التسمية القديمة لضمان عدم حدوث خطأ في الملفات الأخرى
+    // دعم التسمية القديمة لضمان التوافقية وعدم حدوث خطأ في الملفات الأخرى
     val apiService: ApiService get() = instance
 }
