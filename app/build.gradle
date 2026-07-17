@@ -30,8 +30,8 @@ android {
         applicationId "com.fix.engine.abdullah"
         minSdk 23 // 💡 بما أن الحد الأدنى 23، الـ MultiDex مدعوم تلقائياً من النظام
         targetSdk 35
-        versionCode 3 
-        versionName "1.1"
+        versionCode 4 
+        versionName "2.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
