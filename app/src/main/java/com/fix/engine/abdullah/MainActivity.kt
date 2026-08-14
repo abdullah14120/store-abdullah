@@ -1,20 +1,8 @@
 package com.fix.engine.abdullah
 
-import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
@@ -22,56 +10,59 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.fix.engine.abdullah.core.NativeCoreManager
+import com.fix.engine.abdullah.core.NetworkObserver
+import com.fix.engine.abdullah.core.NotificationEngine
+import com.fix.engine.abdullah.core.PermissionManager
+import com.fix.engine.abdullah.core.UpdateValidator
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.MainPagerAdapter
+import com.fix.engine.abdullah.ui.details.AppDetailsActivity
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-/**
- * Developed by: Abdullah Al-Tamimi
- * Feature: Strict UI/Core Separation & Clean Architecture Observers
- */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
-    private lateinit var networkMonitor: NetworkObserver
+    private lateinit var networkObserver: NetworkObserver
 
     private var isDataLoadedSuccessfully = false
     private var isNotificationSent = false
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
+    ) { isGranted ->
         if (!isGranted) Toast.makeText(this, "تم رفض صلاحية الإشعارات", Toast.LENGTH_SHORT).show()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // 🛡️ التفويض لطبقة الأمان (Core)
-        NativeCoreManager.verifySignature(applicationContext)
+
+        NativeCoreManager.verifySignatureSafely(applicationContext)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        initNetworkMonitor()
+        networkObserver = NetworkObserver(this)
+
         setupTabs()
         setupNavigationDrawer()
         setupSearchLogic()
         setupSearchAnimation()
         setupObservers()
+        observeNetworkState()
 
         PermissionManager.requestNotificationPermission(this, requestPermissionLauncher)
 
@@ -84,20 +75,6 @@ class MainActivity : AppCompatActivity() {
 
         refreshData()
     }
-
-    override fun onStart() {
-        super.onStart()
-        networkMonitor.register()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        networkMonitor.unregister()
-    }
-
-    // ==========================================
-    // 🎨 UI SETUP & EVENT LISTENERS
-    // ==========================================
 
     private fun setupTabs() {
         binding.viewPagerMain.adapter = MainPagerAdapter(this)
@@ -141,10 +118,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==========================================
-    // 👀 STATE OBSERVERS (MVVM)
-    // ==========================================
-
     private fun setupObservers() {
         viewModel.isLoading.observe(this) { binding.progressBar.isVisible = it }
 
@@ -152,8 +125,7 @@ class MainActivity : AppCompatActivity() {
             if (!uiStates.isNullOrEmpty()) {
                 isDataLoadedSuccessfully = true
                 val apps = uiStates.map { it.app }
-                
-                // التفويض لطبقة المنطق لفحص الإصدارات
+
                 UpdateValidator.getMandatoryUpdate(this, apps)?.let { storeApp ->
                     showMandatoryUpdateDialog(storeApp)
                 }
@@ -164,7 +136,7 @@ class MainActivity : AppCompatActivity() {
             updateStates?.let {
                 val updateCount = it.size
                 val badge = binding.tabLayoutMain.getTabAt(1)?.orCreateBadge
-                
+
                 if (updateCount > 0) {
                     badge?.apply {
                         isVisible = true
@@ -190,34 +162,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==========================================
-    // ⚙️ UI ACTIONS & DIALOGS
-    // ==========================================
-
-    private fun refreshData() {
-        try {
-            val secureUrl = NativeCoreManager.getRepoUrl()
-            viewModel.loadApps(secureUrl.toByteArray(Charsets.UTF_8), 0.toByte())
-        } catch (e: Exception) {
-            Toast.makeText(this, "خطأ في معالجة بوابة الأمان", Toast.LENGTH_LONG).show()
-            isDataLoadedSuccessfully = false
+    private fun observeNetworkState() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                networkObserver.networkStatus.collectLatest { status ->
+                    when (status) {
+                        NetworkObserver.Status.Available -> {
+                            if (!isDataLoadedSuccessfully) {
+                                Toast.makeText(this@MainActivity, "تم استعادة الاتصال! جاري مزامنة المتجر... 🔄", Toast.LENGTH_SHORT).show()
+                                refreshData()
+                            } else {
+                                Toast.makeText(this@MainActivity, "متصل بالإنترنت ✨", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        NetworkObserver.Status.Lost -> {
+                            Toast.makeText(this@MainActivity, "عذراً، انقطع الاتصال بالإنترنت!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
         }
     }
 
-    private fun initNetworkMonitor() {
-        networkMonitor = NetworkObserver(this, 
-            onAvailable = {
-                if (!isDataLoadedSuccessfully) {
-                    Toast.makeText(this, "تم استعادة الاتصال! جاري مزامنة المتجر... 🔄", Toast.LENGTH_SHORT).show()
-                    refreshData()
-                } else {
-                    Toast.makeText(this, "متصل بالإنترنت ✨", Toast.LENGTH_SHORT).show()
-                }
-            },
-            onLost = {
-                Toast.makeText(this, "عذراً، انقطع الاتصال بالإنترنت!", Toast.LENGTH_SHORT).show()
-            }
-        )
+    private fun refreshData() {
+        val secureUrl = NativeCoreManager.getRepoUrlSafely()
+        if (secureUrl.isNotEmpty()) {
+            viewModel.loadApps(secureUrl.toByteArray(Charsets.UTF_8), 0.toByte())
+        } else {
+            Toast.makeText(this, "خطأ في معالجة بوابة الأمان", Toast.LENGTH_LONG).show()
+            isDataLoadedSuccessfully = false
+        }
     }
 
     private fun showAboutDeveloperDialog() {
@@ -273,7 +247,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage("يوجد إصدار جديد من متجر Abdullah يحل بعض المشاكل التقنية. يرجى التحديث للمتابعة.")
             .setCancelable(false)
             .setPositiveButton("تحديث الآن") { _, _ ->
-                val intent = Intent(this, com.fix.engine.abdullah.ui.details.AppDetailsActivity::class.java).apply {
+                val intent = Intent(this, AppDetailsActivity::class.java).apply {
                     putExtra("APP_DATA", storeApp)
                 }
                 startActivity(intent)
@@ -281,133 +255,5 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("خروج") { _, _ -> finishAffinity() }
             .show()
-    }
-}
-
-// ==============================================================================
-// ⚙️ CORE LOGIC LAYER (يفضل نقل هذه الكائنات إلى ملفات مستقلة في حزمة core)
-// ==============================================================================
-
-object NativeCoreManager {
-    init { System.loadLibrary("native-lib") }
-    
-    @JvmStatic external fun verifySignatureNative(context: Context)
-    @JvmStatic private external fun getSecureRepoUrl(): String
-
-    fun verifySignature(context: Context) = verifySignatureNative(context)
-    fun getRepoUrl(): String = getSecureRepoUrl()
-}
-
-class NetworkObserver(
-    private val context: Context,
-    private val onAvailable: () -> Unit,
-    private val onLost: () -> Unit
-) {
-    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    private var isRegistered = false
-
-    private val callback = object : ConnectivityManager.NetworkCallback() {
-        override fun onAvailable(network: Network) {
-            // ضمان التنفيذ على الـ Main Thread
-            (context as? AppCompatActivity)?.runOnUiThread { onAvailable() }
-        }
-        override fun onLost(network: Network) {
-            (context as? AppCompatActivity)?.runOnUiThread { onLost() }
-        }
-    }
-
-    fun register() {
-        if (isRegistered) return
-        val request = NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build()
-        connectivityManager.registerNetworkCallback(request, callback)
-        isRegistered = true
-    }
-
-    fun unregister() {
-        if (!isRegistered) return
-        connectivityManager.unregisterNetworkCallback(callback)
-        isRegistered = false
-    }
-}
-
-object PermissionManager {
-    private const val PREFS_NAME = "FixEnginePrefs"
-    private const val KEY_INSTALL_DIALOG = "install_dialog_shown"
-
-    fun requestNotificationPermission(activity: AppCompatActivity, launcher: androidx.activity.result.ActivityResultLauncher<String>) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-    }
-
-    fun needsInstallPermission(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val isDialogShown = prefs.getBoolean(KEY_INSTALL_DIALOG, false)
-        return !context.packageManager.canRequestPackageInstalls() && !isDialogShown
-    }
-
-    fun markInstallDialogShown(context: Context) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_INSTALL_DIALOG, true).apply()
-    }
-
-    fun launchInstallSettings(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply { 
-                data = Uri.parse("package:${context.packageName}") 
-            }
-            context.startActivity(intent)
-        }
-    }
-}
-
-object UpdateValidator {
-    fun getMandatoryUpdate(context: Context, apps: List<com.fix.engine.abdullah.data.model.AppModel>): com.fix.engine.abdullah.data.model.AppModel? {
-        val storeApp = apps.find { it.packageName == context.packageName } ?: return null
-        return try {
-            val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
-            } else {
-                @Suppress("DEPRECATION")
-                context.packageManager.getPackageInfo(context.packageName, 0)
-            }
-            if (storeApp.versionName.trim() != pInfo.versionName?.trim()) storeApp else null
-        } catch (e: Exception) {
-            null
-        }
-    }
-}
-
-object NotificationEngine {
-    private const val CHANNEL_ID = "store_updates_channel"
-
-    fun sendUpdateNotification(context: Context, updatesCount: Int) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(CHANNEL_ID, "تحديثات المتجر", NotificationManager.IMPORTANCE_DEFAULT).apply { 
-                description = "تنبيهات تلقائية عند توفر تحديثات جديدة" 
-            }
-            manager.createNotificationChannel(channel)
-        }
-
-        val intent = Intent(context, MainActivity::class.java).apply { 
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK 
-        }
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
-        val pendingIntent = PendingIntent.getActivity(context, 0, intent, flags)
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification_transparent)
-            .setContentTitle("تحديثات متوفرة لـ تطبيقاتك! 🚀")
-            .setContentText("يوجد عدد ($updatesCount) من تطبيقاتك تمتلك إصدارات محدثة، قم بتثبيتها الآن.")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .build()
-
-        manager.notify(1001, notification)
     }
 }
