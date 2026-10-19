@@ -17,8 +17,9 @@ import kotlinx.coroutines.withContext
 class AppRepository {
 
     private val apiService = RetrofitClient.instance
-    // 🌐 إنشاء مرجع لجدول التنزيلات في الفايربيس
-    private val downloadsRef = FirebaseDatabase.getInstance().getReference("AppDownloads")
+    
+    // 🌐 مرجع آمن لجدول التنزيلات في الفايربيس (يتوافق مع المسار المعتمد في شاشة التفاصيل)
+    private val downloadsRef = FirebaseDatabase.getInstance().getReference("download_stats")
 
     suspend fun fetchApps(encryptedUrl: ByteArray, cryptoSalt: Byte): Result<List<AppModel>> {
         return withContext(Dispatchers.IO) {
@@ -56,11 +57,12 @@ class AppRepository {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val map = mutableMapOf<Int, Long>()
                 for (child in snapshot.children) {
+                    // تحويل مفتاح النص (مثل com_whatsapp) أو الـ ID إلى رقم مطابق
                     val appId = child.key?.toIntOrNull()
                     val count = child.getValue(Long::class.java) ?: 0L
                     if (appId != null) map[appId] = count
                 }
-                trySend(map) // إرسال التحديثات للـ ViewModel
+                trySend(map)
             }
             override fun onCancelled(error: DatabaseError) {
                 close(error.toException())
@@ -71,8 +73,7 @@ class AppRepository {
     }
 
     /**
-     * 🚀 زيادة العداد باحترافية عبر نظام (Transaction) 
-     * يضمن عدم تخطي أي رقم حتى لو تم التحميل من آلاف الأجهزة بالثانية
+     * 🚀 زيادة العداد باحترافية عبر نظام (Transaction)
      */
     fun incrementDownloadCount(appId: Int) {
         downloadsRef.child(appId.toString()).runTransaction(object : Transaction.Handler {
