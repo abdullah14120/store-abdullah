@@ -45,6 +45,7 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
         actionType: DownloadNotification.ActionType
     ): PendingIntent {
         val intent = PendingIntentFactory.createNotificationActionIntent(
+            context,
             downloadNotification.namespace,
             downloadNotification.notificationId,
             actionType.name,
@@ -63,6 +64,7 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
             ?: Fetch.getDefaultInstance().namespace
         
         val intent = PendingIntentFactory.createNotificationActionIntent(
+            context,
             namespace,
             groupId,
             actionType.name,
@@ -77,9 +79,6 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
 // ⚙️ CORE LOGIC LAYER (Formatters & PendingIntent Factory)
 // ==============================================================================
 
-/**
- * Core component responsible for calculating data sizes and throughput display text.
- */
 object NotificationTextFormatter {
 
     fun formatSubtitle(downloadedBytes: Long, totalBytes: Long, downloadedBytesPerSecond: Long): String {
@@ -102,20 +101,20 @@ object NotificationTextFormatter {
     }
 }
 
-/**
- * Core Factory ensuring full compliance with PendingIntent mutability standards (API 31+).
- */
 object PendingIntentFactory {
 
     private const val FETCH_ACTION = "com.tonyodev.fetch2.action.NOTIFICATION_ACTION"
 
     fun createNotificationActionIntent(
+        context: Context,
         namespace: String,
         notificationId: Int,
         actionTypeName: String,
         isGroupAction: Boolean
     ): Intent {
         return Intent(FETCH_ACTION).apply {
+            // 🔒 تعيين اسم الحزمة صراحة (Explicit Intent) لضمان عدم رفضه في أندرويد 14+
+            setPackage(context.packageName)
             putExtra("com.tonyodev.fetch2.extra.NAMESPACE", namespace)
             putExtra("com.tonyodev.fetch2.extra.DOWNLOAD_ID", notificationId)
             putExtra("com.tonyodev.fetch2.extra.NOTIFICATION_ID", notificationId)
