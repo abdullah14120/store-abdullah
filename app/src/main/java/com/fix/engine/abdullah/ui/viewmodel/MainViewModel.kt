@@ -50,7 +50,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _errorMessage = MutableLiveData<String?>()
     val errorMessage: LiveData<String?> get() = _errorMessage
 
-    /**
+/**
      * 🔐 جلب التطبيقات من السيرفر، فرز التحديثات، وتوليد الحالات الأولية
      */
     fun loadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
@@ -76,7 +76,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 
-                // 🔄 التصفية الذكية المعتمدة على النصوص المخفية (Meta-Data Matching)
+                // 🔄 التصفية الذكية المعتمدة على المقارنة الرقمية الصحيحة لـ versionName
                 fullUpdatesList = list.filter { app ->
                     try {
                         val flags = PackageManager.GET_META_DATA
@@ -88,10 +88,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             packageManager.getPackageInfo(app.packageName, flags)
                         }
                         
-                        val installedVer = pInfo.versionName ?: ""
-                        val hasNewVersion = app.versionName.trim() != installedVer.trim()
+                        val installedVerName = pInfo.versionName ?: ""
                         
-                        if (hasNewVersion) {
+                        // 🧠 المقارنة الذكية: هل إصدار السيرفر أحدث فعلياً من الإصدار المثبت؟ (النتيجة > 0 يعني يوجد تحديث)
+                        val isServerNewer = compareVersionNames(app.versionName, installedVerName) > 0
+                        
+                        if (isServerNewer) {
                             // 🛡️ المطابقة الذكية للنص (Manifest Tag Matching) لضمان مصدر التحديث
                             val serverTag = app.manifestTag
                             if (!serverTag.isNullOrBlank()) {
@@ -104,6 +106,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
                             return@filter true
                         } else {
+                            // إذا كان الإصدار المثبت على الجهاز أعلى أو يساويه، فلا يظهر التحديث نهائياً
                             return@filter false
                         }
                         
@@ -124,6 +127,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoading.postValue(false)
             }
         }
+    }
+
+    /**
+     * 🧠 دالة ذكية لمقارنة أرقام الإصدارات (Version Names) نقطة بنقطة
+     * @return 1 إذا كان إصدار السيرفر أحدث، -1 إذا كان أقدم، 0 إذا كان متطابقاً
+     */
+    private fun compareVersionNames(serverVersion: String, installedVersion: String): Int {
+        try {
+            val sParts = serverVersion.trim().split(".")
+            val iParts = installedVersion.trim().split(".")
+            val maxLen = maxOf(sParts.size, iParts.size)
+
+            for (i in 0 until maxLen) {
+                val sVal = sParts.getOrNull(i)?.toIntOrNull() ?: 0
+                val iVal = iParts.getOrNull(i)?.toIntOrNull() ?: 0
+
+                if (sVal > iVal) return 1   // إصدار السيرفر أعلى (يوجد تحديث)
+                if (sVal < iVal) return -1  // الإصدار المثبت على الجهاز أعلى (لا يوجد تحديث)
+            }
+        } catch (e: Exception) {
+            return if (serverVersion != installedVersion) 1 else 0
+        }
+        return 0
     }
 
     /**
