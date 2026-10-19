@@ -17,7 +17,7 @@ import com.fix.engine.abdullah.databinding.ItemAppBinding
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Architecture: Pure Presentation Adapter, Pre-calculated States & Cached Resources
+ * Architecture: Pure Presentation Adapter, Pre-calculated States & ID-Based DiffUtil
  */
 class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
     ListAdapter<AppItemUiState, AppAdapter.AppViewHolder>(AppDiffCallback()) {
@@ -34,7 +34,6 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
     inner class AppViewHolder(private val binding: ItemAppBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        // 🟢 التخزين المؤقت للألوان (Caching) لمنع استدعائها مع كل عنصر أثناء التمرير السريع
         private val colorPrimary = ContextCompat.getColor(binding.root.context, R.color.md_theme_d_primary)
         private val colorOnPrimary = ContextCompat.getColor(binding.root.context, R.color.md_theme_d_onPrimary)
         private val colorOnSurface = ContextCompat.getColor(binding.root.context, R.color.md_theme_d_onSurface)
@@ -44,14 +43,12 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
         private val colorOnError = ContextCompat.getColor(binding.root.context, R.color.md_theme_d_onError)
 
         fun bind(uiState: AppItemUiState) {
-            // استخراج كائن التطبيق الأصلي
             val app = uiState.app
             
             binding.apply {
                 txtAppName.text = app.name
                 txtDeveloper.text = app.developer
 
-                // 🟢 منطق العرض النظيف (Pure UI Logic): نعتمد على الحالة المعالجة مسبقاً في الخلفية
                 when (uiState.status) {
                     AppInstallStatus.DOWNLOADED -> {
                         txtVersion.text = "ملف APK جاهز للتثبيت فوراً"
@@ -83,7 +80,6 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
                     }
                 }
 
-                // 4. هندسة الانتقال المشترك (Shared Element Transition)
                 imgAppIcon.transitionName = "transition_app_icon_${app.packageName}" 
                 
                 Glide.with(binding.root.context)
@@ -93,7 +89,6 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
                     .dontAnimate() 
                     .into(imgAppIcon)
 
-                // 5. الأحداث: نقوم بتمرير الموديل الأصلي (app) لكي تفتحه شاشة التفاصيل
                 root.setOnClickListener { onAppClick(app, root) }
                 btnDownload.setOnClickListener { onAppClick(app, root) }
             }
@@ -102,7 +97,8 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
 
     class AppDiffCallback : DiffUtil.ItemCallback<AppItemUiState>() {
         override fun areItemsTheSame(oldItem: AppItemUiState, newItem: AppItemUiState): Boolean {
-            return oldItem.app.packageName == newItem.app.packageName
+            // 🛡️ التعديل الجوهري: الاعتماد على معرف التطبيق الفريد (id) لمنع التداخل بين التطبيقات التي تمتلك نفس الحزمة
+            return oldItem.app.id == newItem.app.id
         }
 
         override fun areContentsTheSame(oldItem: AppItemUiState, newItem: AppItemUiState): Boolean {
