@@ -11,7 +11,7 @@ import android.widget.Toast
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Store Engine)
- * Feature: Advanced PackageInstaller Status Receiver
+ * Feature: Advanced PackageInstaller Status Receiver (Android 13/14+ Explicit Intent Compliance)
  */
 class InstallStatusReceiver : BroadcastReceiver() {
 
@@ -32,16 +32,14 @@ class InstallStatusReceiver : BroadcastReceiver() {
                 Toast.makeText(context, "تم التثبيت بنجاح! ✨", Toast.LENGTH_SHORT).show()
                 Log.i("InstallReceiver", "Successfully installed: $packageName")
                 
-                // 💡 تلميح هندسي: هنا يمكنك إرسال إشعار محلي (Broadcast) للواجهة 
-                // لكي تقوم بتغيير الزر من "جاري التثبيت" إلى "فتح"
+                // إبلاغ الواجهة بالنجاح مع تحديد الحزمة صراحة
                 notifyUI(context, packageName, true)
             }
 
-            // 🟡 الحالة الثانية (الأهم): النظام يحتاج إلى تأكيد المستخدم للتثبيت
+            // 🟡 الحالة الثانية: النظام يحتاج إلى تأكيد المستخدم للتثبيت
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 Log.i("InstallReceiver", "Requesting user confirmation for install...")
                 
-                // استخراج الـ Intent الخاص بنافذة تأكيد التثبيت للنظام
                 val confirmationIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
                 } else {
@@ -50,7 +48,6 @@ class InstallStatusReceiver : BroadcastReceiver() {
                 }
 
                 if (confirmationIntent != null) {
-                    // 🚀 شرط أساسي: يجب إضافة هذا الـ Flag لأننا نطلق الواجهة من Receiver (خارج الـ Activity)
                     confirmationIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(confirmationIntent)
                 } else {
@@ -58,7 +55,7 @@ class InstallStatusReceiver : BroadcastReceiver() {
                 }
             }
 
-            // 🔴 الحالة الثالثة: فشل التثبيت لأسباب متعددة (رفض المستخدم، مساحة غير كافية، تضارب حزم...)
+            // 🔴 الحالة الثالثة: فشل التثبيت
             PackageInstaller.STATUS_FAILURE,
             PackageInstaller.STATUS_FAILURE_ABORTED,
             PackageInstaller.STATUS_FAILURE_BLOCKED,
@@ -66,7 +63,6 @@ class InstallStatusReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_FAILURE_INCOMPATIBLE,
             PackageInstaller.STATUS_FAILURE_INVALID,
             PackageInstaller.STATUS_FAILURE_STORAGE -> {
-                // معالجة الأخطاء الشائعة برسائل واضحة للمستخدم
                 val userFriendlyMessage = when (status) {
                     PackageInstaller.STATUS_FAILURE_ABORTED -> "تم إلغاء التثبيت بواسطة المستخدم."
                     PackageInstaller.STATUS_FAILURE_STORAGE -> "لا توجد مساحة كافية في الجهاز."
@@ -78,7 +74,6 @@ class InstallStatusReceiver : BroadcastReceiver() {
                 Toast.makeText(context, userFriendlyMessage, Toast.LENGTH_LONG).show()
                 Log.e("InstallReceiver", "Install failed for $packageName: $userFriendlyMessage")
                 
-                // إبلاغ الواجهة بالفشل لإعادة الزر إلى "تثبيت"
                 notifyUI(context, packageName, false)
             }
 
@@ -89,14 +84,15 @@ class InstallStatusReceiver : BroadcastReceiver() {
     }
 
     /**
-     * دالة مساعدة لإرسال تحديث لواجهة المستخدم (MainActivity أو غيرها)
+     * دالة مساعدة لإرسال تحديث لواجهة المستخدم مع تحديد الحزمة بصراحة (Explicit Intent)
+     * لتجاوز قيود الأمان في أندرويد 13 و 14+
      */
     private fun notifyUI(context: Context, packageName: String, isSuccess: Boolean) {
-        val updateIntent = Intent("com.fix.engine.abdullah.UPDATE_UI")
-        updateIntent.putExtra("PACKAGE_NAME", packageName)
-        updateIntent.putExtra("IS_SUCCESS", isSuccess)
-        
-        // إرسال Broadcast داخلي يمكن لـ MainActivity التقاطه
+        val updateIntent = Intent("com.fix.engine.abdullah.UPDATE_UI").apply {
+            setPackage(context.packageName) // 🔒 تعديل جوهري لمنع حظر الإشعار في أندرويد 14+
+            putExtra("PACKAGE_NAME", packageName)
+            putExtra("IS_SUCCESS", isSuccess)
+        }
         context.sendBroadcast(updateIntent)
     }
 }
