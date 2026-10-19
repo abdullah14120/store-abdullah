@@ -10,11 +10,10 @@ import java.util.regex.Pattern
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: Abdullah Store - Advanced Link Engine
- * Feature: Ultra-Fast HEAD Requests & MediaFire Direct Link Scraper
+ * Feature: Ultra-Fast HEAD Requests, Google Drive Direct Link Converter & MediaFire Scraper
  */
 object LinkExtractor {
 
-    // إعداد عميل بخيارات صارمة للسرعة وعدم إهدار باقة الإنترنت
     private val client = OkHttpClient.Builder()
         .followRedirects(true)
         .followSslRedirects(true)
@@ -26,15 +25,23 @@ object LinkExtractor {
         try {
             val urlLower = url.lowercase()
 
-            // 1. معالجة روابط MediaFire بشكل خاص (Scraping)
+            // 1. معالجة روابط معاينة Google Drive وتحويلها إلى روابط تحميل مباشر
+            if (urlLower.contains("drive.google.com")) {
+                val fileId = extractGoogleDriveFileId(url)
+                if (fileId != null) {
+                    return@withContext "https://drive.usercontent.google.com/download?id=$fileId&export=download&confirm=t"
+                }
+            }
+
+            // 2. معالجة روابط MediaFire (كشط الـ HTML)
             if (urlLower.contains("mediafire.com")) {
                 return@withContext extractMediaFireLink(url)
             }
 
-            // 2. معالجة الروابط العادية باستخدام طلب HEAD السريع جداً (لا يحمل محتوى الملف)
+            // 3. الروابط العادية أو روابط GitHub باستخدام طلب HEAD السريع
             val request = Request.Builder()
                 .url(url)
-                .head() // 🚀 تعديل جوهري: يجلب الـ Headers فقط وتتبع التحويل بدون تنزيل الـ APK في الذاكرة
+                .head()
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
                 .build()
 
@@ -51,22 +58,38 @@ object LinkExtractor {
     }
 
     /**
-     * 🟢 محرك كشط روابط ميديا فاير: يقرأ الـ HTML ويستخرج الرابط المباشر للـ APK
+     * استخراج معرف الملف (File ID) من روابط Google Drive بشتى أنواعها
+     */
+    private fun extractGoogleDriveFileId(url: String): String? {
+        val pattern1 = Pattern.compile("/d/([a-zA-Z0-9_-]+)")
+        val matcher1 = pattern1.matcher(url)
+        if (matcher1.find()) {
+            return matcher1.group(1)
+        }
+
+        val pattern2 = Pattern.compile("id=([a-zA-Z0-9_-]+)")
+        val matcher2 = pattern2.matcher(url)
+        if (matcher2.find()) {
+            return matcher2.group(1)
+        }
+
+        return null
+    }
+
+    /**
+     * كشط روابط ميديا فاير واستخراج رابط الـ APK المباشر
      */
     private fun extractMediaFireLink(mediaFireUrl: String): String {
         try {
             val request = Request.Builder()
                 .url(mediaFireUrl)
-                .get() // هنا نحتاج GET لقراءة صفحة الـ HTML
+                .get()
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
                 .build()
 
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val htmlBody = response.body?.string() ?: return mediaFireUrl
-                    
-                    // استخدام Regex للبحث عن زر التحميل الخاص بميديا فاير
-                    // الرابط المباشر يكون دائماً داخل href ويبدأ بـ http://download...
                     val pattern = Pattern.compile("href=\"(https?://[a-zA-Z0-9-]+\\.mediafire\\.com/download/[^\"]+)\"")
                     val matcher = pattern.matcher(htmlBody)
                     
@@ -78,6 +101,6 @@ object LinkExtractor {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        return mediaFireUrl // العودة للرابط الأصلي في حال فشل الكشط
+        return mediaFireUrl
     }
 }
