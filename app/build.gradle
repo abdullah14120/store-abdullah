@@ -31,7 +31,7 @@ android {
         minSdk 23 // 💡 بما أن الحد الأدنى 23، الـ MultiDex مدعوم تلقائياً من النظام
         targetSdk 35
         versionCode 4 
-        versionName "2.0"
+        versionName "2.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
