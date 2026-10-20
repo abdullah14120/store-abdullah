@@ -401,7 +401,7 @@ class AppDetailsActivity : AppCompatActivity() {
     // [3] UI / PRESENTATION: Data Binding & Layout States
     // ====================================================================
 
-    private fun setupLogic(app: AppModel) {
+private fun setupLogic(app: AppModel) {
         val pm = packageManager
         val fileName = app.getUniqueFileName()
         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
@@ -419,9 +419,14 @@ class AppDetailsActivity : AppCompatActivity() {
             val pInfo = pm.getPackageInfo(app.packageName, 0)
             val installedVer = pInfo.versionName ?: ""
 
-            if (app.versionName.trim() != installedVer.trim()) {
+            // 🧠 مقارنة ذكية: هل إصدار السيرفر أحدث فعلياً من الإصدار المثبت؟
+            val comparisonResult = compareVersionNames(app.versionName, installedVer)
+
+            if (comparisonResult > 0) {
+                // إصدار السيرفر أعلى -> يوجد تحديث متاح
                 handleInstallOrUpdateState(app, finalFile, isUpdate = true)
             } else {
+                // الإصدار المثبت يساوي أو أعلى من السيرفر -> التطبيق مثبت ومحدث بالكامل
                 binding.btnInstallState.visibility = View.GONE
                 binding.layoutInstalledState.visibility = View.VISIBLE
                 
@@ -444,6 +449,28 @@ class AppDetailsActivity : AppCompatActivity() {
         } catch (e: PackageManager.NameNotFoundException) {
             handleInstallOrUpdateState(app, finalFile, isUpdate = false)
         }
+    }
+
+    /**
+     * دالة ذكية لمقارنة أرقام الإصدارات (Version Names) نقطة بنقطة
+     */
+    private fun compareVersionNames(serverVersion: String, installedVersion: String): Int {
+        try {
+            val sParts = serverVersion.trim().split(".")
+            val iParts = installedVersion.trim().split(".")
+            val maxLen = maxOf(sParts.size, iParts.size)
+
+            for (i in 0 until maxLen) {
+                val sVal = sParts.getOrNull(i)?.toIntOrNull() ?: 0
+                val iVal = iParts.getOrNull(i)?.toIntOrNull() ?: 0
+
+                if (sVal > iVal) return 1
+                if (sVal < iVal) return -1
+            }
+        } catch (e: Exception) {
+            return if (serverVersion != installedVersion) 1 else 0
+        }
+        return 0
     }
 
     private fun handleInstallOrUpdateState(app: AppModel, finalFile: File, isUpdate: Boolean) {
