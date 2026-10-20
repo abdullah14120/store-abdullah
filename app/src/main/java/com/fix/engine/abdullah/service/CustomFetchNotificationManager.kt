@@ -19,17 +19,17 @@ import java.util.Locale
  */
 class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificationManager(context) {
 
-    // حفظ Context آمن للاستخدام بعد البناء
-    private val appContext: Context = context.applicationContext
+    private var appContext: Context? = null
+
+    init {
+        appContext = context.applicationContext
+    }
 
     /**
      * 🛡️ الإصلاح الجوهري لانهيار أندرويد 14 و 15 (SecurityException: RECEIVER_NOT_EXPORTED)
      * يتم استدعاء هذه الدالة تلقائياً داخل init الخاص بـ DefaultFetchNotificationManager
-     * لذلك نستخدم context.applicationContext بطريقة آمنة أو نتحقق من إصدار النظام.
      */
     override fun registerBroadcastReceiver() {
-        // ملاحظة: لأن هذه الدالة تُستدعى من constructor الكلاس الأب قبل تهيئة متغيرات الكلاس الابن،
-        // نقوم بجلب السياق عبر الانعكاس الآمن من الكلاس الأب أو استخدام التطبيق العام
         try {
             val ctx = getContextSafely() ?: return
             ContextCompat.registerReceiver(
@@ -44,16 +44,18 @@ class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificatio
     }
 
     /**
-     * دالة لاستخراج الـ Context بأمان حتى أثناء تنفيذ constructor الكلاس الأب
+     * دالة لاستخراج الـ Context بأمان حتى أثناء تنفيذ constructor الكلاس الأب ومع تفعيل ProGuard
      */
     private fun getContextSafely(): Context? {
-        if (this::appContext.isInitialized && appContext != null) {
-            return appContext
-        }
+        appContext?.let { return it }
         return try {
-            val field = DefaultFetchNotificationManager::class.java.getDeclaredField("context")
-            field.isAccessible = true
-            field.get(this) as? Context
+            val contextField = DefaultFetchNotificationManager::class.java.declaredFields.firstOrNull {
+                Context::class.java.isAssignableFrom(it.type)
+            }
+            contextField?.isAccessible = true
+            (contextField?.get(this) as? Context)?.also {
+                appContext = it.applicationContext ?: it
+            }
         } catch (e: Exception) {
             null
         }
@@ -69,8 +71,7 @@ class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificatio
     ): NotificationCompat.Builder {
         val builder = super.getNotificationBuilder(notificationId, groupId)
         builder.setSmallIcon(R.drawable.ic_notification_transparent)
-        val ctx = getContextSafely()
-        if (ctx != null) {
+        getContextSafely()?.let { ctx ->
             builder.color = ContextCompat.getColor(ctx, R.color.md_theme_d_primary)
         }
         return builder
@@ -88,7 +89,7 @@ class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificatio
         downloadNotification: DownloadNotification,
         actionType: DownloadNotification.ActionType
     ): PendingIntent {
-        val ctx = getContextSafely() ?: appContext
+        val ctx = requireNotNull(getContextSafely())
         val intent = PendingIntentFactory.createNotificationActionIntent(
             ctx,
             downloadNotification.namespace,
@@ -105,7 +106,7 @@ class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificatio
         downloadNotifications: List<DownloadNotification>,
         actionType: DownloadNotification.ActionType
     ): PendingIntent {
-        val ctx = getContextSafely() ?: appContext
+        val ctx = requireNotNull(getContextSafely())
         val namespace = downloadNotifications.firstOrNull()?.namespace 
             ?: Fetch.getDefaultInstance().namespace
         
