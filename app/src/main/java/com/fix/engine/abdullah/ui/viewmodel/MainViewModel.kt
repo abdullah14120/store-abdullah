@@ -224,7 +224,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * 🧠 معالج الحالات المرئية (State Mapper): 
      * يقوم بتحويل الموديل الخام إلى نموذج UI جاهز للعرض مباشرة في الـ Adapter
      */
-    private fun mapToUiState(apps: List<AppModel>): List<AppItemUiState> {
+private fun mapToUiState(apps: List<AppModel>): List<AppItemUiState> {
         val pm = packageManager
         val downloadsDir = getApplication<Application>().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
 
@@ -236,7 +236,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             var installedVerName = ""
             var isInstalled = false
 
-            // 🛡️ إصلاح التباس استنتاج النوع (Type Inference Fix)
             try {
                 val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     pm.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(0L))
@@ -247,20 +246,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 installedVerName = pInfo.versionName ?: ""
                 isInstalled = true
             } catch (e: PackageManager.NameNotFoundException) {
-                // التطبيق غير مثبت، تترك القيم الافتراضية
+                // التطبيق غير مثبت
             }
 
-            // تحديد الحالة النهائية التي ستبنى عليها ألوان ونصوص الواجهة
+            // 🧠 المقارنة الذكية للإصدارات
+            val comparisonResult = if (isInstalled) compareVersionNames(app.versionName, installedVerName) else 0
+            
+            // تحديد الحالة النهائية بدقة:
+            // - إذا كان الملف محلياً وجاهزاً: DOWNLOADED
+            // - إذا كان إصدار السيرفر أحدث من المثبت (comparisonResult > 0): UPDATE_AVAILABLE
+            // - إذا كان الإصدار المثبت يساوي أو أعلى من السيرفر (comparisonResult <= 0): INSTALLED (يعني مثبت ومحدث)
+            // - إذا لم يكن مثبتاً: NOT_INSTALLED
             val status = when {
                 isDownloaded -> AppInstallStatus.DOWNLOADED
-                isInstalled && app.versionName.trim() != installedVerName.trim() -> AppInstallStatus.UPDATE_AVAILABLE
+                isInstalled && comparisonResult > 0 -> AppInstallStatus.UPDATE_AVAILABLE
                 isInstalled -> AppInstallStatus.INSTALLED
                 else -> AppInstallStatus.NOT_INSTALLED
             }
 
-            // 📊 جلب رقم العداد الخاص بهذا التطبيق من الذاكرة الحية (أو 0 إذا لم يوجد)
             val currentDownloads = downloadsMap[app.id] ?: 0L
-
             AppItemUiState(app, status, installedVerName, currentDownloads)
         }
     }
