@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- الخلفية الأساسية بتدرج كحلي ملكي عميق -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="18"
+                android:startY="12"
+                android:endX="90"
+                android:endY="98"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF0B1D26" />
+                <item android:offset="0.5" android:color="#FF09151E" />
+                <item android:offset="1.0" android:color="#FF050C12" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- هالة ضوئية زمردية ناعمة في المنتصف لإبراز حقيبة المتجر -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="54"
+                android:centerY="62"
+                android:gradientRadius="46"
+                android:type="radial">
+                <item android:offset="0.0" android:color="#4010B981" />
+                <item android:offset="0.6" android:color="#1506B6D4" />
+                <item android:offset="1.0" android:color="#00050C12" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>
