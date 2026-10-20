@@ -3,6 +3,7 @@ package com.fix.engine.abdullah.service
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -14,9 +15,49 @@ import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Feature: Custom Notification Manager with Core/UI Separation & Android 12/13/14 Compliance
+ * Feature: Custom Notification Manager with Android 13/14/15 (API 33-35) SecurityException Fix
  */
-class CustomFetchNotificationManager(private val context: Context) : DefaultFetchNotificationManager(context) {
+class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificationManager(context) {
+
+    // حفظ Context آمن للاستخدام بعد البناء
+    private val appContext: Context = context.applicationContext
+
+    /**
+     * 🛡️ الإصلاح الجوهري لانهيار أندرويد 14 و 15 (SecurityException: RECEIVER_NOT_EXPORTED)
+     * يتم استدعاء هذه الدالة تلقائياً داخل init الخاص بـ DefaultFetchNotificationManager
+     * لذلك نستخدم context.applicationContext بطريقة آمنة أو نتحقق من إصدار النظام.
+     */
+    override fun registerBroadcastReceiver() {
+        // ملاحظة: لأن هذه الدالة تُستدعى من constructor الكلاس الأب قبل تهيئة متغيرات الكلاس الابن،
+        // نقوم بجلب السياق عبر الانعكاس الآمن من الكلاس الأب أو استخدام التطبيق العام
+        try {
+            val ctx = getContextSafely() ?: return
+            ContextCompat.registerReceiver(
+                ctx,
+                broadcastReceiver,
+                IntentFilter(notificationManagerAction),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * دالة لاستخراج الـ Context بأمان حتى أثناء تنفيذ constructor الكلاس الأب
+     */
+    private fun getContextSafely(): Context? {
+        if (this::appContext.isInitialized && appContext != null) {
+            return appContext
+        }
+        return try {
+            val field = DefaultFetchNotificationManager::class.java.getDeclaredField("context")
+            field.isAccessible = true
+            field.get(this) as? Context
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     override fun getFetchInstanceForNamespace(namespace: String): Fetch {
         return Fetch.getDefaultInstance()
@@ -28,7 +69,10 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
     ): NotificationCompat.Builder {
         val builder = super.getNotificationBuilder(notificationId, groupId)
         builder.setSmallIcon(R.drawable.ic_notification_transparent)
-        builder.color = ContextCompat.getColor(context, R.color.md_theme_d_primary)
+        val ctx = getContextSafely()
+        if (ctx != null) {
+            builder.color = ContextCompat.getColor(ctx, R.color.md_theme_d_primary)
+        }
         return builder
     }
 
@@ -44,15 +88,16 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
         downloadNotification: DownloadNotification,
         actionType: DownloadNotification.ActionType
     ): PendingIntent {
+        val ctx = getContextSafely() ?: appContext
         val intent = PendingIntentFactory.createNotificationActionIntent(
-            context,
+            ctx,
             downloadNotification.namespace,
             downloadNotification.notificationId,
             actionType.name,
             isGroupAction = false
         )
         val requestCode = downloadNotification.notificationId + actionType.hashCode()
-        return PendingIntentFactory.getBroadcast(context, requestCode, intent)
+        return PendingIntentFactory.getBroadcast(ctx, requestCode, intent)
     }
 
     override fun getGroupActionPendingIntent(
@@ -60,18 +105,19 @@ class CustomFetchNotificationManager(private val context: Context) : DefaultFetc
         downloadNotifications: List<DownloadNotification>,
         actionType: DownloadNotification.ActionType
     ): PendingIntent {
+        val ctx = getContextSafely() ?: appContext
         val namespace = downloadNotifications.firstOrNull()?.namespace 
             ?: Fetch.getDefaultInstance().namespace
         
         val intent = PendingIntentFactory.createNotificationActionIntent(
-            context,
+            ctx,
             namespace,
             groupId,
             actionType.name,
             isGroupAction = true
         )
         val requestCode = groupId + actionType.hashCode()
-        return PendingIntentFactory.getBroadcast(context, requestCode, intent)
+        return PendingIntentFactory.getBroadcast(ctx, requestCode, intent)
     }
 }
 
@@ -113,7 +159,6 @@ object PendingIntentFactory {
         isGroupAction: Boolean
     ): Intent {
         return Intent(FETCH_ACTION).apply {
-            // 🔒 تعيين اسم الحزمة صراحة (Explicit Intent) لضمان عدم رفضه في أندرويد 14+
             setPackage(context.packageName)
             putExtra("com.tonyodev.fetch2.extra.NAMESPACE", namespace)
             putExtra("com.tonyodev.fetch2.extra.DOWNLOAD_ID", notificationId)
