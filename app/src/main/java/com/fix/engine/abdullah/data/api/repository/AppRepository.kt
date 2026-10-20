@@ -5,8 +5,7 @@ import com.fix.engine.abdullah.data.model.AppModel
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.MutableData
-import com.google.firebase.database.Transaction
+import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -17,9 +16,12 @@ import kotlinx.coroutines.withContext
 class AppRepository {
 
     private val apiService = RetrofitClient.instance
-    
-    // 🌐 مرجع آمن لجدول التنزيلات في الفايربيس (يتوافق مع المسار المعتمد في شاشة التفاصيل)
-    private val downloadsRef = FirebaseDatabase.getInstance().getReference("download_stats")
+
+    // 🌐 الاتصال المباشر بقاعدة البيانات الأوروبية ونفس جدول شاشة التفاصيل (download_stats)
+    private val downloadsRef by lazy {
+        FirebaseDatabase.getInstance("https://abdullah-store-a95ed-default-rtdb.europe-west1.firebasedatabase.app")
+            .getReference("download_stats")
+    }
 
     suspend fun fetchApps(encryptedUrl: ByteArray, cryptoSalt: Byte): Result<List<AppModel>> {
         return withContext(Dispatchers.IO) {
@@ -50,22 +52,28 @@ class AppRepository {
     }
 
     /**
-     * 📡 مراقبة العدادات من الفايربيس بشكل حي ومستمر
+     * 📡 مراقبة العدادات من الفايربيس (يدعم مفاتيح الحزم مثل com_whatsapp والأرقام معاً)
      */
     fun observeDownloads(): Flow<Map<Int, Long>> = callbackFlow {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val map = mutableMapOf<Int, Long>()
                 for (child in snapshot.children) {
-                    // تحويل مفتاح النص (مثل com_whatsapp) أو الـ ID إلى رقم مطابق
-                    val appId = child.key?.toIntOrNull()
                     val count = child.getValue(Long::class.java) ?: 0L
-                    if (appId != null) map[appId] = count
+                    val key = child.key ?: continue
+                    val idKey = key.toIntOrNull()
+                    if (idKey != null) {
+                        map[idKey] = count
+                    } else {
+                        // حفظ القيمة باستخدام hashCode الخاص باسم الحزمة أيضاً في حال الحاجة
+                        map[key.hashCode()] = count
+                    }
                 }
                 trySend(map)
             }
             override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
+                // عدم إغلاق الـ Flow بانهيار في حال كانت قواعد الفايربيس مقفلة مؤقتاً
+                trySend(emptyMap())
             }
         }
         downloadsRef.addValueEventListener(listener)
@@ -73,16 +81,9 @@ class AppRepository {
     }
 
     /**
-     * 🚀 زيادة العداد باحترافية عبر نظام (Transaction)
+     * 🚀 زيادة العداد بنفس صيغة المفتاح المعتمدة في شاشة التفاصيل
      */
     fun incrementDownloadCount(appId: Int) {
-        downloadsRef.child(appId.toString()).runTransaction(object : Transaction.Handler {
-            override fun doTransaction(currentData: MutableData): Transaction.Result {
-                val currentCount = currentData.getValue(Long::class.java) ?: 0L
-                currentData.value = currentCount + 1
-                return Transaction.success(currentData)
-            }
-            override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {}
-        })
+        downloadsRef.child(appId.toString()).setValue(ServerValue.increment(1))
     }
 }
