@@ -1,8 +1,12 @@
 package com.fix.engine.abdullah
 
 import android.app.Application
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.os.Handler
 import android.os.PowerManager
 import com.fix.engine.abdullah.service.CrashHandler
 import com.fix.engine.abdullah.service.CustomFetchNotificationManager
@@ -19,22 +23,56 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Crash-Protected Application Core
+ * Project: Abdullah Store - Android 14/15 (API 34/35) Receiver Interceptor & Crash-Protected Core
  */
 class AbdullahStoreApp : Application() {
 
     private var wakeLock: PowerManager.WakeLock? = null
 
+    /**
+     * 🛡️ ضمان إرجاع هذا الكلاس دائماً كـ ApplicationContext ليمر عبر دوال الحماية بالأسفل
+     */
+    override fun getApplicationContext(): Context {
+        return this
+    }
+
+    /**
+     * 🛡️ الحل الجذري لمشكلة PriorityListProcessorImpl داخل مكتبة Fetch2 على Android 14 و 15:
+     * أي استدعاء داخلي لدالة registerReceiver القديمة بدون Flags يتم تزويده تلقائياً بـ RECEIVER_NOT_EXPORTED
+     */
+    override fun registerReceiver(receiver: BroadcastReceiver?, filter: IntentFilter?): Intent? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            super.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            super.registerReceiver(receiver, filter)
+        }
+    }
+
+    override fun registerReceiver(
+        receiver: BroadcastReceiver?,
+        filter: IntentFilter?,
+        broadcastPermission: String?,
+        scheduler: Handler?
+    ): Intent? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            super.registerReceiver(
+                receiver,
+                filter,
+                broadcastPermission,
+                scheduler,
+                Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            super.registerReceiver(receiver, filter, broadcastPermission, scheduler)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
-        
-        // 1. حفظ السياق بشكل ثابت في أول سطر قبل أي شيء آخر
-        appInstance = this
 
-        // 2. تفعيل راصد الانهيارات الفوري (يرسل التقارير إلى Firebase -> crash_logs)
+        appInstance = this
         CrashHandler.init(this)
 
-        // 3. تغليف تهيئة المكتبات بـ try-catch لمنع انهيار التطبيق عند الإقلاع وإرسال السبب لفايربيس
         try {
             initFetchEngine()
         } catch (t: Throwable) {
@@ -68,7 +106,11 @@ class AbdullahStoreApp : Application() {
         val fetch = Fetch.getDefaultInstance()
 
         fetch.addListener(object : AbstractFetchListener() {
-            override fun onStarted(download: Download, downloadBlocks: List<com.tonyodev.fetch2core.DownloadBlock>, totalBlocks: Int) {
+            override fun onStarted(
+                download: Download,
+                downloadBlocks: List<com.tonyodev.fetch2core.DownloadBlock>,
+                totalBlocks: Int
+            ) {
                 acquireWakeLock()
             }
 
