@@ -171,24 +171,24 @@
     "id": 15,
     "name": "ABWhatsApp",
     "packageName": "com.android.meta",
-    "versionName": "2.26.28.78",
+    "versionName": "2.26.39.80",
     "versionCode": 21474836477,
     "developer": "واتساب الأخضر المطور - الدعم الفني",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/icondm.png",
-    "downloadUrl": "https://drive.usercontent.google.com/download?id=1xdt2myTVa15IQ_HCiFxkDvjFDT4TMUUt&export=download&confirm=t&uuid=74365e9c-ec39-42f3-a540-d5a3308e777b",
-    "size": "129867429",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=14KzB5eDy26MqL9FjHMqCmAQuvPYymdKk&export=download&confirm=t&uuid=5833deee-10bc-4aba-a0e2-23409aff3e10",
+    "size": "139629370",
     "description": "واتساب الاخضر المطور android.meta"
     },
   {
     "id": 16,
     "name": "OB3WhatsApp",
     "packageName": "com.ob3whatsapp",
-    "versionName": "2.26.26.70",
+    "versionName": "2.26.39.80",
     "versionCode": 21474836477,
     "developer": "عمر باذيب",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconob3.png",
-    "downloadUrl": "https://drive.usercontent.google.com/download?id=1PAeEDaLvHlNNiBLFUwFMoNgo1-9bWsix&export=download&confirm=t&uuid=81ebca8a-0ecb-4dd5-8c30-3169bb88f89b",
-    "size": "143623883",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1Bx45BIeDP6eRas-WltR9VBYddjPeQhRb&export=download&confirm=t&uuid=c78d060f-62ac-42c3-87ba-90a99653fb64",
+    "size": "139383878",
     "description": "تحديث واتساب عمر الأزرق"
     },
   {
@@ -207,12 +207,12 @@
     "id": 18,
     "name": "WhatsApp",
     "packageName": "com.fixwhatsapp",
-    "versionName": "2.26.28.78",
+    "versionName": "2.26.39.80",
     "versionCode": 2147483647,
     "developer": "درع الحماية",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconf.png",
-    "downloadUrl": "https://drive.usercontent.google.com/download?id=1F41eJjE60_af-CUfmfYWgLnVJoEg0klY&export=download&confirm=t&uuid=ee1313b6-0a11-4584-9a66-1eb5eca7174e",
-    "size": "135953671",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1ecGgwOsBqnJ40v42rpUxTkNh48ObXHQV&export=download&confirm=t&uuid=2a2701de-0fd9-4379-a3e1-7e58d0d90c08",
+    "size": "145715494",
     "description": "تحديث جديد لواتساب درع الحماية الأزرق."
   }
 ]
