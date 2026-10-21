@@ -123,13 +123,13 @@
     "id": 11,
     "name": "متجر Abdullah",
     "packageName": "com.fix.engine.abdullah",
-    "versionName": "2.1",
+    "versionName": "2.2",
     "versionCode": 4,
     "developer": "عبدالله التميمي",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconm.png",
-    "downloadUrl": "https://github.com/abdullah14120/store-abdullah/raw/refs/heads/main/Abdullah-StoreV2.1.apk",
-    "size": "4285377",
-    "description": "مَتجر عبدالله التميمي لـ جميع التطبيقات المعدلة الإصدار V2.1"
+    "downloadUrl": "https://github.com/abdullah14120/store-abdullah/raw/refs/heads/main/Abdullah-StoreV2.2.apk",
+    "size": "4970226",
+    "description": "مَتجر عبدالله التميمي لـ جميع التطبيقات المعدلة الإصدار V2.2"
     },
   {
     "id": 12,
