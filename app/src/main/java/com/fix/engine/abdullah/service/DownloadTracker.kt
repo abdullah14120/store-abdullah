@@ -1,7 +1,6 @@
 package com.fix.engine.abdullah.service
 
 import android.content.Context
-import android.os.Environment
 import com.tonyodev.fetch2.AbstractFetchListener
 import com.tonyodev.fetch2.Download
 import com.tonyodev.fetch2.Error
@@ -14,32 +13,30 @@ import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Performance Tracker & Auto Installer
- * Feature: Integrated FetchListener with Auto-Rename & Clean Separation from AppDetailsActivity
+ * Project: Abdullah Store - Direct Progress Tracker
  */
 class DownloadTracker(private val context: Context) {
 
-    private val fetch = Fetch.getDefaultInstance()
     private var currentListener: AbstractFetchListener? = null
-    
     private val uiScope = CoroutineScope(Dispatchers.Main)
-    private val ioScope = CoroutineScope(Dispatchers.IO)
 
     fun startTracking(downloadId: Int, onProgress: (Int, String) -> Unit) {
-        stopTracking() 
+        stopTracking()
 
         if (downloadId == -1) {
-            onProgress(0, "فشل في التحميل")
+            onProgress(-1, "فشل في التحميل")
             return
         }
+
+        val fetch = Fetch.getDefaultInstance()
 
         currentListener = object : AbstractFetchListener() {
             override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
                 if (download.id == downloadId) {
-                    val progress = download.progress
+                    val progress = download.progress.coerceIn(0, 99)
                     val downloadedMb = download.downloaded / (1024.0 * 1024.0)
                     val totalMb = download.total / (1024.0 * 1024.0)
-                    
+
                     val speedKB = downloadedBytesPerSecond / 1024.0
                     val speedText = if (speedKB >= 1024.0) {
                         String.format(Locale.ENGLISH, "%.1f MB/s", speedKB / 1024.0)
@@ -52,29 +49,32 @@ class DownloadTracker(private val context: Context) {
                     } else {
                         String.format(Locale.ENGLISH, "%s • %.1f MB", speedText, downloadedMb)
                     }
-                    
+
                     uiScope.launch { onProgress(progress, sizeText) }
                 }
             }
 
             override fun onCompleted(download: Download) {
                 if (download.id == downloadId) {
+                    stopTracking()
                     uiScope.launch { onProgress(100, "اكتمل التحميل بنجاح ✨") }
-                    processCompletedFile(download.file)
-                    stopTracking() 
                 }
             }
 
             override fun onError(download: Download, error: Error, throwable: Throwable?) {
                 if (download.id == downloadId) {
-                    uiScope.launch { onProgress(0, "فشل التحميل. يرجى المحاولة لاحقاً.") }
+                    File(download.file).delete()
+                    fetch.remove(download.id)
                     stopTracking()
+                    uiScope.launch { onProgress(-1, "انقطع التحميل، يرجى المحاولة مجدداً") }
                 }
             }
 
-            override fun onPaused(download: Download) {
+            override fun onCancelled(download: Download) {
                 if (download.id == downloadId) {
-                    uiScope.launch { onProgress(download.progress, "تم الإيقاف مؤقتاً") }
+                    File(download.file).delete()
+                    fetch.remove(download.id)
+                    stopTracking()
                 }
             }
         }
@@ -84,23 +84,12 @@ class DownloadTracker(private val context: Context) {
 
     fun stopTracking() {
         currentListener?.let {
-            fetch.removeListener(it)
-            currentListener = null
-        }
-    }
-
-    /**
-     * معالجة الملف بعد اكتماله: تغيير اسمه من .tmp إلى مساره النهائي بدون تشغيل التثبيت المزدوج
-     * (تم نقل تشغيل PackageInstaller إلى AppDetailsActivity حصرياً لمنع تضارب الخيوط)
-     */
-    private fun processCompletedFile(filePath: String) {
-        ioScope.launch {
-            val tempFile = File(filePath)
-            if (tempFile.exists() && tempFile.name.endsWith(".tmp")) {
-                val finalName = tempFile.name.removeSuffix(".tmp")
-                val finalFile = File(tempFile.parent, finalName)
-                tempFile.renameTo(finalFile)
+            try {
+                Fetch.getDefaultInstance().removeListener(it)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
+            currentListener = null
         }
     }
 }
