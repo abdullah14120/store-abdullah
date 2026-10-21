@@ -29,9 +29,9 @@ android {
     defaultConfig {
         applicationId "com.fix.engine.abdullah"
         minSdk 23 // 💡 بما أن الحد الأدنى 23، الـ MultiDex مدعوم تلقائياً من النظام
-        targetSdk 35
+        targetSdk 36
         versionCode 4 
-        versionName "2.1"
+        versionName "2.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
