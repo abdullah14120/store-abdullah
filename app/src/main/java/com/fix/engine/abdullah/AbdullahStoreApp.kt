@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
+import com.fix.engine.abdullah.service.CrashHandler
 import com.fix.engine.abdullah.service.CustomFetchNotificationManager
 import com.tonyodev.fetch2.AbstractFetchListener
 import com.tonyodev.fetch2.Download
@@ -18,7 +19,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Direct APK Download Engine (No .tmp, No Resume)
+ * Project: Abdullah Store - Crash-Protected Application Core
  */
 class AbdullahStoreApp : Application() {
 
@@ -26,10 +27,24 @@ class AbdullahStoreApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // 1. حفظ السياق بشكل ثابت في أول سطر قبل أي شيء آخر
+        appInstance = this
 
+        // 2. تفعيل راصد الانهيارات الفوري (يرسل التقارير إلى Firebase -> crash_logs)
+        CrashHandler.init(this)
+
+        // 3. تغليف تهيئة المكتبات بـ try-catch لمنع انهيار التطبيق عند الإقلاع وإرسال السبب لفايربيس
+        try {
+            initFetchEngine()
+        } catch (t: Throwable) {
+            CrashHandler.recordException(this, t, "AbdullahStoreApp.initFetchEngine")
+        }
+    }
+
+    private fun initFetchEngine() {
         val notificationManager = CustomFetchNotificationManager(this)
 
-        // إعداد اتصال مباشر ومستقر لروابط Google Drive
         val okHttpClient = OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
@@ -39,7 +54,6 @@ class AbdullahStoreApp : Application() {
             .followSslRedirects(true)
             .build()
 
-        // إعداد Fetch بوضع الاتصال المتسلسل الواحد (SEQUENTIAL) بدون إعادة محاولات استئناف معقدة
         val fetchConfiguration = FetchConfiguration.Builder(this)
             .setDownloadConcurrentLimit(2)
             .setHttpDownloader(OkHttpDownloader(okHttpClient, Downloader.FileDownloaderType.SEQUENTIAL))
@@ -53,7 +67,6 @@ class AbdullahStoreApp : Application() {
 
         val fetch = Fetch.getDefaultInstance()
 
-        // مراقب مركزي يبقي التحميل نشطاً في الخلفية وينظف أي ملف غير مكتمل عند الإلغاء أو الفشل
         fetch.addListener(object : AbstractFetchListener() {
             override fun onStarted(download: Download, downloadBlocks: List<com.tonyodev.fetch2core.DownloadBlock>, totalBlocks: Int) {
                 acquireWakeLock()
@@ -65,7 +78,6 @@ class AbdullahStoreApp : Application() {
             }
 
             override fun onError(download: Download, error: Error, throwable: Throwable?) {
-                // حذف الملف غير المكتمل فوراً وإزالته من الطابور لمنع التعليق
                 File(download.file).delete()
                 fetch.remove(download.id)
                 releaseWakeLockIfIdle()
@@ -97,7 +109,7 @@ class AbdullahStoreApp : Application() {
                 wakeLock?.setReferenceCounted(false)
             }
             if (wakeLock?.isHeld == false) {
-                wakeLock?.acquire(15 * 60 * 1000L) // حد أقصى 15 دقيقة للأمان
+                wakeLock?.acquire(15 * 60 * 1000L)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -115,9 +127,10 @@ class AbdullahStoreApp : Application() {
     }
 
     companion object {
-        /**
-         * فحص ذكي وسريع للتأكد من أن ملف الـ APK مكتمل 100% وصالح للتثبيت
-         */
+        @Volatile
+        var appInstance: AbdullahStoreApp? = null
+            private set
+
         fun isApkCompleteAndValid(context: Context, file: File): Boolean {
             if (!file.exists() || file.length() <= 0L) return false
             return try {
