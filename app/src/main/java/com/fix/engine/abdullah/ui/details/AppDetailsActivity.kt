@@ -1,7 +1,6 @@
 package com.fix.engine.abdullah.ui.details
 
 import android.annotation.SuppressLint
-import android.app.AlertDialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -16,6 +15,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.StatFs
 import android.provider.Settings
 import android.view.View
 import android.widget.Toast
@@ -32,6 +32,7 @@ import com.fix.engine.abdullah.data.network.LinkExtractor
 import com.fix.engine.abdullah.databinding.ActivityAppDetailsBinding
 import com.fix.engine.abdullah.service.AndroidDownloadManager
 import com.fix.engine.abdullah.service.DownloadTracker
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
@@ -49,7 +50,7 @@ import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Architecture: Direct APK Downloading, No .tmp, No Resume, Persistent Background Progress
+ * Architecture: Smart Pre-Download Storage Gate, Foreground PackageInstaller + Direct FileProvider Fallback
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -66,6 +67,8 @@ class AppDetailsActivity : AppCompatActivity() {
     private var activeFirebaseKey: String? = null
 
     companion object {
+        var isActivityVisible: Boolean = false
+
         init {
             System.loadLibrary("native-lib")
         }
@@ -77,12 +80,42 @@ class AppDetailsActivity : AppCompatActivity() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 "com.fix.engine.abdullah.UPDATE_UI" -> {
-                    val pkgName = intent.getStringExtra("PACKAGE_NAME")
+                    val pkgName = intent.getStringExtra("PACKAGE_NAME") ?: ""
                     val isSuccess = intent.getBooleanExtra("IS_SUCCESS", false)
+                    val statusCode = intent.getIntExtra("STATUS_CODE", -999)
+                    val errorMessage = intent.getStringExtra("ERROR_MESSAGE")
 
-                    if (pkgName == currentApp?.packageName) {
+                    val confirmationIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra("CONFIRMATION_INTENT", Intent::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra("CONFIRMATION_INTENT")
+                    }
+
+                    // 1. إذا كان النظام يطلب نافذة تأكيد التثبيت، نطلقها مباشرة من الـ Activity النشطة
+                    if (statusCode == PackageInstaller.STATUS_PENDING_USER_ACTION && confirmationIntent != null) {
+                        runOnUiThread {
+                            try {
+                                startActivity(confirmationIntent)
+                            } catch (e: Exception) {
+                                // في حال منع النظام النافذة، ننتقل فوراً للتثبيت المباشر على طريقة مدير الملفات
+                                val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                                currentApp?.let { app ->
+                                    val apkFile = File(downloadFolder, app.getUniqueFileName())
+                                    installWithStandardSystemIntent(apkFile)
+                                }
+                            }
+                        }
+                        return
+                    }
+
+                    // 2. معالجة النجاح أو الفشل
+                    if (pkgName.isBlank() || pkgName == currentApp?.packageName) {
                         runOnUiThread {
                             binding.btnInstallState.isEnabled = true
+                            binding.cardDownloadingState.visibility = View.GONE
+                            binding.btnInstallState.visibility = View.VISIBLE
+
                             if (isSuccess) {
                                 val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                                 currentApp?.getUniqueFileName()?.let { fileName ->
@@ -91,12 +124,17 @@ class AppDetailsActivity : AppCompatActivity() {
                                 currentApp?.let { setupLogic(it) }
                             } else {
                                 binding.btnInstallState.text = "تثبيت"
-                                binding.btnInstallState.visibility = View.VISIBLE
-                                binding.cardDownloadingState.visibility = View.GONE
+                                currentApp?.let { app ->
+                                    setupLogic(app)
+                                    if (statusCode != -999) {
+                                        showInstallFailureDialog(app, statusCode, errorMessage)
+                                    }
+                                }
                             }
                         }
                     }
                 }
+
                 "com.fix.engine.abdullah.DOWNLOAD_STATE_CHANGED" -> {
                     currentApp?.let { app ->
                         runOnUiThread {
@@ -142,13 +180,20 @@ class AppDetailsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        isActivityVisible = true
         currentApp?.let { app ->
             syncDownloadAndUiState(app)
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        isActivityVisible = false
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        isActivityVisible = false
         if (::tracker.isInitialized) tracker.stopTracking()
         try {
             unregisterReceiver(installStateReceiver)
@@ -178,21 +223,71 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    private fun hasEnoughStorage(): Boolean {
-        val usableSpace = Environment.getDataDirectory().usableSpace
-        val minimumRequired = 300 * 1024 * 1024L
-        return usableSpace >= minimumRequired
+    // ====================================================================
+    // 🛡️ فحص المساحة الفعلي قبل السماح بالتنزيل أو التثبيت
+    // ====================================================================
+
+    private fun getAvailableInternalStorageBytes(): Long {
+        return try {
+            val stat = StatFs(Environment.getDataDirectory().path)
+            stat.availableBlocksLong * stat.blockSizeLong
+        } catch (e: Exception) {
+            Environment.getDataDirectory().usableSpace
+        }
+    }
+
+    /**
+     * حساب المساحة المطلوبة للتنزيل + فك الحزمة والتثبيت + هامش أمان النظام (150MB)
+     */
+    private fun getRequiredStorageForDownload(app: AppModel): Long {
+        val appSizeBytes = app.size.toLongOrNull() ?: (130 * 1024 * 1024L)
+        val safetyBuffer = 150 * 1024 * 1024L
+        return (appSizeBytes * 2) + safetyBuffer
+    }
+
+    /**
+     * حساب المساحة المطلوبة لتثبيت ملف APK محمل مسبقاً
+     */
+    private fun getRequiredStorageForInstall(apkFile: File): Long {
+        val fileSize = if (apkFile.exists() && apkFile.length() > 0) apkFile.length() else (130 * 1024 * 1024L)
+        val safetyBuffer = 120 * 1024 * 1024L
+        return fileSize + safetyBuffer
+    }
+
+    private fun ensureInstallPermissionGranted(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+            if (!isFinishing && !isDestroyed) {
+                MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+                    .setTitle("إذن التثبيت مطلوب 🔐")
+                    .setMessage("لتتمكن من تثبيت التطبيقات وتحديثها، يرجى تفعيل خيار (السماح بتثبيت التطبيقات من هذا المصدر) لمتجر Abdullah.")
+                    .setPositiveButton("تفعيل الإذن الآن") { dialog, _ ->
+                        dialog.dismiss()
+                        startActivity(
+                            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                        )
+                    }
+                    .setNegativeButton("إلغاء", null)
+                    .show()
+            }
+            return false
+        }
+        return true
     }
 
     private fun prepareAndDownload(app: AppModel) {
-        if (!hasEnoughStorage()) {
-            showStorageFullDialog()
+        // 1. فحص المساحة الفعلي قبل السماح بالتنزيل
+        val availableBytes = getAvailableInternalStorageBytes()
+        val requiredBytes = getRequiredStorageForDownload(app)
+
+        if (availableBytes < requiredBytes) {
+            showStorageFullDialog(requiredBytes, availableBytes, isBeforeDownload = true)
             return
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
-            Toast.makeText(this, "يرجى منح إذن تثبيت التطبيقات من هذا المتجر", Toast.LENGTH_LONG).show()
-            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply { data = Uri.parse("package:$packageName") })
+        // 2. فحص إذن تثبيت الحزم قبل البدء
+        if (!ensureInstallPermissionGranted()) {
             return
         }
 
@@ -248,7 +343,15 @@ class AppDetailsActivity : AppCompatActivity() {
                         isDownloading = false
                         cardDownloadingState.visibility = View.GONE
                         btnInstallState.visibility = View.VISIBLE
-                        Toast.makeText(this@AppDetailsActivity, sizeLabel, Toast.LENGTH_LONG).show()
+                        
+                        // فحص ما إذا كان انقطاع التحميل بسبب امتلاء الذاكرة أثناء التنزيل
+                        val avail = getAvailableInternalStorageBytes()
+                        val req = currentApp?.let { getRequiredStorageForDownload(it) } ?: (200 * 1024 * 1024L)
+                        if (avail < req) {
+                            showStorageFullDialog(req, avail, isBeforeDownload = false)
+                        } else {
+                            Toast.makeText(this@AppDetailsActivity, sizeLabel, Toast.LENGTH_LONG).show()
+                        }
                         currentApp?.let { setupLogic(it) }
                         return@apply
                     }
@@ -282,9 +385,6 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * مزامنة حالة الصفحة عند الخروج والعودة إليها بدون استئناف وبدون .tmp
-     */
     @SuppressLint("Range")
     private fun syncDownloadAndUiState(app: AppModel) {
         val fileName = app.getUniqueFileName()
@@ -299,7 +399,6 @@ class AppDetailsActivity : AppCompatActivity() {
 
             runOnUiThread {
                 if (matchedDownload != null && (matchedDownload.status == Status.DOWNLOADING || matchedDownload.status == Status.QUEUED || matchedDownload.status == Status.ADDED)) {
-                    // التحميل ما زال جارياً في الخلفية: نعرض النسبة الحالية فوراً ونكمل المتابعة
                     isDownloading = true
                     currentDownloadId = matchedDownload.id
 
@@ -330,7 +429,6 @@ class AppDetailsActivity : AppCompatActivity() {
 
                     startTrackingProcess(matchedDownload.id)
                 } else {
-                    // إذا كان هناك تحميل متوقف أو فاشل سابقاً، نمسحه تماماً لأننا ألغينا الاستئناف
                     if (matchedDownload != null && matchedDownload.status != Status.COMPLETED) {
                         fetch.remove(matchedDownload.id)
                         finalFile.delete()
@@ -342,9 +440,26 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
+    // ====================================================================
+    // 🚀 محرك التثبيت المزدوج (Session + Direct FileProvider Fallback)
+    // ====================================================================
+
     private fun triggerAdvancedInstall(file: File) {
+        // 1. التأكد من صلاحية تثبيت التطبيقات غير المعروفة قبل البدء
+        if (!ensureInstallPermissionGranted()) {
+            return
+        }
+
+        // 2. فحص مساحة التخزين اللازمة للتثبيت
+        val availableBytes = getAvailableInternalStorageBytes()
+        val requiredBytes = getRequiredStorageForInstall(file)
+        if (availableBytes < requiredBytes) {
+            showStorageFullDialog(requiredBytes, availableBytes, isBeforeDownload = false)
+            return
+        }
+
         lifecycleScope.launch(Dispatchers.IO) {
-            delay(200)
+            delay(150)
 
             if (!AbdullahStoreApp.isApkCompleteAndValid(this@AppDetailsActivity, file)) {
                 file.delete()
@@ -352,7 +467,16 @@ class AppDetailsActivity : AppCompatActivity() {
                     binding.cardDownloadingState.visibility = View.GONE
                     binding.btnInstallState.visibility = View.VISIBLE
                     binding.btnInstallState.text = "إعادة التنزيل"
-                    Toast.makeText(this@AppDetailsActivity, "الملف غير مكتمل، يرجى التنزيل من جديد.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@AppDetailsActivity, "ملف الحزمة غير مكتمل أو تالف، يرجى التنزيل من جديد.", Toast.LENGTH_LONG).show()
+                }
+                return@launch
+            }
+
+            // إذا كانت المساحة المتبقية تكفي للتثبيت المباشر لكنها لا تكفي لنسخ الجلسة مرتين،
+            // نستخدم مثبت النظام المباشر فوراً (نفس طريقة مدير الملفات)
+            if (availableBytes < (file.length() * 2) + (100 * 1024 * 1024L)) {
+                withContext(Dispatchers.Main) {
+                    installWithStandardSystemIntent(file)
                 }
                 return@launch
             }
@@ -362,22 +486,24 @@ class AppDetailsActivity : AppCompatActivity() {
                 binding.cardDownloadingState.visibility = View.VISIBLE
                 binding.btnCancelDownload.visibility = View.GONE
                 binding.progressDownload.isIndeterminate = true
-                binding.tvDownloadPercent.text = "جاري التثبيت..."
+                binding.tvDownloadPercent.text = "جاري تجهيز التثبيت..."
                 binding.tvDownloadSize.text = "يرجى التأكيد عند ظهور نافذة النظام"
             }
 
             try {
+                val sizeBytes = file.length()
                 val packageInstaller = packageManager.packageInstaller
-                val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                    setSize(sizeBytes)
+                    currentApp?.packageName?.let { setAppPackageName(it) }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                    }
                 }
 
                 val sessionId = packageInstaller.createSession(params)
                 val session = packageInstaller.openSession(sessionId)
 
-                val sizeBytes = file.length()
                 FileInputStream(file).use { inputStream ->
                     session.openWrite("StoreInstallSession", 0, sizeBytes).use { outputStream ->
                         inputStream.copyTo(outputStream)
@@ -407,15 +533,144 @@ class AppDetailsActivity : AppCompatActivity() {
 
             } catch (e: Exception) {
                 e.printStackTrace()
+                // 🔄 في حال فشل محرك الجلسات على بعض الأجهزة المخصصة، نتحول تلقائياً للمثبت المباشر (مثل مدير الملفات)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@AppDetailsActivity, "فشل تهيئة محرك التثبيت.", Toast.LENGTH_LONG).show()
-                    binding.btnInstallState.text = "تثبيت"
-                    binding.btnInstallState.visibility = View.VISIBLE
                     binding.cardDownloadingState.visibility = View.GONE
+                    binding.btnInstallState.visibility = View.VISIBLE
+                    binding.btnInstallState.text = "تثبيت"
+                    installWithStandardSystemIntent(file)
                 }
             }
         }
     }
+
+    /**
+     * 🚀 المثبت المباشر القياسي (نفس الطريقة التي يستخدمها مدير الملفات تماماً عبر FileProvider)
+     * يعمل كبديل مضمون 100% على جميع الأجهزة التي تقيد PackageInstaller.Session
+     */
+    private fun installWithStandardSystemIntent(file: File) {
+        if (!file.exists()) {
+            Toast.makeText(this, "ملف التثبيت غير موجود", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val apkUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(apkUri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(installIntent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "تعذر فتح مثبت النظام: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /**
+     * 🔔 نافذة حوارية واضحة تشرح للمستخدم سبب فشل التثبيت وتمنحه الحل المباشر
+     */
+    private fun showInstallFailureDialog(app: AppModel, statusCode: Int, errorMessage: String?) {
+        if (isFinishing || isDestroyed) return
+
+        // إذا كان السبب امتلاء الذاكرة، نعرض نافذة المساحة المخصصة
+        if (statusCode == PackageInstaller.STATUS_FAILURE_STORAGE) {
+            val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            val apkFile = File(downloadFolder, app.getUniqueFileName())
+            showStorageFullDialog(
+                requiredBytes = getRequiredStorageForInstall(apkFile),
+                availableBytes = getAvailableInternalStorageBytes(),
+                isBeforeDownload = false
+            )
+            return
+        }
+
+        // إذا كان المستخدم هو من ضغط "إلغاء" بنفسه، نكتفي برسالة خفيفة
+        if (statusCode == PackageInstaller.STATUS_FAILURE_ABORTED) {
+            Toast.makeText(this, "تم إلغاء التثبيت", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val apkFile = File(downloadFolder, app.getUniqueFileName())
+
+        val builder = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setTitle("تعذر إتمام التثبيت ⚠️")
+            .setMessage(errorMessage ?: "حدث خطأ أثناء محاولة تثبيت التطبيق.")
+            .setNegativeButton("إغلاق", null)
+
+        when (statusCode) {
+            PackageInstaller.STATUS_FAILURE_CONFLICT -> {
+                // إذا كان هناك تعارض في التوقيع، نوفر زر حذف النسخة القديمة مباشرة
+                builder.setPositiveButton("حذف النسخة القديمة") { dialog, _ ->
+                    dialog.dismiss()
+                    val uninstallIntent = Intent(Intent.ACTION_DELETE).apply {
+                        data = Uri.parse("package:${app.packageName}")
+                    }
+                    startActivity(uninstallIntent)
+                }
+            }
+            PackageInstaller.STATUS_FAILURE_INVALID -> {
+                builder.setPositiveButton("مسح وإعادة التنزيل") { dialog, _ ->
+                    dialog.dismiss()
+                    deleteAppFiles(app)
+                    prepareAndDownload(app)
+                }
+            }
+            else -> {
+                // لأي حظر من النظام (STATUS_FAILURE_BLOCKED أو غيره)، نوفر زر التثبيت المباشر مثل مدير الملفات
+                if (apkFile.exists()) {
+                    builder.setPositiveButton("تثبيت مباشر (الوضع المتوافق)") { dialog, _ ->
+                        dialog.dismiss()
+                        installWithStandardSystemIntent(apkFile)
+                    }
+                }
+            }
+        }
+
+        builder.show()
+    }
+
+    /**
+     * ⚠️ نافذة تنبيه امتلاء المساحة (تمنع التنزيل وتوضح المساحة المطلوبة والمتوفرة بالميجابايت)
+     */
+    private fun showStorageFullDialog(requiredBytes: Long, availableBytes: Long, isBeforeDownload: Boolean) {
+        if (isFinishing || isDestroyed) return
+
+        val requiredMb = requiredBytes / (1024.0 * 1024.0)
+        val availableMb = availableBytes / (1024.0 * 1024.0)
+        val actionText = if (isBeforeDownload) "تنزيل وتثبيت" else "تثبيت"
+
+        val message = String.format(
+            Locale.US,
+            "عذراً، لا توجد مساحة تخزين كافية في جهازك لـ %s هذا التطبيق.\n\n" +
+            "• المساحة المطلوبة: %.0f MB\n" +
+            "• المساحة المتوفرة حالياً: %.0f MB\n\n" +
+            "يرجى تفريغ بعض المساحة من جهازك أولاً ثم المحاولة مجدداً.",
+            actionText,
+            requiredMb,
+            availableMb
+        )
+
+        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setTitle("مساحة التخزين غير كافية ⚠️")
+            .setMessage(message)
+            .setCancelable(false)
+            .setPositiveButton("تنظيف المساحة الآن") { dialog, _ ->
+                dialog.dismiss()
+                try {
+                    startActivity(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS))
+                } catch (e: Exception) {
+                    startActivity(Intent(Settings.ACTION_SETTINGS))
+                }
+            }
+            .setNegativeButton("حسناً") { dialog, _ -> dialog.dismiss() }
+            .show()
+    }
+
+    // ====================================================================
+    // 🎨 إدارة حالات الواجهة والأزرار
+    // ====================================================================
 
     private fun setupLogic(app: AppModel) {
         if (isDownloading) return
@@ -425,10 +680,8 @@ class AppDetailsActivity : AppCompatActivity() {
         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         val finalFile = File(downloadFolder, fileName)
 
-        // التحقق من أن ملف الـ APK موجود ومكتمل 100%
         val isApkReady = AbdullahStoreApp.isApkCompleteAndValid(this, finalFile)
         if (!isApkReady && finalFile.exists()) {
-            // إذا كان الملف تالفاً أو ناقصاً والآن لا يوجد تحميل نشط، نحذفه فوراً
             finalFile.delete()
         }
 
@@ -440,19 +693,25 @@ class AppDetailsActivity : AppCompatActivity() {
         }
 
         try {
-            val pInfo = pm.getPackageInfo(app.packageName, 0)
+            val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(0L))
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getPackageInfo(app.packageName, 0)
+            }
             val installedVer = pInfo.versionName ?: ""
             val comparisonResult = compareVersionNames(app.versionName, installedVer)
 
-            if (isApkReady) {
-                handleInstallOrUpdateState(app, finalFile, isApkReady = true, isUpdate = comparisonResult > 0)
-            } else if (comparisonResult > 0) {
-                handleInstallOrUpdateState(app, finalFile, isApkReady = false, isUpdate = true)
-            } else {
+            if (comparisonResult <= 0) {
+                // 🟢 التطبيق مثبت بالفعل ومحدث لآخر إصدار (أو أعلى)
                 binding.cardDownloadingState.visibility = View.GONE
                 binding.btnInstallState.visibility = View.GONE
                 binding.layoutInstalledState.visibility = View.VISIBLE
-                binding.btnShareApk.visibility = View.GONE
+
+                binding.btnShareApk.visibility = if (isApkReady) View.VISIBLE else View.GONE
+                if (isApkReady) {
+                    binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, app.name) }
+                }
 
                 binding.btnOpenApp.setOnClickListener {
                     val launchIntent = pm.getLaunchIntentForPackage(app.packageName)
@@ -464,8 +723,12 @@ class AppDetailsActivity : AppCompatActivity() {
                     intent.data = Uri.parse("package:${app.packageName}")
                     startActivity(intent)
                 }
+            } else {
+                // 🔄 يوجد تحديث متاح
+                handleInstallOrUpdateState(app, finalFile, isApkReady = isApkReady, isUpdate = true)
             }
         } catch (e: PackageManager.NameNotFoundException) {
+            // 📥 التطبيق غير مثبت
             handleInstallOrUpdateState(app, finalFile, isApkReady = isApkReady, isUpdate = false)
         }
     }
@@ -568,19 +831,6 @@ class AppDetailsActivity : AppCompatActivity() {
             count >= 1_000 -> String.format(Locale.US, "%.1fK", count / 1_000.0)
             else -> count.toString()
         }
-    }
-
-    private fun showStorageFullDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("مساحة التخزين ممتلئة ⚠️")
-            .setMessage("عذراً، لا توجد مساحة كافية في جهازك لتنزيل وتثبيت هذا التطبيق. يرجى تفريغ بعض المساحة والمحاولة مجدداً.")
-            .setPositiveButton("حسناً") { dialog, _ -> dialog.dismiss() }
-            .setNegativeButton("إدارة التخزين") { dialog, _ ->
-                startActivity(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS))
-                dialog.dismiss()
-            }
-            .setCancelable(false)
-            .show()
     }
 
     private fun showReadyToInstallNotification(appName: String, file: File) {
