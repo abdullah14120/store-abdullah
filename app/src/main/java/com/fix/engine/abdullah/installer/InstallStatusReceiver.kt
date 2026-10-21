@@ -7,39 +7,40 @@ import android.content.pm.PackageInstaller
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import com.fix.engine.abdullah.ui.details.AppDetailsActivity
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Store Engine)
- * Feature: Advanced PackageInstaller Status Receiver (Android 13/14+ Explicit Intent Compliance)
+ * Feature: Smart Foreground Confirmation Routing & Detailed Error Reporting
  */
 class InstallStatusReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        // التأكد من أن هذا الـ Broadcast قادم من عملية التثبيت الخاصة بنا
         if (intent.action != "com.fix.engine.abdullah.COMMIT_INSTALL") {
             return
         }
 
-        // استخراج حالة التثبيت والرسالة واسم الحزمة
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -999)
-        val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "بدون رسالة"
-        val packageName = intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME) ?: "تطبيق غير معروف"
+        val rawMessage = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ""
+        val packageName = intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME) ?: ""
 
         when (status) {
-            // 🟢 الحالة الأولى: المستخدم وافق، وتم التثبيت في النظام بنجاح!
+            // 🟢 1. نجاح التثبيت
             PackageInstaller.STATUS_SUCCESS -> {
-                Toast.makeText(context, "تم التثبيت بنجاح! ✨", Toast.LENGTH_SHORT).show()
-                Log.i("InstallReceiver", "Successfully installed: $packageName")
-                
-                // إبلاغ الواجهة بالنجاح مع تحديد الحزمة صراحة
-                notifyUI(context, packageName, true)
+                Toast.makeText(context, "تم تثبيت التطبيق بنجاح! ✨", Toast.LENGTH_SHORT).show()
+                notifyUI(
+                    context = context,
+                    packageName = packageName,
+                    isSuccess = true,
+                    statusCode = status,
+                    errorMessage = null,
+                    confirmationIntent = null
+                )
             }
 
-            // 🟡 الحالة الثانية: النظام يحتاج إلى تأكيد المستخدم للتثبيت
+            // 🟡 2. النظام يطلب موافقة المستخدم على التثبيت
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
-                Log.i("InstallReceiver", "Requesting user confirmation for install...")
-                
                 val confirmationIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
                 } else {
@@ -48,14 +49,37 @@ class InstallStatusReceiver : BroadcastReceiver() {
                 }
 
                 if (confirmationIntent != null) {
-                    confirmationIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(confirmationIntent)
+                    if (AppDetailsActivity.isActivityVisible) {
+                        // 🚀 إرسال النافذة إلى الشاشة النشطة لتجاوز حظر الخلفية في شاومي وأندرويد 14+
+                        notifyUI(
+                            context = context,
+                            packageName = packageName,
+                            isSuccess = false,
+                            statusCode = status,
+                            errorMessage = null,
+                            confirmationIntent = confirmationIntent
+                        )
+                    } else {
+                        try {
+                            confirmationIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(confirmationIntent)
+                        } catch (e: Exception) {
+                            Log.e("InstallReceiver", "Failed to start confirmation activity from background", e)
+                        }
+                    }
                 } else {
-                    Toast.makeText(context, "خطأ: لم يتم العثور على واجهة التثبيت", Toast.LENGTH_SHORT).show()
+                    notifyUI(
+                        context = context,
+                        packageName = packageName,
+                        isSuccess = false,
+                        statusCode = PackageInstaller.STATUS_FAILURE,
+                        errorMessage = "لم يتم العثور على نافذة التثبيت في النظام.",
+                        confirmationIntent = null
+                    )
                 }
             }
 
-            // 🔴 الحالة الثالثة: فشل التثبيت
+            // 🔴 3. فشل التثبيت (مع تحديد السبب الدقيق للمستخدم)
             PackageInstaller.STATUS_FAILURE,
             PackageInstaller.STATUS_FAILURE_ABORTED,
             PackageInstaller.STATUS_FAILURE_BLOCKED,
@@ -63,35 +87,59 @@ class InstallStatusReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_FAILURE_INCOMPATIBLE,
             PackageInstaller.STATUS_FAILURE_INVALID,
             PackageInstaller.STATUS_FAILURE_STORAGE -> {
-                val userFriendlyMessage = when (status) {
-                    PackageInstaller.STATUS_FAILURE_ABORTED -> "تم إلغاء التثبيت بواسطة المستخدم."
-                    PackageInstaller.STATUS_FAILURE_STORAGE -> "لا توجد مساحة كافية في الجهاز."
-                    PackageInstaller.STATUS_FAILURE_CONFLICT -> "يوجد إصدار متعارض مثبت مسبقاً! يرجى حذفه أولاً."
-                    PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> "التطبيق غير متوافق مع جهازك."
-                    else -> "فشل التثبيت: $message"
+
+                val detailedMessage = when (status) {
+                    PackageInstaller.STATUS_FAILURE_ABORTED ->
+                        "تم إلغاء عملية التثبيت من قِبل المستخدم."
+                    PackageInstaller.STATUS_FAILURE_STORAGE ->
+                        "لا توجد مساحة تخزين كافية في جهازك لإتمام تثبيت التطبيق. يرجى تفريغ بعض المساحة ثم المحاولة مجدداً."
+                    PackageInstaller.STATUS_FAILURE_CONFLICT ->
+                        "يوجد إصدار مثبت مسبقاً من هذا التطبيق بتوقيع مختلف (مثلاً من مصدر آخر). يجب حذف النسخة الحالية أولاً لتتمكن من تثبيت هذه النسخة."
+                    PackageInstaller.STATUS_FAILURE_INCOMPATIBLE ->
+                        "هذا التطبيق غير متوافق مع معالج جهازك أو مع إصدار نظام الأندرويد لديك."
+                    PackageInstaller.STATUS_FAILURE_INVALID ->
+                        "ملف التثبيت (APK) غير صالح أو تالف. يرجى مسح ملف التثبيت وإعادة تنزيله."
+                    PackageInstaller.STATUS_FAILURE_BLOCKED ->
+                        "تم حظر التثبيت بواسطة نظام الحماية في جهازك أو Google Play Protect. يمكنك المحاولة عبر وضع التثبيت المباشر."
+                    else ->
+                        "تعذر إتمام التثبيت تلقائياً (${rawMessage.ifBlank { "قيود من نظام الجهاز" }}). يمكنك التثبيت فوراً عبر الوضع المباشر."
                 }
 
-                Toast.makeText(context, userFriendlyMessage, Toast.LENGTH_LONG).show()
-                Log.e("InstallReceiver", "Install failed for $packageName: $userFriendlyMessage")
-                
-                notifyUI(context, packageName, false)
-            }
+                Log.e("InstallReceiver", "Install failed ($status): $detailedMessage")
 
-            else -> {
-                Log.w("InstallReceiver", "Unknown status: $status, Message: $message")
+                if (!AppDetailsActivity.isActivityVisible) {
+                    Toast.makeText(context, detailedMessage, Toast.LENGTH_LONG).show()
+                }
+
+                notifyUI(
+                    context = context,
+                    packageName = packageName,
+                    isSuccess = false,
+                    statusCode = status,
+                    errorMessage = detailedMessage,
+                    confirmationIntent = null
+                )
             }
         }
     }
 
-    /**
-     * دالة مساعدة لإرسال تحديث لواجهة المستخدم مع تحديد الحزمة بصراحة (Explicit Intent)
-     * لتجاوز قيود الأمان في أندرويد 13 و 14+
-     */
-    private fun notifyUI(context: Context, packageName: String, isSuccess: Boolean) {
+    private fun notifyUI(
+        context: Context,
+        packageName: String,
+        isSuccess: Boolean,
+        statusCode: Int,
+        errorMessage: String?,
+        confirmationIntent: Intent?
+    ) {
         val updateIntent = Intent("com.fix.engine.abdullah.UPDATE_UI").apply {
-            setPackage(context.packageName) // 🔒 تعديل جوهري لمنع حظر الإشعار في أندرويد 14+
+            setPackage(context.packageName)
             putExtra("PACKAGE_NAME", packageName)
             putExtra("IS_SUCCESS", isSuccess)
+            putExtra("STATUS_CODE", statusCode)
+            putExtra("ERROR_MESSAGE", errorMessage)
+            if (confirmationIntent != null) {
+                putExtra("CONFIRMATION_INTENT", confirmationIntent)
+            }
         }
         context.sendBroadcast(updateIntent)
     }
