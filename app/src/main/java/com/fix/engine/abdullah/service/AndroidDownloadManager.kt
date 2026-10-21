@@ -16,41 +16,44 @@ import java.io.File
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: FIX ENGINE - Abdullah Store
- * Refactored: Powered by Fetch API with Auto-Retry, Scoped Storage & Tags
+ * Feature: Direct Clean APK Download (No .tmp, No Resume)
  */
 class AndroidDownloadManager(private val context: Context) {
 
-    // 🚀 الاستدعاء الرسمي الآمن للمكتبة
-    private val fetch = Fetch.getDefaultInstance()
-
-    // 🚀 إضافة packageName كمتغير لمتابعة حالة التحميل في الواجهة
     fun enqueueDownload(url: String, fileName: String, packageName: String): Int {
         return try {
-            // إضافة .tmp لضمان عدم قراءة النظام للملف قبل اكتماله
-            val tempFileName = "$fileName.tmp"
-            
+            val fetch = Fetch.getDefaultInstance()
             val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            val file = File(dir, tempFileName)
+            
+            // الحفظ المباشر باسم ملف الـ APK النهائي بدون .tmp
+            val file = File(dir, fileName)
+            if (file.exists()) {
+                file.delete()
+            }
+            // تنظيف أي ملف .tmp قديم إن وجد من إصدارات سابقة
+            File(dir, "$fileName.tmp").delete()
+
             val filePath = file.absolutePath
 
             val request = Request(url, filePath).apply {
                 priority = Priority.HIGH
-                networkType = NetworkType.ALL 
-                autoRetryMaxAttempts = 10 
+                networkType = NetworkType.ALL
+                autoRetryMaxAttempts = 0
+                // بدء تنزيل نظيف دائماً واستبدال أي محاولة سابقة
                 enqueueAction = EnqueueAction.REPLACE_EXISTING
-                // 🏷️ إضافة اسم الحزمة كـ Tag لتسهيل ربط التحميل بالتطبيق في الواجهة
-                tag = packageName 
+                tag = packageName
+                addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36")
             }
 
             fetch.enqueue(request, { _ ->
-                // تم وضع الطلب في طابور التحميل بنجاح
+                // بدأ التنزيل بنجاح
             }, { error ->
                 CoroutineScope(Dispatchers.Main).launch {
                     Toast.makeText(context, "فشل بدء التحميل: ${error.name}", Toast.LENGTH_SHORT).show()
                 }
             })
 
-            request.id 
+            request.id
         } catch (e: Exception) {
             CoroutineScope(Dispatchers.Main).launch {
                 Toast.makeText(context, "فشل بدء التحميل: ${e.message}", Toast.LENGTH_SHORT).show()
