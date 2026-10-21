@@ -7,57 +7,31 @@ import android.content.IntentFilter
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.fix.engine.abdullah.AbdullahStoreApp
 import com.fix.engine.abdullah.R
 import com.tonyodev.fetch2.DefaultFetchNotificationManager
 import com.tonyodev.fetch2.DownloadNotification
 import com.tonyodev.fetch2.Fetch
 import java.util.Locale
 
-/**
- * Developed by: Abdullah Al-Tamimi
- * Feature: Custom Notification Manager with Android 13/14/15 (API 33-35) SecurityException Fix
- */
 class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificationManager(context) {
 
-    private var appContext: Context? = null
+    private val safeContext: Context
+        get() = AbdullahStoreApp.appInstance ?: throw IllegalStateException("App instance not ready")
 
-    init {
-        appContext = context.applicationContext
-    }
-
-    /**
-     * 🛡️ الإصلاح الجوهري لانهيار أندرويد 14 و 15 (SecurityException: RECEIVER_NOT_EXPORTED)
-     * يتم استدعاء هذه الدالة تلقائياً داخل init الخاص بـ DefaultFetchNotificationManager
-     */
     override fun registerBroadcastReceiver() {
         try {
-            val ctx = getContextSafely() ?: return
+            val ctx = AbdullahStoreApp.appInstance ?: return
             ContextCompat.registerReceiver(
                 ctx,
                 broadcastReceiver,
                 IntentFilter(notificationManagerAction),
                 ContextCompat.RECEIVER_NOT_EXPORTED
             )
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    /**
-     * دالة لاستخراج الـ Context بأمان حتى أثناء تنفيذ constructor الكلاس الأب ومع تفعيل ProGuard
-     */
-    private fun getContextSafely(): Context? {
-        appContext?.let { return it }
-        return try {
-            val contextField = DefaultFetchNotificationManager::class.java.declaredFields.firstOrNull {
-                Context::class.java.isAssignableFrom(it.type)
+        } catch (t: Throwable) {
+            AbdullahStoreApp.appInstance?.let {
+                CrashHandler.recordException(it, t, "CustomFetchNotificationManager.registerBroadcastReceiver")
             }
-            contextField?.isAccessible = true
-            (contextField?.get(this) as? Context)?.also {
-                appContext = it.applicationContext ?: it
-            }
-        } catch (e: Exception) {
-            null
         }
     }
 
@@ -71,7 +45,7 @@ class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificatio
     ): NotificationCompat.Builder {
         val builder = super.getNotificationBuilder(notificationId, groupId)
         builder.setSmallIcon(R.drawable.ic_notification_transparent)
-        getContextSafely()?.let { ctx ->
+        AbdullahStoreApp.appInstance?.let { ctx ->
             builder.color = ContextCompat.getColor(ctx, R.color.md_theme_d_primary)
         }
         return builder
@@ -89,7 +63,7 @@ class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificatio
         downloadNotification: DownloadNotification,
         actionType: DownloadNotification.ActionType
     ): PendingIntent {
-        val ctx = requireNotNull(getContextSafely())
+        val ctx = safeContext
         val intent = PendingIntentFactory.createNotificationActionIntent(
             ctx,
             downloadNotification.namespace,
@@ -106,10 +80,10 @@ class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificatio
         downloadNotifications: List<DownloadNotification>,
         actionType: DownloadNotification.ActionType
     ): PendingIntent {
-        val ctx = requireNotNull(getContextSafely())
-        val namespace = downloadNotifications.firstOrNull()?.namespace 
+        val ctx = safeContext
+        val namespace = downloadNotifications.firstOrNull()?.namespace
             ?: Fetch.getDefaultInstance().namespace
-        
+
         val intent = PendingIntentFactory.createNotificationActionIntent(
             ctx,
             namespace,
@@ -122,10 +96,6 @@ class CustomFetchNotificationManager(context: Context) : DefaultFetchNotificatio
     }
 }
 
-// ==============================================================================
-// ⚙️ CORE LOGIC LAYER (Formatters & PendingIntent Factory)
-// ==============================================================================
-
 object NotificationTextFormatter {
 
     fun formatSubtitle(downloadedBytes: Long, totalBytes: Long, downloadedBytesPerSecond: Long): String {
@@ -135,7 +105,7 @@ object NotificationTextFormatter {
 
         val downloadedMB = downloadedBytes / (1024.0 * 1024.0)
         val totalMB = totalBytes / (1024.0 * 1024.0)
-        
+
         val speedKB = downloadedBytesPerSecond / 1024.0
         val speedText = if (speedKB >= 1024.0) {
             val speedMB = speedKB / 1024.0
