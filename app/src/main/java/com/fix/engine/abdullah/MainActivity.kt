@@ -13,10 +13,11 @@ import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.LayoutInflater 
+import android.view.LayoutInflater
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -26,31 +27,38 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.MainPagerAdapter
+import com.fix.engine.abdullah.ui.details.AppDetailsActivity
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
-import com.google.android.material.button.MaterialButton 
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Official Runtime Core)
- * Feature: JNI C++ Security, Coroutines Async Loading, M3 Layouts & Clean Architecture Observers
+ * Feature: JNI C++ Security, Smart Category Chips, Storage Manager & Live Firebase Announcements
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
-    
+
     // 🌐 أدوات مراقبة حالة الشبكة الفورية
     private lateinit var connectivityManager: ConnectivityManager
     private lateinit var networkCallback: ConnectivityManager.NetworkCallback
     private var isNetworkCallbackRegistered = false
     private var isDataLoadedSuccessfully = false
-    
+
     // 🔔 متغير لمنع تكرار الإشعار المزعج عند تدوير الشاشة أو البحث
     private var isNotificationSent = false
 
@@ -74,7 +82,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // 🚨 درع الحماية النيتف
         verifySignatureNative(applicationContext)
 
@@ -86,21 +94,21 @@ class MainActivity : AppCompatActivity() {
         setupObservers()
         setupSearchLogic()
         setupSearchAnimation()
-        
+        observeStoreAnnouncement()
+
         checkNotificationPermission()
-        
-        // 🚀 استخدام Coroutines بدلاً من Handler لمنع تسرب الذاكرة
+
         lifecycleScope.launch {
             delay(1000)
             checkInstallPermission()
         }
-        
+
         refreshData()
     }
 
     private fun registerNetworkMonitoring() {
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        
+
         networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
@@ -150,7 +158,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.nav_settings -> Toast.makeText(this, "الإعدادات قريباً", Toast.LENGTH_SHORT).show()
+                R.id.nav_settings -> showSettingsAndStorageDialog()
                 R.id.nav_dev_about -> showAboutDeveloperDialog()
                 R.id.nav_add_app -> showAddAppDeveloperDialog()
             }
@@ -163,7 +171,7 @@ class MainActivity : AppCompatActivity() {
         if (isFinishing || isDestroyed) return
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
             .setTitle("حول المطور")
-            .setMessage("تم تطوير المتجر بواسطة م/ عبدالله التميمي.\nنهدف إلى تقديم تجربة فريدة، آمنة وااحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
+            .setMessage("تم تطوير المتجر بواسطة م/ عبدالله التميمي.\nنهدف إلى تقديم تجربة فريدة، آمنة واحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
             .setPositiveButton("حسناً", null)
             .show()
     }
@@ -204,7 +212,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showInstallPermissionDialog() {
-        if (isFinishing || isDestroyed) return 
+        if (isFinishing || isDestroyed) return
         val dialogView = LayoutInflater.from(this).inflate(R.layout.mtrl_alert_dialog, null)
         val dialog = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
             .setView(dialogView)
@@ -213,7 +221,7 @@ class MainActivity : AppCompatActivity() {
 
         dialogView.findViewById<MaterialButton>(R.id.btn_positive)?.setOnClickListener {
             getSharedPreferences("FixEnginePrefs", MODE_PRIVATE).edit().putBoolean("install_dialog_shown", true).apply()
-            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply { data = Uri.parse("package:$packageName") })
+            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply { data = Uri.parse("package:\$packageName") })
             dialog.dismiss()
         }
 
@@ -223,8 +231,8 @@ class MainActivity : AppCompatActivity() {
         }
         dialog.show()
     }
-        
-    private fun checkMandatoryUpdate(apps: List<com.fix.engine.abdullah.data.model.AppModel>) {
+
+    private fun checkMandatoryUpdate(apps: List<AppModel>) {
         val storeApp = apps.find { it.packageName == packageName } ?: return
 
         try {
@@ -234,10 +242,11 @@ class MainActivity : AppCompatActivity() {
                 @Suppress("DEPRECATION")
                 packageManager.getPackageInfo(packageName, 0)
             }
-            
+
             val installedVersion = pInfo.versionName ?: ""
 
-            if (storeApp.versionName.trim() != installedVersion.trim()) {
+            // 🧠 مقارنة ذكية: لا يظهر التحديث الإجباري إلا إذا كان إصدار السيرفر أحدث فعلياً من المثبت
+            if (compareVersionNames(storeApp.versionName, installedVersion) > 0) {
                 showMandatoryUpdateDialog(storeApp)
             }
         } catch (e: Exception) {
@@ -245,14 +254,33 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showMandatoryUpdateDialog(storeApp: com.fix.engine.abdullah.data.model.AppModel) {
+    private fun compareVersionNames(serverVersion: String, installedVersion: String): Int {
+        try {
+            val sParts = serverVersion.trim().split(".")
+            val iParts = installedVersion.trim().split(".")
+            val maxLen = maxOf(sParts.size, iParts.size)
+
+            for (i in 0 until maxLen) {
+                val sVal = sParts.getOrNull(i)?.toIntOrNull() ?: 0
+                val iVal = iParts.getOrNull(i)?.toIntOrNull() ?: 0
+
+                if (sVal > iVal) return 1
+                if (sVal < iVal) return -1
+            }
+        } catch (e: Exception) {
+            return if (serverVersion.trim() != installedVersion.trim()) 1 else 0
+        }
+        return 0
+    }
+
+    private fun showMandatoryUpdateDialog(storeApp: AppModel) {
         if (isFinishing || isDestroyed) return
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
             .setTitle("تحديث إجباري!")
             .setMessage("يوجد إصدار جديد من متجر Abdullah يحل بعض المشاكل التقنية. يرجى التحديث للمتابعة.")
             .setCancelable(false)
             .setPositiveButton("تحديث الآن") { _, _ ->
-                val intent = Intent(this, com.fix.engine.abdullah.ui.details.AppDetailsActivity::class.java).apply {
+                val intent = Intent(this, AppDetailsActivity::class.java).apply {
                     putExtra("APP_DATA", storeApp)
                 }
                 startActivity(intent)
@@ -265,8 +293,8 @@ class MainActivity : AppCompatActivity() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                "store_updates_channel", 
-                "تحديثات المتجر", 
+                "store_updates_channel",
+                "تحديثات المتجر",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply { description = "تنبيهات تلقائية عند توفر تحديثات جديدة للتطبيقات المثبتة" }
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
@@ -279,9 +307,9 @@ class MainActivity : AppCompatActivity() {
         val pendingIntent = PendingIntent.getActivity(this, 0, intent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
 
         val builder = NotificationCompat.Builder(this, "store_updates_channel")
-            .setSmallIcon(R.drawable.ic_notification_transparent) 
+            .setSmallIcon(R.drawable.ic_notification_transparent)
             .setContentTitle("تحديثات متوفرة لـ تطبيقاتك! 🚀")
-            .setContentText("يوجد عدد ($updatesCount) من تطبيقاتك تمتلك إصدارات محدثة، قم بتثبيتها الآن.")
+            .setContentText("يوجد عدد (\$updatesCount) من تطبيقاتك تمتلك إصدارات محدثة، قم بتثبيتها الآن.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -297,13 +325,46 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSearchLogic() {
+        // 1. مراقبة البحث وإظهار/إخفاء زر المسح (X)
         binding.etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                viewModel.filterApps(s.toString())
+                val query = s?.toString() ?: ""
+                binding.btnClearSearch.isVisible = query.isNotEmpty()
+                viewModel.filterApps(query)
             }
             override fun afterTextChanged(s: Editable?) {}
         })
+
+        // 2. زر مسح النص بضغطة واحدة
+        binding.btnClearSearch.setOnClickListener {
+            binding.etSearch.setText("")
+            binding.etSearch.clearFocus()
+        }
+
+        // 3. زر التحديث الفوري من السيرفر مع حركة دوران
+        binding.btnRefreshMain.setOnClickListener { view ->
+            view.animate().rotationBy(360f).setDuration(600).start()
+            Toast.makeText(this, "جاري تحديث قائمة التطبيقات... 🔄", Toast.LENGTH_SHORT).show()
+            try {
+                val secureUrl = getSecureRepoUrl()
+                viewModel.forceReloadApps(secureUrl.toByteArray(Charsets.UTF_8), 0.toByte())
+            } catch (e: Exception) {
+                refreshData()
+            }
+        }
+
+        // 4. تفعيل شريط التصنيفات السريعة (Chips)
+        binding.chipGroupCategories.setOnCheckedStateChangeListener { _, checkedIds ->
+            val checkedId = checkedIds.firstOrNull() ?: R.id.chipAll
+            when (checkedId) {
+                R.id.chipAll -> viewModel.filterApps(binding.etSearch.text.toString())
+                R.id.chipAbMods -> viewModel.filterApps("ABWhatsApp")
+                R.id.chipObMods -> viewModel.filterApps("عمر")
+                R.id.chipShieldMods -> viewModel.filterApps("درع الحماية")
+                R.id.chipInstalledOnly -> viewModel.filterInstalledOnly()
+            }
+        }
     }
 
     private fun setupSearchAnimation() {
@@ -325,30 +386,26 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupObservers() {
         viewModel.isLoading.observe(this) { binding.progressBar.isVisible = it }
-        
-        // 🟢 استبدال المراقبة لتتوافق مع المعمارية الجديدة (AppItemUiState)
+
         viewModel.appsUiStateList.observe(this) { uiStates ->
             if (!uiStates.isNullOrEmpty()) {
                 isDataLoadedSuccessfully = true
-                // استخراج كائنات AppModel الأصلية لفحص التحديث الإجباري
                 val apps = uiStates.map { it.app }
                 checkMandatoryUpdate(apps)
             }
         }
-        
-        // 🚀 الاعتماد المباشر على ViewModel لإدارة إشعارات التحديثات بدلاً من الحساب اليدوي
+
         viewModel.updatesUiStateList.observe(this) { updateStates ->
             if (updateStates != null) {
                 val updateCount = updateStates.size
                 val updatesTab = binding.tabLayoutMain.getTabAt(1)
                 val badge = updatesTab?.orCreateBadge
-                
+
                 if (updateCount > 0) {
                     badge?.isVisible = true
                     badge?.number = updateCount
                     badge?.backgroundColor = ContextCompat.getColor(this@MainActivity, R.color.md_theme_d_error)
-                    
-                    // منع إرسال الإشعار بشكل متكرر أثناء البحث أو تدوير الشاشة
+
                     if (binding.etSearch.text.isNullOrBlank() && !isNotificationSent) {
                         sendUpdateNotification(updateCount)
                         isNotificationSent = true
@@ -358,12 +415,12 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        
-        viewModel.errorMessage.observe(this) { 
-            it?.let { 
-                Toast.makeText(this, it, Toast.LENGTH_LONG).show() 
+
+        viewModel.errorMessage.observe(this) {
+            it?.let {
+                Toast.makeText(this, it, Toast.LENGTH_LONG).show()
                 isDataLoadedSuccessfully = false
-            } 
+            }
         }
     }
 
@@ -375,6 +432,67 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toast.makeText(this, "خطأ في معالجة بوابة الأمان", Toast.LENGTH_LONG).show()
             isDataLoadedSuccessfully = false
+        }
+    }
+
+    private fun showSettingsAndStorageDialog() {
+        if (isFinishing || isDestroyed) return
+
+        val downloadsDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val apkFiles = downloadsDir?.listFiles { file ->
+            file.isFile && (file.name.endsWith(".apk") || file.name.endsWith(".tmp"))
+        } ?: emptyArray()
+
+        val totalSizeBytes = apkFiles.sumOf { it.length() }
+        val totalSizeMb = String.format(Locale.US, "%.1f MB", totalSizeBytes / (1024.0 * 1024.0))
+
+        val message = "📦 عدد ملفات التثبيت المحفوظة: \${apkFiles.size} ملف\n" +
+                "💾 المساحة المستهلكة: \$totalSizeMb\n\n" +
+                "يمكنك مسح ملفات الـ APK المؤقتة بعد تثبيت تطبيقاتك لتوفير مساحة تخزين إضافية في هاتفك."
+
+        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setTitle("إعدادات المتجر والتخزين ⚙️")
+            .setMessage(message)
+            .setPositiveButton("تنظيف المساحة (\$totalSizeMb)") { dialog, _ ->
+                var deletedCount = 0
+                apkFiles.forEach { if (it.delete()) deletedCount++ }
+                viewModel.refreshAppStates()
+                Toast.makeText(this, "تم تنظيف \$deletedCount ملف وتفريغ المساحة بنجاح! ✨", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+            .setNegativeButton("إغلاق", null)
+            .show()
+    }
+
+    private fun observeStoreAnnouncement() {
+        try {
+            val dbUrl = "https://abdullah-store-a95ed-default-rtdb.europe-west1.firebasedatabase.app"
+            FirebaseDatabase.getInstance(dbUrl)
+                .getReference("store_announcement")
+                .addValueEventListener(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        val isActive = snapshot.child("active").getValue(Boolean::class.java) ?: false
+                        val title = snapshot.child("title").getValue(String::class.java) ?: "📢 إشعار هام"
+                        val body = snapshot.child("body").getValue(String::class.java) ?: ""
+
+                        runOnUiThread {
+                            if (isActive && body.isNotBlank()) {
+                                binding.txtAnnouncementTitle.text = title
+                                binding.txtAnnouncementBody.text = body
+                                binding.cardAnnouncement.isVisible = true
+                                binding.btnDismissAnnouncement.setOnClickListener {
+                                    binding.cardAnnouncement.isVisible = false
+                                }
+                            } else {
+                                binding.cardAnnouncement.isVisible = false
+                            }
+                        }
+                    }
+
+                    override fun onCancelled(error: DatabaseError) {}
+                })
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }
