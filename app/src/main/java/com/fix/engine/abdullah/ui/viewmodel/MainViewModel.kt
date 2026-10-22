@@ -222,4 +222,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         return 0
     }
+    fun forceReloadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
+        fullAppsList = emptyList()
+        loadApps(encryptedUrl, cryptoSalt)
+    }
+
+    fun filterInstalledOnly() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val allStates = mapToUiState(fullAppsList)
+            val installedOnly = allStates.filter {
+                it.status == AppInstallStatus.INSTALLED || it.status == AppInstallStatus.UPDATE_AVAILABLE
+            }
+            _appsUiStateList.postValue(installedOnly)
+        }
 }
