@@ -169,6 +169,11 @@ class AppDetailsActivity : AppCompatActivity() {
         if (appData != null) {
             currentApp = appData
             displayDetails(appData)
+            // عرض اسم الحزمة في شارة الأمان
+binding.txtVerifiedBadge.text = "🛡️ آمن ومفحوص • ${appData.packageName}"
+
+// تفعيل قسم التعليقات والتقييمات
+setupCommentsSection(appData.packageName)
             if (::databaseRef.isInitialized) {
                 loadDownloadsCount(appData.packageName)
             }
@@ -910,4 +915,199 @@ class AppDetailsActivity : AppCompatActivity() {
         isDownloading = false
         setupLogic(app)
     }
+   // ====================================================================
+    // 💬 محرك التعليقات والتقييمات الحي عبر Firebase Realtime Database
+    // ====================================================================
+
+    private fun setupCommentsSection(packageName: String) {
+        val safeKey = packageName.trim().lowercase().replace(".", "_")
+        val commentsRef = FirebaseDatabase.getInstance(getSecureFirebaseUrl())
+            .getReference("app_comments")
+            .child(safeKey)
+
+        binding.rvComments.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+
+        binding.btnAddComment.setOnClickListener {
+            showAddCommentDialog(commentsRef)
+        }
+
+        // جلب آخر 30 تعليقاً بشكل حي ومرتب من الأحدث للأقدم
+        commentsRef.limitToLast(30).addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val commentsList = mutableListOf<Map<String, Any>>()
+                var totalStars = 0L
+
+                for (child in snapshot.children) {
+                    val user = child.child("user").getValue(String::class.java) ?: "مستخدم"
+                    val text = child.child("text").getValue(String::class.java) ?: continue
+                    val stars = child.child("stars").getValue(Long::class.java) ?: 5L
+                    val time = child.child("time").getValue(String::class.java) ?: ""
+
+                    totalStars += stars
+                    commentsList.add(
+                        mapOf(
+                            "user" to user,
+                            "text" to text,
+                            "stars" to stars,
+                            "time" to time
+                        )
+                    )
+                }
+
+                commentsList.reverse() // الأحدث في الأعلى
+
+                runOnUiThread {
+                    if (commentsList.isEmpty()) {
+                        binding.txtEmptyComments.visibility = View.VISIBLE
+                        binding.rvComments.visibility = View.GONE
+                        binding.txtStatRating.text = "5.0 ★"
+                        binding.txtStatReviewsCount.text = "جديد"
+                    } else {
+                        binding.txtEmptyComments.visibility = View.GONE
+                        binding.rvComments.visibility = View.VISIBLE
+                        val avg = totalStars.toDouble() / commentsList.size
+                        binding.txtStatRating.text = String.format(Locale.US, "%.1f ★", avg)
+                        binding.txtStatReviewsCount.text = "${commentsList.size} مراجعة"
+                        binding.rvComments.adapter = SimpleCommentsAdapter(commentsList)
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {}
+        })
+    }
+
+    private fun showAddCommentDialog(commentsRef: DatabaseReference) {
+        val prefs = getSharedPreferences("FixEnginePrefs", Context.MODE_PRIVATE)
+        val savedName = prefs.getString("user_display_name", "") ?: ""
+
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            val pad = (20 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, 0)
+        }
+
+        val ratingBar = android.widget.RatingBar(this, null, android.R.attr.ratingBarStyleIndicator).apply {
+            numStars = 5
+            stepSize = 1f
+            rating = 5f
+            setIsIndicator(false)
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { gravity = android.view.Gravity.CENTER_HORIZONTAL }
+        }
+
+        val etName = android.widget.EditText(this).apply {
+            hint = "اسمك (مثال: محمد)"
+            setText(savedName)
+            maxLines = 1
+        }
+
+        val etComment = android.widget.EditText(this).apply {
+            hint = "اكتب رأيك أو تجربتك للتطبيق هنا..."
+            minLines = 2
+            maxLines = 4
+        }
+
+        container.addView(ratingBar)
+        container.addView(etName)
+        container.addView(etComment)
+
+        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setTitle("إضافة تقييم وتعليق ⭐")
+            .setView(container)
+            .setPositiveButton("نشر التعليق") { dialog, _ ->
+                val name = etName.text.toString().trim().ifBlank { "مستخدم المتجر" }
+                val comment = etComment.text.toString().trim()
+                val stars = ratingBar.rating.toInt().coerceIn(1, 5)
+
+                if (comment.length < 3) {
+                    Toast.makeText(this, "يرجى كتابة تعليق واضح أولاً", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                prefs.edit().putString("user_display_name", name).apply()
+
+                val dateStr = java.text.SimpleDateFormat("yyyy/MM/dd", Locale.US).format(java.util.Date())
+                val payload = mapOf(
+                    "user" to name.take(25),
+                    "text" to comment.take(250),
+                    "stars" to stars,
+                    "time" to dateStr
+                )
+
+                commentsRef.push().setValue(payload)
+                    .addOnSuccessListener {
+                        Toast.makeText(this, "تم نشر تعليقك بنجاح! شكراً لك ✨", Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(this, "تعذر نشر التعليق، تأكد من الاتصال بالإنترنت", Toast.LENGTH_SHORT).show()
+                    }
+                dialog.dismiss()
+            }
+            .setNegativeButton("إلغاء", null)
+            .show()
+    }
+
+    /**
+     * محول برمجي سريع وأنيق لعرض بطاقات التعليقات بدون الحاجة لملف XML إضافي
+     */
+    private inner class SimpleCommentsAdapter(
+        private val items: List<Map<String, Any>>
+    ) : androidx.recyclerview.widget.RecyclerView.Adapter<SimpleCommentsAdapter.VH>() {
+
+        inner class VH(val card: com.google.android.material.card.MaterialCardView, val tvHeader: android.widget.TextView, val tvBody: android.widget.TextView) :
+            androidx.recyclerview.widget.RecyclerView.ViewHolder(card)
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): VH {
+            val density = parent.resources.displayMetrics.density
+            val card = com.google.android.material.card.MaterialCardView(parent.context).apply {
+                layoutParams = androidx.recyclerview.widget.RecyclerView.LayoutParams(
+                    androidx.recyclerview.widget.RecyclerView.LayoutParams.MATCH_PARENT,
+                    androidx.recyclerview.widget.RecyclerView.LayoutParams.WRAP_CONTENT
+                ).apply { bottomMargin = (10 * density).toInt() }
+                radius = 14 * density
+                cardElevation = 0f
+                setCardBackgroundColor(ContextCompat.getColor(parent.context, R.color.md_theme_d_surfaceVariant))
+            }
+
+            val box = android.widget.LinearLayout(parent.context).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                val p = (14 * density).toInt()
+                setPadding(p, p, p, p)
+            }
+
+            val tvHeader = android.widget.TextView(parent.context).apply {
+                textSize = 13f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTextColor(ContextCompat.getColor(parent.context, R.color.md_theme_d_primary))
+            }
+
+            val tvBody = android.widget.TextView(parent.context).apply {
+                textSize = 13.5f
+                setPadding(0, (6 * density).toInt(), 0, 0)
+                setTextColor(ContextCompat.getColor(parent.context, R.color.md_theme_d_onSurface))
+            }
+
+            box.addView(tvHeader)
+            box.addView(tvBody)
+            card.addView(box)
+            return VH(card, tvHeader, tvBody)
+        }
+
+        override fun onBindViewHolder(holder: VH, position: Int) {
+            val item = items[position]
+            val user = item["user"] as? String ?: "مستخدم"
+            val stars = (item["stars"] as? Long ?: 5L).toInt()
+            val time = item["time"] as? String ?: ""
+            val text = item["text"] as? String ?: ""
+
+            val starsText = "★".repeat(stars) + "☆".repeat(5 - stars)
+            holder.tvHeader.text = "$user  •  $starsText   ($time)"
+            holder.tvBody.text = text
+        }
+
+        override fun getItemCount(): Int = items.size
+    } 
 }
