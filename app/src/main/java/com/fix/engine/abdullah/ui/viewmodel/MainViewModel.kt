@@ -30,6 +30,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var fullUpdatesList: List<AppModel> = emptyList()
     private var downloadsMap: Map<Int, Long> = emptyMap()
     private var currentSearchQuery: String = ""
+    private var isObservingDownloads: Boolean = false
 
     private val _appsUiStateList = MutableLiveData<List<AppItemUiState>>()
     val appsUiStateList: LiveData<List<AppItemUiState>> get() = _appsUiStateList
@@ -58,10 +59,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             result.onSuccess { list ->
                 fullAppsList = list
 
-                viewModelScope.launch(Dispatchers.IO) {
-                    repository.observeDownloads().collect { newMap ->
-                        downloadsMap = newMap
-                        refreshAppStates()
+                // تشغيل مراقب الفايربيس مرة واحدة فقط لمنع تكرار المراقبين عند التحديث اليدوي
+                if (!isObservingDownloads) {
+                    isObservingDownloads = true
+                    viewModelScope.launch(Dispatchers.IO) {
+                        repository.observeDownloads().collect { newMap ->
+                            downloadsMap = newMap
+                            refreshAppStates()
+                        }
                     }
                 }
 
@@ -170,7 +175,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return apps.map { app ->
             val fileName = app.getUniqueFileName()
             val localFile = File(downloadsDir, fileName)
-            
+
             // 🛡️ لا يعتبر الملف جاهزاً للتثبيت إلا إذا اكتمل تحميله 100% وكان حزمة APK صالحة
             val isDownloaded = AbdullahStoreApp.isApkCompleteAndValid(appContext, localFile)
 
@@ -222,6 +227,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         return 0
     }
+
     fun forceReloadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
         fullAppsList = emptyList()
         loadApps(encryptedUrl, cryptoSalt)
@@ -235,4 +241,5 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             _appsUiStateList.postValue(installedOnly)
         }
+    }
 }
