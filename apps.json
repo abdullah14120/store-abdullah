@@ -42,7 +42,7 @@
     "versionName": "2.26.39.80",
     "versionCode": 2147483647,
     "developer": "عبدالله التميمي",
-    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconred.png",
+    "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconremd.png",
     "downloadUrl": "https://drive.usercontent.google.com/download?id=1DnQ_w6B_dVW_9kRwg4AQaGkblxbsmAjf&export=download&confirm=t&uuid=6efb0589-7292-435b-a7d4-e2772c971998",
     "size": "139340964",
     "description": "ما الجديد في التحديث V13 📦 تحديث القاعدة إلى الإصدار 2.26.39.80🆕 جديد: تم تفعيل العديد من الميزات الجديدة. 🛡 [تحسين] الحماية ضد الحظر.😀 تحسينات عامة على أداء واستقرار المود.❤️ العديد من الميزات الجديدة استمتعوا واكتشفوا الجديد بنفسكم."
@@ -61,8 +61,8 @@
   },
   {
     "id": 6,
-    "name": "SnapTube لتحميل الفيديوهات مجانًا",
-    "packageName": "com.snaptube.premium",
+    "name": "غير جاهز ، جاري التجهيز",
+    "packageName": "com.qq",
     "versionName": "7.62.0.76250110",
     "versionCode": 76250110,
     "developer": "عبدالله التميمي",
