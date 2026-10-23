@@ -173,13 +173,49 @@ class AbdullahStoreApp : Application() {
         var appInstance: AbdullahStoreApp? = null
             private set
 
+        /**
+         * 🛡️ يفحص ما إذا كان الملف المحمل صالحاً ومكتملاً (سواء كان APK مفرداً أو حزمة APKM / XAPK / APKS)
+         */
         fun isApkCompleteAndValid(context: Context, file: File): Boolean {
             if (!file.exists() || file.length() <= 0L) return false
+
+            // 1. فحص ما إذا كان ملف APK عادي صالح
+            try {
+                if (context.packageManager.getPackageArchiveInfo(file.absolutePath, 0) != null) {
+                    return true
+                }
+            } catch (_: Exception) {}
+
+            // 2. إذا لم يكن APK مفرداً، نفحص ما إذا كان حزمة مقسمة (APKM / XAPK / APKS) مكتملة وسليمة
+            return isSplitApksBundle(file)
+        }
+
+        /**
+         * 📦 التحقق من أن الملف عبارة عن حزمة (APKM / XAPK / APKS) تحتوي بداخلها على ملفات APK سليمة
+         */
+        fun isSplitApksBundle(file: File): Boolean {
+            if (!file.exists() || file.length() <= 0L) return false
             return try {
-                context.packageManager.getPackageArchiveInfo(file.absolutePath, 0) != null
+                java.util.zip.ZipFile(file).use { zip ->
+                    var hasApkEntries = false
+                    var hasRootManifest = false
+                    val entries = zip.entries()
+
+                    while (entries.hasMoreElements()) {
+                        val entry = entries.nextElement()
+                        val name = entry.name.lowercase()
+                        if (name == "androidmanifest.xml") {
+                            hasRootManifest = true
+                        } else if (!entry.isDirectory && name.endsWith(".apk") && entry.size > 0L) {
+                            hasApkEntries = true
+                        }
+                    }
+                    // الحزمة المقسمة تحتوي على ملفات .apk بداخلها ولا تحتوي على AndroidManifest في الجذر الخارجي
+                    hasApkEntries && !hasRootManifest
+                }
             } catch (e: Exception) {
                 false
             }
         }
     }
-}
+  }  
