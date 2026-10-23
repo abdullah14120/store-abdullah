@@ -449,8 +449,8 @@ setupCommentsSection(appData.packageName)
     // 🚀 محرك التثبيت المزدوج (Session + Direct FileProvider Fallback)
     // ====================================================================
 
-    private fun triggerAdvancedInstall(file: File) {
-        // 1. التأكد من صلاحية تثبيت التطبيقات غير المعروفة قبل البدء
+private fun triggerAdvancedInstall(file: File) {
+        // 1. التأكد من صلاحية تثبيت التطبيقات غير المعروفة
         if (!ensureInstallPermissionGranted()) {
             return
         }
@@ -466,22 +466,20 @@ setupCommentsSection(appData.packageName)
         lifecycleScope.launch(Dispatchers.IO) {
             delay(150)
 
-            if (!AbdullahStoreApp.isApkCompleteAndValid(this@AppDetailsActivity, file)) {
+            val isSplitBundle = AbdullahStoreApp.isSplitApksBundle(file)
+            val isValidFile = isSplitBundle || AbdullahStoreApp.isApkCompleteAndValid(this@AppDetailsActivity, file)
+
+            if (!isValidFile) {
                 file.delete()
                 withContext(Dispatchers.Main) {
                     binding.cardDownloadingState.visibility = View.GONE
                     binding.btnInstallState.visibility = View.VISIBLE
                     binding.btnInstallState.text = "إعادة التنزيل"
-                    Toast.makeText(this@AppDetailsActivity, "ملف الحزمة غير مكتمل أو تالف، يرجى التنزيل من جديد.", Toast.LENGTH_LONG).show()
-                }
-                return@launch
-            }
-
-            // إذا كانت المساحة المتبقية تكفي للتثبيت المباشر لكنها لا تكفي لنسخ الجلسة مرتين،
-            // نستخدم مثبت النظام المباشر فوراً (نفس طريقة مدير الملفات)
-            if (availableBytes < (file.length() * 2) + (100 * 1024 * 1024L)) {
-                withContext(Dispatchers.Main) {
-                    installWithStandardSystemIntent(file)
+                    Toast.makeText(
+                        this@AppDetailsActivity,
+                        "ملف الحزمة غير مكتمل أو تالف (أو بصيغة APKM مشفرة غير قياسية)، يرجى التنزيل من جديد.",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
                 return@launch
             }
@@ -491,62 +489,143 @@ setupCommentsSection(appData.packageName)
                 binding.cardDownloadingState.visibility = View.VISIBLE
                 binding.btnCancelDownload.visibility = View.GONE
                 binding.progressDownload.isIndeterminate = true
-                binding.tvDownloadPercent.text = "جاري تجهيز التثبيت..."
+                binding.tvDownloadPercent.text = if (isSplitBundle) {
+                    "جاري تجميع وتثبيت حزمة APKM / XAPK..."
+                } else {
+                    "جاري تجهيز التثبيت..."
+                }
                 binding.tvDownloadSize.text = "يرجى التأكيد عند ظهور نافذة النظام"
             }
 
+            var session: PackageInstaller.Session? = null
             try {
-                val sizeBytes = file.length()
                 val packageInstaller = packageManager.packageInstaller
                 val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
-                    setSize(sizeBytes)
                     currentApp?.packageName?.let { setAppPackageName(it) }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
                     }
                 }
 
-                val sessionId = packageInstaller.createSession(params)
-                val session = packageInstaller.openSession(sessionId)
+                if (isSplitBundle) {
+                    // =================================================================
+                    // 📦 1. مسار تثبيت الحزم المقسمة (.apkm / .xapk / .apks)
+                    // =================================================================
+                    java.util.zip.ZipFile(file).use { zipFile ->
+                        val apkEntries = zipFile.entries().asSequence()
+                            .filter { !it.isDirectory && it.name.lowercase().endsWith(".apk") && it.size > 0L }
+                            .toList()
 
-                FileInputStream(file).use { inputStream ->
-                    session.openWrite("StoreInstallSession", 0, sizeBytes).use { outputStream ->
-                        inputStream.copyTo(outputStream)
-                        session.fsync(outputStream)
+                        if (apkEntries.isEmpty()) {
+                            throw IllegalStateException("لا توجد ملفات APK صالحة داخل الحزمة")
+                        }
+
+                        // فلترة ذكية لتجاهل معماريات المعالج غير المتوافقة مع هاتف المستخدم (إن وجدت)
+                        val filteredEntries = filterCompatibleSplitEntries(apkEntries)
+                        val totalUncompressedSize = filteredEntries.sumOf { it.size }
+                        params.setSize(totalUncompressedSize)
+
+                        val sessionId = packageInstaller.createSession(params)
+                        session = packageInstaller.openSession(sessionId)
+
+                        filteredEntries.forEachIndexed { index, entry ->
+                            val safeStreamName = "split_pkg_$index.apk"
+                            zipFile.getInputStream(entry).use { inputStream ->
+                                session!!.openWrite(safeStreamName, 0, entry.size).use { outputStream ->
+                                    inputStream.copyTo(outputStream)
+                                    session!!.fsync(outputStream)
+                                }
+                            }
+                        }
+
+                        commitInstallerSession(session!!, sessionId)
                     }
-                }
-
-                val intent = Intent(this@AppDetailsActivity, com.fix.engine.abdullah.installer.InstallStatusReceiver::class.java).apply {
-                    action = "com.fix.engine.abdullah.COMMIT_INSTALL"
-                }
-
-                val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                 } else {
-                    PendingIntent.FLAG_UPDATE_CURRENT
+                    // =================================================================
+                    // 📱 2. مسار تثبيت ملف .apk القياسي المفرد
+                    // =================================================================
+                    val sizeBytes = file.length()
+                    params.setSize(sizeBytes)
+
+                    val sessionId = packageInstaller.createSession(params)
+                    session = packageInstaller.openSession(sessionId)
+
+                    FileInputStream(file).use { inputStream ->
+                        session!!.openWrite("base.apk", 0, sizeBytes).use { outputStream ->
+                            inputStream.copyTo(outputStream)
+                            session!!.fsync(outputStream)
+                        }
+                    }
+
+                    commitInstallerSession(session!!, sessionId)
                 }
-
-                val pendingIntent = PendingIntent.getBroadcast(
-                    this@AppDetailsActivity,
-                    sessionId,
-                    intent,
-                    pendingIntentFlags
-                )
-
-                session.commit(pendingIntent.intentSender)
-                session.close()
 
             } catch (e: Exception) {
+                session?.abandon()
                 e.printStackTrace()
-                // 🔄 في حال فشل محرك الجلسات على بعض الأجهزة المخصصة، نتحول تلقائياً للمثبت المباشر (مثل مدير الملفات)
                 withContext(Dispatchers.Main) {
                     binding.cardDownloadingState.visibility = View.GONE
                     binding.btnInstallState.visibility = View.VISIBLE
                     binding.btnInstallState.text = "تثبيت"
-                    installWithStandardSystemIntent(file)
+
+                    if (isSplitBundle) {
+                        Toast.makeText(
+                            this@AppDetailsActivity,
+                            "فشل تثبيت الحزمة المقسمة: ${e.localizedMessage ?: "خطأ في الأرشيف"}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        installWithStandardSystemIntent(file)
+                    }
                 }
             }
         }
+    }
+
+    /**
+     * 🧠 فلترة ذكية لحزم XAPK/APKM: تستبعد ملفات المعالجات الأخرى غير المتوافقة مع معالج الجهاز الحالي
+     * لمنع خطأ INSTALL_FAILED_INVALID_APK في بعض حزم XAPK الشاملة
+     */
+    private fun filterCompatibleSplitEntries(entries: List<java.util.zip.ZipEntry>): List<java.util.zip.ZipEntry> {
+        val primaryAbi = Build.SUPPORTED_ABIS.firstOrNull()?.lowercase()?.replace("-", "_") ?: return entries
+        val allAbis = listOf("arm64_v8a", "armeabi_v7a", "armeabi", "x86_64", "x86")
+
+        // التحقق مما إذا كانت الحزمة تحتوي على ملف خاص بالمعمارية الأساسية للجهاز
+        val hasPrimaryAbiSplit = entries.any { entry ->
+            val fileName = File(entry.name).name.lowercase().replace("-", "_")
+            fileName.contains(primaryAbi)
+        }
+
+        if (!hasPrimaryAbiSplit) return entries
+
+        return entries.filter { entry ->
+            val fileName = File(entry.name).name.lowercase().replace("-", "_")
+            val matchedAbi = allAbis.firstOrNull { abi -> fileName.contains(abi) }
+            // نقبل الملف إذا لم يكن خاصاً بمعالج معين (مثل base.apk أو اللغات) أو إذا كان يطابق معالج الجهاز الأساسي
+            matchedAbi == null || matchedAbi == primaryAbi
+        }
+    }
+
+    private fun commitInstallerSession(session: PackageInstaller.Session, sessionId: Int) {
+        val intent = Intent(this@AppDetailsActivity, com.fix.engine.abdullah.installer.InstallStatusReceiver::class.java).apply {
+            action = "com.fix.engine.abdullah.COMMIT_INSTALL"
+        }
+
+        val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            this@AppDetailsActivity,
+            sessionId,
+            intent,
+            pendingIntentFlags
+        )
+
+        session.commit(pendingIntent.intentSender)
+        session.close()
     }
 
     /**
