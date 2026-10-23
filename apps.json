@@ -61,14 +61,14 @@
   },
   {
     "id": 6,
-    "name": "غير جاهز ، جاري التجهيز",
-    "packageName": "com.qq",
+    "name": "SnapTube سناب تيوب",
+    "packageName": "com.snaptube.premium",
     "versionName": "7.62.0.76250110",
     "versionCode": 76250110,
     "developer": "عبدالله التميمي",
     "icon": "https://raw.githubusercontent.com/abdullah14120/store-abdullah/refs/heads/main/icon/iconsnaptube.png",
-    "downloadUrl": "https://drive.usercontent.google.com/download?id=1bmYrlMEfTkWVBB1hyWSZ_4PqmززUvigEPg&export=download&confirm=t&uuid=f900bd89-5c78-4e10-a031-11f97448f823",
-    "size": "30729735",
+    "downloadUrl": "https://drive.usercontent.google.com/download?id=1t32aqlkCmhdALmBkzVZAkKlLchEqiVVG&export=download&confirm=t&uuid=f900bd89-5c78-4e10-a031-11f97448f823",
+    "size": "30724850",
     "description": "سناب تيوب لتحميل الفيديوهات مجانًا ، نسخة جميع المميزات مفتوحة و لاتطلب التحديث إطلاقًا"
   },
   {
