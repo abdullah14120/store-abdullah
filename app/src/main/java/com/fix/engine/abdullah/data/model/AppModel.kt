@@ -53,9 +53,19 @@ data class AppModel(
      * يضمن عدم تداخل الملفات المحملة داخل مجلد التنزيلات بالجهاز.
      */
     fun getUniqueFileName(): String {
-        return "${packageName}_v${versionName.trim()}.apk"
-    }
+        val safePackage = packageName.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
+        val safeVersion = versionName.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
+        val urlLower = downloadUrl.lowercase()
 
+        val extension = when {
+            urlLower.contains(".apkm") || urlLower.contains("ext=apkm") -> "apkm"
+            urlLower.contains(".xapk") || urlLower.contains("ext=xapk") -> "xapk"
+            urlLower.contains(".apks") || urlLower.contains("ext=apks") -> "apks"
+            else -> "apk"
+        }
+
+        return "${safePackage}_v${safeVersion}.$extension"
+    }
     /**
      * وظيفة احترافية لتحويل الحجم ديناميكياً (MB أو KB) بالاعتماد على النظام القياسي
      */
