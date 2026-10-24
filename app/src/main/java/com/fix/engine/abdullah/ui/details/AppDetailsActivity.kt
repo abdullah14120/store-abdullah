@@ -586,26 +586,62 @@ private fun triggerAdvancedInstall(file: File) {
      * 🧠 فلترة ذكية لحزم XAPK/APKM: تستبعد ملفات المعالجات الأخرى غير المتوافقة مع معالج الجهاز الحالي
      * لمنع خطأ INSTALL_FAILED_INVALID_APK في بعض حزم XAPK الشاملة
      */
-    private fun filterCompatibleSplitEntries(entries: List<java.util.zip.ZipEntry>): List<java.util.zip.ZipEntry> {
-        val primaryAbi = Build.SUPPORTED_ABIS.firstOrNull()?.lowercase()?.replace("-", "_") ?: return entries
+  /**
+     * 🧠 فلترة ذكية لحزم APKM/XAPK الشاملة (مثل حزم واتساب الأعمال من APKMirror):
+     * تختار فقط المعالج المطابق لهاتف المستخدم + دقة الشاشة الأنسب لمنع تعارض الـ Splits أثناء التثبيت
+     */
+    private fun filterCompatibleSplitEntries(entries: List<ZipEntry>): List<ZipEntry> {
+        val primaryAbi = Build.SUPPORTED_ABIS.firstOrNull()?.lowercase()?.replace("-", "_") ?: "arm64_v8a"
         val allAbis = listOf("arm64_v8a", "armeabi_v7a", "armeabi", "x86_64", "x86")
+        val allDpis = listOf("xxxhdpi", "xxhdpi", "xhdpi", "hdpi", "mdpi", "ldpi", "tvdpi")
 
-        // التحقق مما إذا كانت الحزمة تحتوي على ملف خاص بالمعمارية الأساسية للجهاز
-        val hasPrimaryAbiSplit = entries.any { entry ->
-            val fileName = File(entry.name).name.lowercase().replace("-", "_")
-            fileName.contains(primaryAbi)
+        // 1. تحديد المعالج الأنسب الموجود داخل الحزمة
+        val selectedAbi = Build.SUPPORTED_ABIS
+            .map { it.lowercase().replace("-", "_") }
+            .firstOrNull { abi ->
+                entries.any { File(it.name).name.lowercase().replace("-", "_").contains("config.$abi") || File(it.name).name.lowercase().replace("-", "_").contains(abi) }
+            } ?: primaryAbi
+
+        // 2. تحديد دقة الشاشة الأنسب الموجودة داخل الحزمة بناءً على كثافة شاشة هاتف المستخدم
+        val deviceDpi = resources.displayMetrics.densityDpi
+        val preferredDpiOrder = when {
+            deviceDpi >= 560 -> listOf("xxxhdpi", "xxhdpi", "xhdpi", "hdpi", "mdpi")
+            deviceDpi >= 400 -> listOf("xxhdpi", "xxxhdpi", "xhdpi", "hdpi", "mdpi")
+            deviceDpi >= 280 -> listOf("xhdpi", "xxhdpi", "hdpi", "xxxhdpi", "mdpi")
+            else -> listOf("hdpi", "mdpi", "xhdpi", "xxhdpi", "xxxhdpi")
         }
 
-        if (!hasPrimaryAbiSplit) return entries
+        val selectedDpi = preferredDpiOrder.firstOrNull { dpi ->
+            entries.any { entry ->
+                val name = File(entry.name).name.lowercase()
+                name.contains("config.$dpi") || name == "split_config.$dpi.apk"
+            }
+        }
 
         return entries.filter { entry ->
             val fileName = File(entry.name).name.lowercase().replace("-", "_")
-            val matchedAbi = allAbis.firstOrNull { abi -> fileName.contains(abi) }
-            // نقبل الملف إذا لم يكن خاصاً بمعالج معين (مثل base.apk أو اللغات) أو إذا كان يطابق معالج الجهاز الأساسي
-            matchedAbi == null || matchedAbi == primaryAbi
+
+            // فحص ما إذا كان الملف خاصاً بمعالج (ABI)
+            val matchedAbi = allAbis.firstOrNull { abi ->
+                fileName.contains("config.$abi") || fileName.contains(".$abi.") || fileName.endsWith("_$abi.apk")
+            }
+            if (matchedAbi != null) {
+                return@filter matchedAbi == selectedAbi
+            }
+
+            // فحص ما إذا كان الملف خاصاً بكثافة الشاشة (DPI)
+            val matchedDpi = allDpis.firstOrNull { dpi ->
+                fileName.contains("config.$dpi") || fileName.contains(".$dpi.")
+            }
+            if (matchedDpi != null && selectedDpi != null) {
+                return@filter matchedDpi == selectedDpi
+            }
+
+            // قبول الملف الأساسي (base.apk) وأي ملفات لغات أو ميزات أخرى
+            true
         }
     }
-
+    
     private fun commitInstallerSession(session: PackageInstaller.Session, sessionId: Int) {
         val intent = Intent(this@AppDetailsActivity, com.fix.engine.abdullah.installer.InstallStatusReceiver::class.java).apply {
             action = "com.fix.engine.abdullah.COMMIT_INSTALL"
