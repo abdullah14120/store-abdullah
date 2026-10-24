@@ -11,19 +11,28 @@ import android.content.IntentFilter
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.StatFs
 import android.provider.Settings
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.RatingBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.fix.engine.abdullah.AbdullahStoreApp
 import com.fix.engine.abdullah.R
@@ -32,6 +41,7 @@ import com.fix.engine.abdullah.data.network.LinkExtractor
 import com.fix.engine.abdullah.databinding.ActivityAppDetailsBinding
 import com.fix.engine.abdullah.service.AndroidDownloadManager
 import com.fix.engine.abdullah.service.DownloadTracker
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -46,11 +56,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Architecture: Smart Pre-Download Storage Gate, Foreground PackageInstaller + Direct FileProvider Fallback
+ * Architecture: Multi-Format Installer (APK / APKM / XAPK / APKS), Smart Storage Gate & Live Reviews
  */
 class AppDetailsActivity : AppCompatActivity() {
 
@@ -92,24 +106,23 @@ class AppDetailsActivity : AppCompatActivity() {
                         intent.getParcelableExtra("CONFIRMATION_INTENT")
                     }
 
-                    // 1. إذا كان النظام يطلب نافذة تأكيد التثبيت، نطلقها مباشرة من الـ Activity النشطة
                     if (statusCode == PackageInstaller.STATUS_PENDING_USER_ACTION && confirmationIntent != null) {
                         runOnUiThread {
                             try {
                                 startActivity(confirmationIntent)
                             } catch (e: Exception) {
-                                // في حال منع النظام النافذة، ننتقل فوراً للتثبيت المباشر على طريقة مدير الملفات
                                 val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                                 currentApp?.let { app ->
                                     val apkFile = File(downloadFolder, app.getUniqueFileName())
-                                    installWithStandardSystemIntent(apkFile)
+                                    if (!AbdullahStoreApp.isSplitApksBundle(apkFile)) {
+                                        installWithStandardSystemIntent(apkFile)
+                                    }
                                 }
                             }
                         }
                         return
                     }
 
-                    // 2. معالجة النجاح أو الفشل
                     if (pkgName.isBlank() || pkgName == currentApp?.packageName) {
                         runOnUiThread {
                             binding.btnInstallState.isEnabled = true
@@ -169,11 +182,8 @@ class AppDetailsActivity : AppCompatActivity() {
         if (appData != null) {
             currentApp = appData
             displayDetails(appData)
-            // عرض اسم الحزمة في شارة الأمان
-binding.txtVerifiedBadge.text = "🛡️ آمن ومفحوص • ${appData.packageName}"
-
-// تفعيل قسم التعليقات والتقييمات
-setupCommentsSection(appData.packageName)
+            binding.txtVerifiedBadge.text = "🛡️ آمن ومفحوص • ${appData.packageName}"
+            setupCommentsSection(appData.packageName)
             if (::databaseRef.isInitialized) {
                 loadDownloadsCount(appData.packageName)
             }
@@ -241,18 +251,12 @@ setupCommentsSection(appData.packageName)
         }
     }
 
-    /**
-     * حساب المساحة المطلوبة للتنزيل + فك الحزمة والتثبيت + هامش أمان النظام (150MB)
-     */
     private fun getRequiredStorageForDownload(app: AppModel): Long {
         val appSizeBytes = app.size.toLongOrNull() ?: (130 * 1024 * 1024L)
         val safetyBuffer = 150 * 1024 * 1024L
         return (appSizeBytes * 2) + safetyBuffer
     }
 
-    /**
-     * حساب المساحة المطلوبة لتثبيت ملف APK محمل مسبقاً
-     */
     private fun getRequiredStorageForInstall(apkFile: File): Long {
         val fileSize = if (apkFile.exists() && apkFile.length() > 0) apkFile.length() else (130 * 1024 * 1024L)
         val safetyBuffer = 120 * 1024 * 1024L
@@ -282,7 +286,6 @@ setupCommentsSection(appData.packageName)
     }
 
     private fun prepareAndDownload(app: AppModel) {
-        // 1. فحص المساحة الفعلي قبل السماح بالتنزيل
         val availableBytes = getAvailableInternalStorageBytes()
         val requiredBytes = getRequiredStorageForDownload(app)
 
@@ -291,7 +294,6 @@ setupCommentsSection(appData.packageName)
             return
         }
 
-        // 2. فحص إذن تثبيت الحزم قبل البدء
         if (!ensureInstallPermissionGranted()) {
             return
         }
@@ -323,9 +325,13 @@ setupCommentsSection(appData.packageName)
         currentDownloadId = downloadId
 
         binding.btnCancelDownload.setOnClickListener {
-            val fetch = Fetch.getDefaultInstance()
-            fetch.cancel(downloadId)
-            fetch.remove(downloadId)
+            try {
+                val fetch = Fetch.getDefaultInstance()
+                fetch.cancel(downloadId)
+                fetch.remove(downloadId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             tracker.stopTracking()
             isDownloading = false
 
@@ -348,8 +354,7 @@ setupCommentsSection(appData.packageName)
                         isDownloading = false
                         cardDownloadingState.visibility = View.GONE
                         btnInstallState.visibility = View.VISIBLE
-                        
-                        // فحص ما إذا كان انقطاع التحميل بسبب امتلاء الذاكرة أثناء التنزيل
+
                         val avail = getAvailableInternalStorageBytes()
                         val req = currentApp?.let { getRequiredStorageForDownload(it) } ?: (200 * 1024 * 1024L)
                         if (avail < req) {
@@ -396,66 +401,69 @@ setupCommentsSection(appData.packageName)
         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         val finalFile = File(downloadFolder, fileName)
 
-        val fetch = Fetch.getDefaultInstance()
-        fetch.getDownloads { downloads ->
-            val matchedDownload = downloads
-                .filter { it.file == finalFile.absolutePath || it.tag == app.packageName }
-                .maxByOrNull { it.created }
+        try {
+            val fetch = Fetch.getDefaultInstance()
+            fetch.getDownloads { downloads ->
+                val matchedDownload = downloads
+                    .filter { it.file == finalFile.absolutePath || it.tag == app.packageName }
+                    .maxByOrNull { it.created }
 
-            runOnUiThread {
-                if (matchedDownload != null && (matchedDownload.status == Status.DOWNLOADING || matchedDownload.status == Status.QUEUED || matchedDownload.status == Status.ADDED)) {
-                    isDownloading = true
-                    currentDownloadId = matchedDownload.id
+                runOnUiThread {
+                    if (matchedDownload != null && (matchedDownload.status == Status.DOWNLOADING || matchedDownload.status == Status.QUEUED || matchedDownload.status == Status.ADDED)) {
+                        isDownloading = true
+                        currentDownloadId = matchedDownload.id
 
-                    binding.btnInstallState.visibility = View.GONE
-                    binding.layoutInstalledState.visibility = View.GONE
-                    binding.btnShareApk.visibility = View.GONE
-                    binding.btnDeleteApk.visibility = View.GONE
-                    binding.cardDownloadingState.visibility = View.VISIBLE
-                    binding.btnCancelDownload.visibility = View.VISIBLE
+                        binding.btnInstallState.visibility = View.GONE
+                        binding.layoutInstalledState.visibility = View.GONE
+                        binding.btnShareApk.visibility = View.GONE
+                        binding.btnDeleteApk.visibility = View.GONE
+                        binding.cardDownloadingState.visibility = View.VISIBLE
+                        binding.btnCancelDownload.visibility = View.VISIBLE
 
-                    val currentProg = matchedDownload.progress.coerceIn(0, 99)
-                    val dlMb = matchedDownload.downloaded / (1024.0 * 1024.0)
-                    val totMb = matchedDownload.total / (1024.0 * 1024.0)
+                        val currentProg = matchedDownload.progress.coerceIn(0, 99)
+                        val dlMb = matchedDownload.downloaded / (1024.0 * 1024.0)
+                        val totMb = matchedDownload.total / (1024.0 * 1024.0)
 
-                    if (currentProg > 0) {
-                        binding.progressDownload.isIndeterminate = false
-                        binding.progressDownload.progress = currentProg
-                        binding.tvDownloadPercent.text = "جاري التنزيل... $currentProg%"
-                        binding.tvDownloadSize.text = if (matchedDownload.total > 0) {
-                            String.format(Locale.ENGLISH, "%.1f/%.1f MB", dlMb, totMb)
+                        if (currentProg > 0) {
+                            binding.progressDownload.isIndeterminate = false
+                            binding.progressDownload.progress = currentProg
+                            binding.tvDownloadPercent.text = "جاري التنزيل... $currentProg%"
+                            binding.tvDownloadSize.text = if (matchedDownload.total > 0) {
+                                String.format(Locale.ENGLISH, "%.1f/%.1f MB", dlMb, totMb)
+                            } else {
+                                String.format(Locale.ENGLISH, "%.1f MB", dlMb)
+                            }
                         } else {
-                            String.format(Locale.ENGLISH, "%.1f MB", dlMb)
+                            binding.progressDownload.isIndeterminate = true
+                            binding.tvDownloadPercent.text = "جاري التنزيل..."
                         }
-                    } else {
-                        binding.progressDownload.isIndeterminate = true
-                        binding.tvDownloadPercent.text = "جاري التنزيل..."
-                    }
 
-                    startTrackingProcess(matchedDownload.id)
-                } else {
-                    if (matchedDownload != null && matchedDownload.status != Status.COMPLETED) {
-                        fetch.remove(matchedDownload.id)
-                        finalFile.delete()
+                        startTrackingProcess(matchedDownload.id)
+                    } else {
+                        if (matchedDownload != null && matchedDownload.status != Status.COMPLETED) {
+                            fetch.remove(matchedDownload.id)
+                            finalFile.delete()
+                        }
+                        isDownloading = false
+                        setupLogic(app)
                     }
-                    isDownloading = false
-                    setupLogic(app)
                 }
             }
+        } catch (e: Exception) {
+            isDownloading = false
+            setupLogic(app)
         }
     }
 
     // ====================================================================
-    // 🚀 محرك التثبيت المزدوج (Session + Direct FileProvider Fallback)
+    // 🚀 محرك التثبيت الشامل (يدعم APK العادي + حزم APKM / XAPK / APKS)
     // ====================================================================
 
-private fun triggerAdvancedInstall(file: File) {
-        // 1. التأكد من صلاحية تثبيت التطبيقات غير المعروفة
+    private fun triggerAdvancedInstall(file: File) {
         if (!ensureInstallPermissionGranted()) {
             return
         }
 
-        // 2. فحص مساحة التخزين اللازمة للتثبيت
         val availableBytes = getAvailableInternalStorageBytes()
         val requiredBytes = getRequiredStorageForInstall(file)
         if (availableBytes < requiredBytes) {
@@ -467,9 +475,9 @@ private fun triggerAdvancedInstall(file: File) {
             delay(150)
 
             val isSplitBundle = AbdullahStoreApp.isSplitApksBundle(file)
-            val isValidFile = isSplitBundle || AbdullahStoreApp.isApkCompleteAndValid(this@AppDetailsActivity, file)
+            val isValidSingleApk = AbdullahStoreApp.isApkCompleteAndValid(this@AppDetailsActivity, file)
 
-            if (!isValidFile) {
+            if (!isSplitBundle && !isValidSingleApk) {
                 file.delete()
                 withContext(Dispatchers.Main) {
                     binding.cardDownloadingState.visibility = View.GONE
@@ -477,9 +485,16 @@ private fun triggerAdvancedInstall(file: File) {
                     binding.btnInstallState.text = "إعادة التنزيل"
                     Toast.makeText(
                         this@AppDetailsActivity,
-                        "ملف الحزمة غير مكتمل أو تالف (أو بصيغة APKM مشفرة غير قياسية)، يرجى التنزيل من جديد.",
+                        "الحزمة تالفة أو بصيغة APKM مشفرة (يرجى استخدام صيغة APK أو APKS/XAPK قياسية).",
                         Toast.LENGTH_LONG
                     ).show()
+                }
+                return@launch
+            }
+
+            if (!isSplitBundle && availableBytes < (file.length() * 2) + (100 * 1024 * 1024L)) {
+                withContext(Dispatchers.Main) {
+                    installWithStandardSystemIntent(file)
                 }
                 return@launch
             }
@@ -508,19 +523,12 @@ private fun triggerAdvancedInstall(file: File) {
                 }
 
                 if (isSplitBundle) {
-                    // =================================================================
-                    // 📦 1. مسار تثبيت الحزم المقسمة (.apkm / .xapk / .apks)
-                    // =================================================================
-                    java.util.zip.ZipFile(file).use { zipFile ->
+                    // 📦 مسار تثبيت الحزم المقسمة (.apkm / .xapk / .apks)
+                    ZipFile(file).use { zipFile ->
                         val apkEntries = zipFile.entries().asSequence()
                             .filter { !it.isDirectory && it.name.lowercase().endsWith(".apk") && it.size > 0L }
                             .toList()
 
-                        if (apkEntries.isEmpty()) {
-                            throw IllegalStateException("لا توجد ملفات APK صالحة داخل الحزمة")
-                        }
-
-                        // فلترة ذكية لتجاهل معماريات المعالج غير المتوافقة مع هاتف المستخدم (إن وجدت)
                         val filteredEntries = filterCompatibleSplitEntries(apkEntries)
                         val totalUncompressedSize = filteredEntries.sumOf { it.size }
                         params.setSize(totalUncompressedSize)
@@ -541,9 +549,7 @@ private fun triggerAdvancedInstall(file: File) {
                         commitInstallerSession(session!!, sessionId)
                     }
                 } else {
-                    // =================================================================
-                    // 📱 2. مسار تثبيت ملف .apk القياسي المفرد
-                    // =================================================================
+                    // 📱 مسار تثبيت ملف .apk المفرد
                     val sizeBytes = file.length()
                     params.setSize(sizeBytes)
 
@@ -567,26 +573,17 @@ private fun triggerAdvancedInstall(file: File) {
                     binding.cardDownloadingState.visibility = View.GONE
                     binding.btnInstallState.visibility = View.VISIBLE
                     binding.btnInstallState.text = "تثبيت"
-
-                    if (isSplitBundle) {
-                        Toast.makeText(
-                            this@AppDetailsActivity,
-                            "فشل تثبيت الحزمة المقسمة: ${e.localizedMessage ?: "خطأ في الأرشيف"}",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } else {
+                    if (!isSplitBundle) {
                         installWithStandardSystemIntent(file)
+                    } else {
+                        Toast.makeText(this@AppDetailsActivity, "تعذر تثبيت الحزمة المقسمة: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                     }
                 }
             }
         }
     }
 
-    /**
-     * 🧠 فلترة ذكية لحزم XAPK/APKM: تستبعد ملفات المعالجات الأخرى غير المتوافقة مع معالج الجهاز الحالي
-     * لمنع خطأ INSTALL_FAILED_INVALID_APK في بعض حزم XAPK الشاملة
-     */
-  /**
+ /**
      * 🧠 فلترة ذكية لحزم APKM/XAPK الشاملة (مثل حزم واتساب الأعمال من APKMirror):
      * تختار فقط المعالج المطابق لهاتف المستخدم + دقة الشاشة الأنسب لمنع تعارض الـ Splits أثناء التثبيت
      */
@@ -641,7 +638,7 @@ private fun triggerAdvancedInstall(file: File) {
             true
         }
     }
-    
+
     private fun commitInstallerSession(session: PackageInstaller.Session, sessionId: Int) {
         val intent = Intent(this@AppDetailsActivity, com.fix.engine.abdullah.installer.InstallStatusReceiver::class.java).apply {
             action = "com.fix.engine.abdullah.COMMIT_INSTALL"
@@ -664,10 +661,6 @@ private fun triggerAdvancedInstall(file: File) {
         session.close()
     }
 
-    /**
-     * 🚀 المثبت المباشر القياسي (نفس الطريقة التي يستخدمها مدير الملفات تماماً عبر FileProvider)
-     * يعمل كبديل مضمون 100% على جميع الأجهزة التي تقيد PackageInstaller.Session
-     */
     private fun installWithStandardSystemIntent(file: File) {
         if (!file.exists()) {
             Toast.makeText(this, "ملف التثبيت غير موجود", Toast.LENGTH_SHORT).show()
@@ -687,13 +680,9 @@ private fun triggerAdvancedInstall(file: File) {
         }
     }
 
-    /**
-     * 🔔 نافذة حوارية واضحة تشرح للمستخدم سبب فشل التثبيت وتمنحه الحل المباشر
-     */
     private fun showInstallFailureDialog(app: AppModel, statusCode: Int, errorMessage: String?) {
         if (isFinishing || isDestroyed) return
 
-        // إذا كان السبب امتلاء الذاكرة، نعرض نافذة المساحة المخصصة
         if (statusCode == PackageInstaller.STATUS_FAILURE_STORAGE) {
             val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
             val apkFile = File(downloadFolder, app.getUniqueFileName())
@@ -705,7 +694,6 @@ private fun triggerAdvancedInstall(file: File) {
             return
         }
 
-        // إذا كان المستخدم هو من ضغط "إلغاء" بنفسه، نكتفي برسالة خفيفة
         if (statusCode == PackageInstaller.STATUS_FAILURE_ABORTED) {
             Toast.makeText(this, "تم إلغاء التثبيت", Toast.LENGTH_SHORT).show()
             return
@@ -721,7 +709,6 @@ private fun triggerAdvancedInstall(file: File) {
 
         when (statusCode) {
             PackageInstaller.STATUS_FAILURE_CONFLICT -> {
-                // إذا كان هناك تعارض في التوقيع، نوفر زر حذف النسخة القديمة مباشرة
                 builder.setPositiveButton("حذف النسخة القديمة") { dialog, _ ->
                     dialog.dismiss()
                     val uninstallIntent = Intent(Intent.ACTION_DELETE).apply {
@@ -738,8 +725,7 @@ private fun triggerAdvancedInstall(file: File) {
                 }
             }
             else -> {
-                // لأي حظر من النظام (STATUS_FAILURE_BLOCKED أو غيره)، نوفر زر التثبيت المباشر مثل مدير الملفات
-                if (apkFile.exists()) {
+                if (apkFile.exists() && !AbdullahStoreApp.isSplitApksBundle(apkFile)) {
                     builder.setPositiveButton("تثبيت مباشر (الوضع المتوافق)") { dialog, _ ->
                         dialog.dismiss()
                         installWithStandardSystemIntent(apkFile)
@@ -751,9 +737,6 @@ private fun triggerAdvancedInstall(file: File) {
         builder.show()
     }
 
-    /**
-     * ⚠️ نافذة تنبيه امتلاء المساحة (تمنع التنزيل وتوضح المساحة المطلوبة والمتوفرة بالميجابايت)
-     */
     private fun showStorageFullDialog(requiredBytes: Long, availableBytes: Long, isBeforeDownload: Boolean) {
         if (isFinishing || isDestroyed) return
 
@@ -764,9 +747,9 @@ private fun triggerAdvancedInstall(file: File) {
         val message = String.format(
             Locale.US,
             "عذراً، لا توجد مساحة تخزين كافية في جهازك لـ %s هذا التطبيق.\n\n" +
-            "• المساحة المطلوبة: %.0f MB\n" +
-            "• المساحة المتوفرة حالياً: %.0f MB\n\n" +
-            "يرجى تفريغ بعض المساحة من جهازك أولاً ثم المحاولة مجدداً.",
+                    "• المساحة المطلوبة: %.0f MB\n" +
+                    "• المساحة المتوفرة حالياً: %.0f MB\n\n" +
+                    "يرجى تفريغ بعض المساحة من جهازك أولاً ثم المحاولة مجدداً.",
             actionText,
             requiredMb,
             availableMb
@@ -823,7 +806,6 @@ private fun triggerAdvancedInstall(file: File) {
             val comparisonResult = compareVersionNames(app.versionName, installedVer)
 
             if (comparisonResult <= 0) {
-                // 🟢 التطبيق مثبت بالفعل ومحدث لآخر إصدار (أو أعلى)
                 binding.cardDownloadingState.visibility = View.GONE
                 binding.btnInstallState.visibility = View.GONE
                 binding.layoutInstalledState.visibility = View.VISIBLE
@@ -844,11 +826,9 @@ private fun triggerAdvancedInstall(file: File) {
                     startActivity(intent)
                 }
             } else {
-                // 🔄 يوجد تحديث متاح
                 handleInstallOrUpdateState(app, finalFile, isApkReady = isApkReady, isUpdate = true)
             }
         } catch (e: PackageManager.NameNotFoundException) {
-            // 📥 التطبيق غير مثبت
             handleInstallOrUpdateState(app, finalFile, isApkReady = isApkReady, isUpdate = false)
         }
     }
@@ -990,13 +970,13 @@ private fun triggerAdvancedInstall(file: File) {
 
     private fun shareApkFile(file: File, appName: String) {
         if (!file.exists()) {
-            Toast.makeText(this, "عذراً، ملف الـ APK غير متوفر للمشاركة!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "عذراً، ملف الحزمة غير متوفر للمشاركة!", Toast.LENGTH_SHORT).show()
             return
         }
         try {
             val contentUri: Uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/vnd.android.package-archive"
+                type = "*/*"
                 putExtra(Intent.EXTRA_STREAM, contentUri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
@@ -1008,10 +988,14 @@ private fun triggerAdvancedInstall(file: File) {
     }
 
     private fun deleteAppFiles(app: AppModel) {
-        val fetch = Fetch.getDefaultInstance()
-        if (currentDownloadId != -1) {
-            fetch.cancel(currentDownloadId)
-            fetch.remove(currentDownloadId)
+        try {
+            val fetch = Fetch.getDefaultInstance()
+            if (currentDownloadId != -1) {
+                fetch.cancel(currentDownloadId)
+                fetch.remove(currentDownloadId)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
 
         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
@@ -1030,23 +1014,27 @@ private fun triggerAdvancedInstall(file: File) {
         isDownloading = false
         setupLogic(app)
     }
-   // ====================================================================
+
+    // ====================================================================
     // 💬 محرك التعليقات والتقييمات الحي عبر Firebase Realtime Database
     // ====================================================================
 
     private fun setupCommentsSection(packageName: String) {
         val safeKey = packageName.trim().lowercase().replace(".", "_")
-        val commentsRef = FirebaseDatabase.getInstance(getSecureFirebaseUrl())
-            .getReference("app_comments")
-            .child(safeKey)
+        val commentsRef = try {
+            FirebaseDatabase.getInstance(getSecureFirebaseUrl())
+                .getReference("app_comments")
+                .child(safeKey)
+        } catch (e: Exception) {
+            return
+        }
 
-        binding.rvComments.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        binding.rvComments.layoutManager = LinearLayoutManager(this)
 
         binding.btnAddComment.setOnClickListener {
             showAddCommentDialog(commentsRef)
         }
 
-        // جلب آخر 30 تعليقاً بشكل حي ومرتب من الأحدث للأقدم
         commentsRef.limitToLast(30).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val commentsList = mutableListOf<Map<String, Any>>()
@@ -1069,7 +1057,7 @@ private fun triggerAdvancedInstall(file: File) {
                     )
                 }
 
-                commentsList.reverse() // الأحدث في الأعلى
+                commentsList.reverse()
 
                 runOnUiThread {
                     if (commentsList.isEmpty()) {
@@ -1096,30 +1084,30 @@ private fun triggerAdvancedInstall(file: File) {
         val prefs = getSharedPreferences("FixEnginePrefs", Context.MODE_PRIVATE)
         val savedName = prefs.getString("user_display_name", "") ?: ""
 
-        val container = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             val pad = (20 * resources.displayMetrics.density).toInt()
             setPadding(pad, pad / 2, pad, 0)
         }
 
-        val ratingBar = android.widget.RatingBar(this, null, android.R.attr.ratingBarStyleIndicator).apply {
+        val ratingBar = RatingBar(this, null, android.R.attr.ratingBarStyleIndicator).apply {
             numStars = 5
             stepSize = 1f
             rating = 5f
             setIsIndicator(false)
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { gravity = android.view.Gravity.CENTER_HORIZONTAL }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { gravity = Gravity.CENTER_HORIZONTAL }
         }
 
-        val etName = android.widget.EditText(this).apply {
+        val etName = EditText(this).apply {
             hint = "اسمك (مثال: محمد)"
             setText(savedName)
             maxLines = 1
         }
 
-        val etComment = android.widget.EditText(this).apply {
+        val etComment = EditText(this).apply {
             hint = "اكتب رأيك أو تجربتك للتطبيق هنا..."
             minLines = 2
             maxLines = 4
@@ -1144,7 +1132,7 @@ private fun triggerAdvancedInstall(file: File) {
 
                 prefs.edit().putString("user_display_name", name).apply()
 
-                val dateStr = java.text.SimpleDateFormat("yyyy/MM/dd", Locale.US).format(java.util.Date())
+                val dateStr = SimpleDateFormat("yyyy/MM/dd", Locale.US).format(Date())
                 val payload = mapOf(
                     "user" to name.take(25),
                     "text" to comment.take(250),
@@ -1165,41 +1153,38 @@ private fun triggerAdvancedInstall(file: File) {
             .show()
     }
 
-    /**
-     * محول برمجي سريع وأنيق لعرض بطاقات التعليقات بدون الحاجة لملف XML إضافي
-     */
     private inner class SimpleCommentsAdapter(
         private val items: List<Map<String, Any>>
-    ) : androidx.recyclerview.widget.RecyclerView.Adapter<SimpleCommentsAdapter.VH>() {
+    ) : RecyclerView.Adapter<SimpleCommentsAdapter.VH>() {
 
-        inner class VH(val card: com.google.android.material.card.MaterialCardView, val tvHeader: android.widget.TextView, val tvBody: android.widget.TextView) :
-            androidx.recyclerview.widget.RecyclerView.ViewHolder(card)
+        inner class VH(val card: MaterialCardView, val tvHeader: TextView, val tvBody: TextView) :
+            RecyclerView.ViewHolder(card)
 
-        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): VH {
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val density = parent.resources.displayMetrics.density
-            val card = com.google.android.material.card.MaterialCardView(parent.context).apply {
-                layoutParams = androidx.recyclerview.widget.RecyclerView.LayoutParams(
-                    androidx.recyclerview.widget.RecyclerView.LayoutParams.MATCH_PARENT,
-                    androidx.recyclerview.widget.RecyclerView.LayoutParams.WRAP_CONTENT
+            val card = MaterialCardView(parent.context).apply {
+                layoutParams = RecyclerView.LayoutParams(
+                    RecyclerView.LayoutParams.MATCH_PARENT,
+                    RecyclerView.LayoutParams.WRAP_CONTENT
                 ).apply { bottomMargin = (10 * density).toInt() }
                 radius = 14 * density
                 cardElevation = 0f
                 setCardBackgroundColor(ContextCompat.getColor(parent.context, R.color.md_theme_d_surfaceVariant))
             }
 
-            val box = android.widget.LinearLayout(parent.context).apply {
-                orientation = android.widget.LinearLayout.VERTICAL
+            val box = LinearLayout(parent.context).apply {
+                orientation = LinearLayout.VERTICAL
                 val p = (14 * density).toInt()
                 setPadding(p, p, p, p)
             }
 
-            val tvHeader = android.widget.TextView(parent.context).apply {
+            val tvHeader = TextView(parent.context).apply {
                 textSize = 13f
-                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTypeface(typeface, Typeface.BOLD)
                 setTextColor(ContextCompat.getColor(parent.context, R.color.md_theme_d_primary))
             }
 
-            val tvBody = android.widget.TextView(parent.context).apply {
+            val tvBody = TextView(parent.context).apply {
                 textSize = 13.5f
                 setPadding(0, (6 * density).toInt(), 0, 0)
                 setTextColor(ContextCompat.getColor(parent.context, R.color.md_theme_d_onSurface))
@@ -1224,5 +1209,5 @@ private fun triggerAdvancedInstall(file: File) {
         }
 
         override fun getItemCount(): Int = items.size
-    } 
+    }
 }
