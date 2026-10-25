@@ -14,6 +14,7 @@ import com.fix.engine.abdullah.data.model.AppInstallStatus
 import com.fix.engine.abdullah.data.model.AppItemUiState
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.databinding.ItemAppBinding
+import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
@@ -44,49 +45,53 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
 
         fun bind(uiState: AppItemUiState) {
             val app = uiState.app
-            
+
             binding.apply {
                 txtAppName.text = app.name
                 txtDeveloper.text = app.developer
 
+                // 📦 عرض الإصدار وحجم التطبيق وعدد مرات التنزيل بشكل منسق يضاهي المتاجر العالمية
+                txtVersion.text = "v${app.versionName}"
+
+                val formattedSize = app.getFormattedSize()
+                val downloadsText = when {
+                    uiState.downloadCount >= 1_000_000 -> String.format(Locale.US, "%.1fM", uiState.downloadCount / 1_000_000.0)
+                    uiState.downloadCount >= 1_000 -> String.format(Locale.US, "%.1fK", uiState.downloadCount / 1_000.0)
+                    uiState.downloadCount > 0 -> uiState.downloadCount.toString()
+                    else -> "جديد"
+                }
+                txtAppMeta.text = "$formattedSize  •  ⬇ $downloadsText"
+
                 when (uiState.status) {
                     AppInstallStatus.DOWNLOADED -> {
-                        txtVersion.text = "ملف APK جاهز للتثبيت فوراً"
-                        txtVersion.setTextColor(colorPrimary)
                         btnDownload.text = "تثبيت"
                         btnDownload.setTextColor(colorOnPrimary)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorPrimary)
                     }
                     AppInstallStatus.UPDATE_AVAILABLE -> {
-                        txtVersion.text = "تحديث متاح: ${app.versionName} (الحالي: ${uiState.installedVersion})"
-                        txtVersion.setTextColor(colorError)
                         btnDownload.text = "تحديث"
                         btnDownload.setTextColor(colorOnError)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorError)
                     }
                     AppInstallStatus.INSTALLED -> {
-                        txtVersion.text = "مثبت ومحدث • الإصدار ${app.versionName}"
-                        txtVersion.setTextColor(colorOnSurfaceVariant)
                         btnDownload.text = "فتح"
                         btnDownload.setTextColor(colorOnSurface)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorSurfaceVariant)
                     }
                     AppInstallStatus.NOT_INSTALLED -> {
-                        txtVersion.text = "الإصدار: ${app.versionName}"
-                        txtVersion.setTextColor(colorPrimary)
                         btnDownload.text = "تنزيل"
                         btnDownload.setTextColor(colorOnPrimary)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorPrimary)
                     }
                 }
 
-                imgAppIcon.transitionName = "transition_app_icon_${app.packageName}" 
-                
+                imgAppIcon.transitionName = "transition_app_icon_${app.packageName}"
+
                 Glide.with(binding.root.context)
                     .load(app.iconUrl)
-                    .placeholder(R.mipmap.ic_launcher) 
-                    .error(R.mipmap.ic_launcher)       
-                    .dontAnimate() 
+                    .placeholder(R.mipmap.ic_launcher)
+                    .error(R.mipmap.ic_launcher)
+                    .dontAnimate()
                     .into(imgAppIcon)
 
                 root.setOnClickListener { onAppClick(app, root) }
@@ -97,7 +102,6 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
 
     class AppDiffCallback : DiffUtil.ItemCallback<AppItemUiState>() {
         override fun areItemsTheSame(oldItem: AppItemUiState, newItem: AppItemUiState): Boolean {
-            // 🛡️ التعديل الجوهري: الاعتماد على معرف التطبيق الفريد (id) لمنع التداخل بين التطبيقات التي تمتلك نفس الحزمة
             return oldItem.app.id == newItem.app.id
         }
 
