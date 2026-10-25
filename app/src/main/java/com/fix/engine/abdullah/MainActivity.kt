@@ -53,16 +53,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
 
-    // 🌐 أدوات مراقبة حالة الشبكة الفورية
     private lateinit var connectivityManager: ConnectivityManager
     private lateinit var networkCallback: ConnectivityManager.NetworkCallback
     private var isNetworkCallbackRegistered = false
     private var isDataLoadedSuccessfully = false
 
-    // 🔔 متغير لمنع تكرار الإشعار المزعج عند تدوير الشاشة أو البحث
     private var isNotificationSent = false
 
-    // 🛡️ مسجل طلب الصلاحيات الحديث (Activity Result API)
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -83,7 +80,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 🚨 درع الحماية النيتف
         verifySignatureNative(applicationContext)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -107,46 +103,58 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun registerNetworkMonitoring() {
-        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        try {
+            connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-        networkCallback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                super.onAvailable(network)
-                runOnUiThread {
-                    if (!isDataLoadedSuccessfully) {
-                        Toast.makeText(this@MainActivity, "تم استعادة الاتصال! جاري مزامنة المتجر... 🔄", Toast.LENGTH_SHORT).show()
-                        refreshData()
-                    } else {
-                        Toast.makeText(this@MainActivity, "متصل بالإنترنت ✨", Toast.LENGTH_SHORT).show()
+            networkCallback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    super.onAvailable(network)
+                    runOnUiThread {
+                        if (isFinishing || isDestroyed) return@runOnUiThread
+                        if (!isDataLoadedSuccessfully) {
+                            Toast.makeText(this@MainActivity, "تم استعادة الاتصال! جاري مزامنة المتجر... 🔄", Toast.LENGTH_SHORT).show()
+                            refreshData()
+                        } else {
+                            Toast.makeText(this@MainActivity, "متصل بالإنترنت ✨", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+
+                override fun onLost(network: Network) {
+                    super.onLost(network)
+                    runOnUiThread {
+                        if (isFinishing || isDestroyed) return@runOnUiThread
+                        Toast.makeText(this@MainActivity, "عذراً، انقطع الاتصال بالإنترنت!", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
 
-            override fun onLost(network: Network) {
-                super.onLost(network)
-                runOnUiThread {
-                    Toast.makeText(this@MainActivity, "عذراً، انقطع الاتصال بالإنترنت!", Toast.LENGTH_SHORT).show()
-                }
-            }
+            val networkRequest = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+
+            connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
+            isNetworkCallbackRegistered = true
+        } catch (e: Exception) {
+            isNetworkCallbackRegistered = false
         }
-
-        val networkRequest = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-
-        connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
-        isNetworkCallbackRegistered = true
     }
 
     override fun onStart() {
         super.onStart()
-        registerNetworkMonitoring()
+        if (!isNetworkCallbackRegistered) {
+            registerNetworkMonitoring()
+        }
     }
 
     override fun onStop() {
         super.onStop()
         if (isNetworkCallbackRegistered) {
-            connectivityManager.unregisterNetworkCallback(networkCallback)
+            try {
+                connectivityManager.unregisterNetworkCallback(networkCallback)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             isNetworkCallbackRegistered = false
         }
     }
@@ -221,7 +229,15 @@ class MainActivity : AppCompatActivity() {
 
         dialogView.findViewById<MaterialButton>(R.id.btn_positive)?.setOnClickListener {
             getSharedPreferences("FixEnginePrefs", MODE_PRIVATE).edit().putBoolean("install_dialog_shown", true).apply()
-            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply { data = Uri.parse("package:\$packageName") })
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = Uri.parse("package:$packageName")
+                })
+            } catch (e: Exception) {
+                try {
+                    startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES))
+                } catch (_: Exception) {}
+            }
             dialog.dismiss()
         }
 
@@ -245,7 +261,6 @@ class MainActivity : AppCompatActivity() {
 
             val installedVersion = pInfo.versionName ?: ""
 
-            // 🧠 مقارنة ذكية: لا يظهر التحديث الإجباري إلا إذا كان إصدار السيرفر أحدث فعلياً من المثبت
             if (compareVersionNames(storeApp.versionName, installedVersion) > 0) {
                 showMandatoryUpdateDialog(storeApp)
             }
@@ -302,19 +317,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendUpdateNotification(updatesCount: Int) {
-        createNotificationChannel()
-        val intent = Intent(this, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK }
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        try {
+            createNotificationChannel()
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+            )
 
-        val builder = NotificationCompat.Builder(this, "store_updates_channel")
-            .setSmallIcon(R.drawable.ic_notification_transparent)
-            .setContentTitle("تحديثات متوفرة لـ تطبيقاتك! 🚀")
-            .setContentText("يوجد عدد (\$updatesCount) من تطبيقاتك تمتلك إصدارات محدثة، قم بتثبيتها الآن.")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
+            val builder = NotificationCompat.Builder(this, "store_updates_channel")
+                .setSmallIcon(R.drawable.ic_notification_transparent)
+                .setContentTitle("تحديثات متوفرة لـ تطبيقاتك! 🚀")
+                .setContentText("يوجد عدد ($updatesCount) من تطبيقاتك تمتلك إصدارات محدثة، قم بتثبيتها الآن.")
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
 
-        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(1001, builder.build())
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(1001, builder.build())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun setupTabs() {
@@ -325,7 +351,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSearchLogic() {
-        // 1. مراقبة البحث وإظهار/إخفاء زر المسح (X)
         binding.etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -336,13 +361,11 @@ class MainActivity : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        // 2. زر مسح النص بضغطة واحدة
         binding.btnClearSearch.setOnClickListener {
             binding.etSearch.setText("")
             binding.etSearch.clearFocus()
         }
 
-        // 3. زر التحديث الفوري من السيرفر مع حركة دوران
         binding.btnRefreshMain.setOnClickListener { view ->
             view.animate().rotationBy(360f).setDuration(600).start()
             Toast.makeText(this, "جاري تحديث قائمة التطبيقات... 🔄", Toast.LENGTH_SHORT).show()
@@ -354,7 +377,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 4. تفعيل شريط التصنيفات السريعة (Chips)
         binding.chipGroupCategories.setOnCheckedStateChangeListener { _, checkedIds ->
             val checkedId = checkedIds.firstOrNull() ?: R.id.chipAll
             when (checkedId) {
@@ -440,24 +462,25 @@ class MainActivity : AppCompatActivity() {
 
         val downloadsDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         val apkFiles = downloadsDir?.listFiles { file ->
-            file.isFile && (file.name.endsWith(".apk") || file.name.endsWith(".tmp"))
+            val name = file.name.lowercase()
+            file.isFile && (name.endsWith(".apk") || name.endsWith(".apkm") || name.endsWith(".xapk") || name.endsWith(".apks") || name.endsWith(".tmp"))
         } ?: emptyArray()
 
         val totalSizeBytes = apkFiles.sumOf { it.length() }
         val totalSizeMb = String.format(Locale.US, "%.1f MB", totalSizeBytes / (1024.0 * 1024.0))
 
-        val message = "📦 عدد ملفات التثبيت المحفوظة: \${apkFiles.size} ملف\n" +
-                "💾 المساحة المستهلكة: \$totalSizeMb\n\n" +
-                "يمكنك مسح ملفات الـ APK المؤقتة بعد تثبيت تطبيقاتك لتوفير مساحة تخزين إضافية في هاتفك."
+        val message = "📦 عدد ملفات التثبيت المحفوظة: ${apkFiles.size} ملف\n" +
+                "💾 المساحة المستهلكة: $totalSizeMb\n\n" +
+                "يمكنك مسح ملفات التثبيت المؤقتة بعد تثبيت تطبيقاتك لتوفير مساحة تخزين إضافية في هاتفك."
 
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
             .setTitle("إعدادات المتجر والتخزين ⚙️")
             .setMessage(message)
-            .setPositiveButton("تنظيف المساحة (\$totalSizeMb)") { dialog, _ ->
+            .setPositiveButton("تنظيف المساحة ($totalSizeMb)") { dialog, _ ->
                 var deletedCount = 0
                 apkFiles.forEach { if (it.delete()) deletedCount++ }
                 viewModel.refreshAppStates()
-                Toast.makeText(this, "تم تنظيف \$deletedCount ملف وتفريغ المساحة بنجاح! ✨", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "تم تنظيف $deletedCount ملف وتفريغ المساحة بنجاح! ✨", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             }
             .setNegativeButton("إغلاق", null)
@@ -476,6 +499,7 @@ class MainActivity : AppCompatActivity() {
                         val body = snapshot.child("body").getValue(String::class.java) ?: ""
 
                         runOnUiThread {
+                            if (isFinishing || isDestroyed) return@runOnUiThread
                             if (isActive && body.isNotBlank()) {
                                 binding.txtAnnouncementTitle.text = title
                                 binding.txtAnnouncementBody.text = body
