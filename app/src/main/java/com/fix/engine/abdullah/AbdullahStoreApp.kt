@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.PowerManager
@@ -20,29 +21,48 @@ import com.tonyodev.fetch2okhttp.OkHttpDownloader
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
+import java.util.zip.ZipFile
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Android 14/15 (API 34/35) Receiver Interceptor & Crash-Protected Core
+ * Project: Abdullah Store - Android 14/15/16 (API 34-36) Receiver Interceptor & Crash-Protected Core
  */
 class AbdullahStoreApp : Application() {
 
     private var wakeLock: PowerManager.WakeLock? = null
 
-    /**
-     * 🛡️ ضمان إرجاع هذا الكلاس دائماً كـ ApplicationContext ليمر عبر دوال الحماية بالأسفل
-     */
     override fun getApplicationContext(): Context {
         return this
     }
 
     /**
-     * 🛡️ الحل الجذري لمشكلة PriorityListProcessorImpl داخل مكتبة Fetch2 على Android 14 و 15:
-     * أي استدعاء داخلي لدالة registerReceiver القديمة بدون Flags يتم تزويده تلقائياً بـ RECEIVER_NOT_EXPORTED
+     * 🛡️ توحيد وضمان تمرير RECEIVER_NOT_EXPORTED لأي استدعاء داخلي في أندرويد 13 و 14 و 15 و 16
      */
+    private fun ensureSafeReceiverFlags(flags: Int): Int {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasExportedFlag = (flags and Context.RECEIVER_EXPORTED) != 0 ||
+                    (flags and Context.RECEIVER_NOT_EXPORTED) != 0
+            if (hasExportedFlag) flags else (flags or Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            flags
+        }
+    }
+
     override fun registerReceiver(receiver: BroadcastReceiver?, filter: IntentFilter?): Intent? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             super.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            super.registerReceiver(receiver, filter)
+        }
+    }
+
+    override fun registerReceiver(
+        receiver: BroadcastReceiver?,
+        filter: IntentFilter?,
+        flags: Int
+    ): Intent? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            super.registerReceiver(receiver, filter, ensureSafeReceiverFlags(flags))
         } else {
             super.registerReceiver(receiver, filter)
         }
@@ -61,6 +81,26 @@ class AbdullahStoreApp : Application() {
                 broadcastPermission,
                 scheduler,
                 Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            super.registerReceiver(receiver, filter, broadcastPermission, scheduler)
+        }
+    }
+
+    override fun registerReceiver(
+        receiver: BroadcastReceiver?,
+        filter: IntentFilter?,
+        broadcastPermission: String?,
+        scheduler: Handler?,
+        flags: Int
+    ): Intent? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            super.registerReceiver(
+                receiver,
+                filter,
+                broadcastPermission,
+                scheduler,
+                ensureSafeReceiverFlags(flags)
             )
         } else {
             super.registerReceiver(receiver, filter, broadcastPermission, scheduler)
@@ -135,12 +175,16 @@ class AbdullahStoreApp : Application() {
     }
 
     private fun notifyStateChanged(filePath: String, isCompleted: Boolean) {
-        val intent = Intent("com.fix.engine.abdullah.DOWNLOAD_STATE_CHANGED").apply {
-            setPackage(packageName)
-            putExtra("FILE_PATH", filePath)
-            putExtra("IS_COMPLETED", isCompleted)
+        try {
+            val intent = Intent("com.fix.engine.abdullah.DOWNLOAD_STATE_CHANGED").apply {
+                setPackage(packageName)
+                putExtra("FILE_PATH", filePath)
+                putExtra("IS_COMPLETED", isCompleted)
+            }
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-        sendBroadcast(intent)
     }
 
     private fun acquireWakeLock() {
@@ -173,30 +217,29 @@ class AbdullahStoreApp : Application() {
         var appInstance: AbdullahStoreApp? = null
             private set
 
-        /**
-         * 🛡️ يفحص ما إذا كان الملف المحمل صالحاً ومكتملاً (سواء كان APK مفرداً أو حزمة APKM / XAPK / APKS)
-         */
         fun isApkCompleteAndValid(context: Context, file: File): Boolean {
             if (!file.exists() || file.length() <= 0L) return false
 
-            // 1. فحص ما إذا كان ملف APK عادي صالح
             try {
-                if (context.packageManager.getPackageArchiveInfo(file.absolutePath, 0) != null) {
-                    return true
+                val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    context.packageManager.getPackageArchiveInfo(
+                        file.absolutePath,
+                        PackageManager.PackageInfoFlags.of(0L)
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
                 }
+                if (info != null) return true
             } catch (_: Exception) {}
 
-            // 2. إذا لم يكن APK مفرداً، نفحص ما إذا كان حزمة مقسمة (APKM / XAPK / APKS) مكتملة وسليمة
             return isSplitApksBundle(file)
         }
 
-        /**
-         * 📦 التحقق من أن الملف عبارة عن حزمة (APKM / XAPK / APKS) تحتوي بداخلها على ملفات APK سليمة
-         */
         fun isSplitApksBundle(file: File): Boolean {
             if (!file.exists() || file.length() <= 0L) return false
             return try {
-                java.util.zip.ZipFile(file).use { zip ->
+                ZipFile(file).use { zip ->
                     var hasApkEntries = false
                     var hasRootManifest = false
                     val entries = zip.entries()
@@ -210,7 +253,6 @@ class AbdullahStoreApp : Application() {
                             hasApkEntries = true
                         }
                     }
-                    // الحزمة المقسمة تحتوي على ملفات .apk بداخلها ولا تحتوي على AndroidManifest في الجذر الخارجي
                     hasApkEntries && !hasRootManifest
                 }
             } catch (e: Exception) {
@@ -218,4 +260,4 @@ class AbdullahStoreApp : Application() {
             }
         }
     }
-  }  
+}
