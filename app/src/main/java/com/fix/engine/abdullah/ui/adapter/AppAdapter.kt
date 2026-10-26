@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -14,7 +15,6 @@ import com.fix.engine.abdullah.data.model.AppInstallStatus
 import com.fix.engine.abdullah.data.model.AppItemUiState
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.databinding.ItemAppBinding
-import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
@@ -50,35 +50,36 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
                 txtAppName.text = app.name
                 txtDeveloper.text = app.developer
 
-                // 📦 عرض الإصدار وحجم التطبيق وعدد مرات التنزيل بشكل منسق يضاهي المتاجر العالمية
-                txtVersion.text = "v${app.versionName}"
-
+                // عرض حجم التطبيق بجانب شارة الإصدار
                 val formattedSize = app.getFormattedSize()
-                val downloadsText = when {
-                    uiState.downloadCount >= 1_000_000 -> String.format(Locale.US, "%.1fM", uiState.downloadCount / 1_000_000.0)
-                    uiState.downloadCount >= 1_000 -> String.format(Locale.US, "%.1fK", uiState.downloadCount / 1_000.0)
-                    uiState.downloadCount > 0 -> uiState.downloadCount.toString()
-                    else -> "جديد"
-                }
-                txtAppMeta.text = "$formattedSize  •  ⬇ $downloadsText"
+                txtAppMeta.isVisible = formattedSize.isNotBlank()
+                txtAppMeta.text = "📦 $formattedSize"
 
                 when (uiState.status) {
                     AppInstallStatus.DOWNLOADED -> {
+                        txtVersion.text = "جاهز للتثبيت فوراً ✨"
+                        txtVersion.setTextColor(colorPrimary)
                         btnDownload.text = "تثبيت"
                         btnDownload.setTextColor(colorOnPrimary)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorPrimary)
                     }
                     AppInstallStatus.UPDATE_AVAILABLE -> {
+                        txtVersion.text = "تحديث: ${app.versionName} (الحالي: ${uiState.installedVersion})"
+                        txtVersion.setTextColor(colorError)
                         btnDownload.text = "تحديث"
                         btnDownload.setTextColor(colorOnError)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorError)
                     }
                     AppInstallStatus.INSTALLED -> {
+                        txtVersion.text = "مثبت • v${app.versionName}"
+                        txtVersion.setTextColor(colorOnSurfaceVariant)
                         btnDownload.text = "فتح"
                         btnDownload.setTextColor(colorOnSurface)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorSurfaceVariant)
                     }
                     AppInstallStatus.NOT_INSTALLED -> {
+                        txtVersion.text = "الإصدار: v${app.versionName}"
+                        txtVersion.setTextColor(colorPrimary)
                         btnDownload.text = "تنزيل"
                         btnDownload.setTextColor(colorOnPrimary)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorPrimary)
