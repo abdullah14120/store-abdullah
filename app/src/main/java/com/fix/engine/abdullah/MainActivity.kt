@@ -159,9 +159,57 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupNavigationDrawer() {
+   private fun setupNavigationDrawer() {
         binding.btnMenu.setOnClickListener {
             binding.drawerLayout.openDrawer(GravityCompat.START)
+        }
+
+        // 🎨 إعداد عناصر الهيدر ومبدل المظهر السريع
+        if (binding.navView.headerCount > 0) {
+            val headerView = binding.navView.getHeaderView(0)
+            val txtHeaderVersion = headerView.findViewById<android.widget.TextView>(R.id.txtHeaderVersion)
+            val toggleGroupTheme = headerView.findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.toggleGroupTheme)
+
+            // 1. جلب رقم إصدار المتجر الفعلي تلقائياً
+            try {
+                val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageManager.getPackageInfo(packageName, 0)
+                }
+                txtHeaderVersion?.text = "الإصدار ${pInfo.versionName} الرسمي • 🛡️"
+            } catch (_: Exception) {}
+
+            // 2. تحديد زر المظهر المحفوظ حالياً
+            val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
+            val currentNightMode = prefs.getInt(
+                "theme_mode",
+                androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            )
+
+            val initialCheckedId = when (currentNightMode) {
+                androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO -> R.id.btnThemeLight
+                androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES -> R.id.btnThemeDark
+                else -> R.id.btnThemeAuto
+            }
+            toggleGroupTheme?.check(initialCheckedId)
+
+            // 3. الاستماع لتغيير المظهر وتطبيقه فوراً
+            toggleGroupTheme?.addOnButtonCheckedListener { _, checkedId, isChecked ->
+                if (!isChecked) return@addOnButtonCheckedListener
+
+                val selectedMode = when (checkedId) {
+                    R.id.btnThemeLight -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+                    R.id.btnThemeDark -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+                    else -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                }
+
+                if (selectedMode != prefs.getInt("theme_mode", androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)) {
+                    prefs.edit().putInt("theme_mode", selectedMode).apply()
+                    androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(selectedMode)
+                }
+            }
         }
 
         binding.navView.setNavigationItemSelectedListener { menuItem ->
@@ -174,7 +222,7 @@ class MainActivity : AppCompatActivity() {
             true
         }
     }
-
+    
     private fun showAboutDeveloperDialog() {
         if (isFinishing || isDestroyed) return
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
