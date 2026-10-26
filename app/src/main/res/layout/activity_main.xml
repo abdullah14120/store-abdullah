@@ -324,6 +324,7 @@
         android:layout_gravity="start"
         android:background="?attr/colorSurface"
         android:theme="@style/Theme.FixEngine"
+        app:headerLayout="@layout/nav_header_main"
         app:itemTextColor="?attr/colorOnSurface"
         app:itemIconTint="?attr/colorPrimary"
         app:menu="@menu/drawer_menu" />
