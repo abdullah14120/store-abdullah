@@ -4,7 +4,6 @@ import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -15,10 +14,11 @@ import com.fix.engine.abdullah.data.model.AppInstallStatus
 import com.fix.engine.abdullah.data.model.AppItemUiState
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.databinding.ItemAppBinding
+import com.google.android.material.color.MaterialColors
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Architecture: Pure Presentation Adapter, Pre-calculated States & ID-Based DiffUtil
+ * Architecture: Dynamic Theme-Aware Adapter (Supports Day/Night Mode) & Clean Metadata Layout
  */
 class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
     ListAdapter<AppItemUiState, AppAdapter.AppViewHolder>(AppDiffCallback()) {
@@ -35,51 +35,62 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
     inner class AppViewHolder(private val binding: ItemAppBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        private val colorPrimary = ContextCompat.getColor(binding.root.context, R.color.md_theme_d_primary)
-        private val colorOnPrimary = ContextCompat.getColor(binding.root.context, R.color.md_theme_d_onPrimary)
-        private val colorOnSurface = ContextCompat.getColor(binding.root.context, R.color.md_theme_d_onSurface)
-        private val colorOnSurfaceVariant = ContextCompat.getColor(binding.root.context, R.color.md_theme_d_onSurfaceVariant)
-        private val colorSurfaceVariant = ContextCompat.getColor(binding.root.context, R.color.md_theme_d_surfaceVariant)
-        private val colorError = ContextCompat.getColor(binding.root.context, R.color.md_theme_d_error)
-        private val colorOnError = ContextCompat.getColor(binding.root.context, R.color.md_theme_d_onError)
-
         fun bind(uiState: AppItemUiState) {
             val app = uiState.app
+            val rootView = binding.root
+
+            // قراءة ألوان الثيم الحالية ديناميكياً لدعم الوضع النهاري والليلي
+            val colorPrimary = MaterialColors.getColor(rootView, androidx.appcompat.R.attr.colorPrimary)
+            val colorOnPrimary = MaterialColors.getColor(rootView, com.google.android.material.R.attr.colorOnPrimary)
+            val colorOnSurface = MaterialColors.getColor(rootView, com.google.android.material.R.attr.colorOnSurface)
+            val colorOnSurfaceVariant = MaterialColors.getColor(rootView, com.google.android.material.R.attr.colorOnSurfaceVariant)
+            val colorSurfaceVariant = MaterialColors.getColor(rootView, com.google.android.material.R.attr.colorSurfaceVariant)
+            val colorError = MaterialColors.getColor(rootView, androidx.appcompat.R.attr.colorError)
+            val colorOnError = MaterialColors.getColor(rootView, com.google.android.material.R.attr.colorOnError)
 
             binding.apply {
                 txtAppName.text = app.name
                 txtDeveloper.text = app.developer
 
-                // عرض حجم التطبيق بجانب شارة الإصدار
                 val formattedSize = app.getFormattedSize()
-                txtAppMeta.isVisible = formattedSize.isNotBlank()
-                txtAppMeta.text = "📦 $formattedSize"
 
                 when (uiState.status) {
                     AppInstallStatus.DOWNLOADED -> {
-                        txtVersion.text = "جاهز للتثبيت فوراً ✨"
+                        txtVersion.text = "جاهز للتثبيت ✨"
                         txtVersion.setTextColor(colorPrimary)
+                        txtAppMeta.isVisible = formattedSize.isNotBlank()
+                        txtAppMeta.text = formattedSize
+
                         btnDownload.text = "تثبيت"
                         btnDownload.setTextColor(colorOnPrimary)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorPrimary)
                     }
                     AppInstallStatus.UPDATE_AVAILABLE -> {
-                        txtVersion.text = "تحديث: ${app.versionName} (الحالي: ${uiState.installedVersion})"
+                        txtVersion.text = "تحديث v${app.versionName}"
                         txtVersion.setTextColor(colorError)
+                        txtAppMeta.isVisible = true
+                        txtAppMeta.text = "الحالي: v${uiState.installedVersion}"
+
                         btnDownload.text = "تحديث"
                         btnDownload.setTextColor(colorOnError)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorError)
                     }
                     AppInstallStatus.INSTALLED -> {
-                        txtVersion.text = "مثبت • v${app.versionName}"
+                        txtVersion.text = "مثبت ✓"
                         txtVersion.setTextColor(colorOnSurfaceVariant)
+                        txtAppMeta.isVisible = true
+                        txtAppMeta.text = "v${app.versionName} • $formattedSize"
+
                         btnDownload.text = "فتح"
                         btnDownload.setTextColor(colorOnSurface)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorSurfaceVariant)
                     }
                     AppInstallStatus.NOT_INSTALLED -> {
-                        txtVersion.text = "الإصدار: v${app.versionName}"
+                        txtVersion.text = "v${app.versionName}"
                         txtVersion.setTextColor(colorPrimary)
+                        txtAppMeta.isVisible = formattedSize.isNotBlank()
+                        txtAppMeta.text = formattedSize
+
                         btnDownload.text = "تنزيل"
                         btnDownload.setTextColor(colorOnPrimary)
                         btnDownload.backgroundTintList = ColorStateList.valueOf(colorPrimary)
@@ -88,7 +99,7 @@ class AppAdapter(private val onAppClick: (AppModel, View) -> Unit) :
 
                 imgAppIcon.transitionName = "transition_app_icon_${app.packageName}"
 
-                Glide.with(binding.root.context)
+                Glide.with(rootView.context)
                     .load(app.iconUrl)
                     .placeholder(R.mipmap.ic_launcher)
                     .error(R.mipmap.ic_launcher)
