@@ -110,6 +110,10 @@ class AbdullahStoreApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        val prefs = getSharedPreferences("FixEnginePrefs", Context.MODE_PRIVATE)
+        val savedTheme = prefs.getInt("theme_mode", androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(savedTheme)
+
         appInstance = this
         CrashHandler.init(this)
 
