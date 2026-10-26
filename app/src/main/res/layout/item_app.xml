@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView 
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -12,7 +11,7 @@
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
     app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
-    app:cardCornerRadius="22dp"
+    app:cardCornerRadius="20dp"
     app:cardElevation="0dp"
     app:strokeColor="?attr/colorOutlineVariant"
     app:strokeWidth="1dp">
@@ -22,18 +21,17 @@
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="14dp"
+        android:paddingHorizontal="12dp"
         android:paddingVertical="12dp">
 
-        <!-- 1. أيقونة التطبيق بإطار ناعم يبرز الألوان -->
+        <!-- 1. أيقونة التطبيق بحجم متوازن يترك مساحة كافية للاسم -->
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/imgAppIcon"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
             android:adjustViewBounds="true"
             android:background="?attr/colorSurfaceVariant"
             android:clipToOutline="true"
-            android:padding="1dp"
             android:scaleType="centerCrop"
             android:transitionName="transition_app_icon"
             app:shapeAppearanceOverlay="@style/Shape.Medium"
@@ -41,12 +39,12 @@
             app:strokeWidth="1dp"
             tools:src="@mipmap/ic_launcher" />
 
-        <!-- 2. تفاصيل التطبيق (الاسم، المطور، وشريط الإصدار والحجم) -->
+        <!-- 2. تفاصيل التطبيق (الاسم يظهر كاملاً حتى سطرين) -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_marginEnd="10dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -56,11 +54,13 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:fontFamily="sans-serif-black"
-                android:maxLines="1"
+                android:lineSpacingExtra="2dp"
+                android:maxLines="2"
+                android:textAlignment="viewStart"
                 android:textColor="?attr/colorOnSurface"
-                android:textSize="15.5sp"
+                android:textSize="14.5sp"
                 android:textStyle="bold"
-                tools:text="ABWhatsApp العنابي" />
+                tools:text="ABWhatsApp العنابي ضد الحظر" />
 
             <TextView
                 android:id="@+id/txtDeveloper"
@@ -70,15 +70,16 @@
                 android:ellipsize="end"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
+                android:textAlignment="viewStart"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="12sp"
+                android:textSize="11.5sp"
                 tools:text="عبدالله التميمي" />
 
-            <!-- شريط المعلومات المصغر: شارة الإصدار + الحجم والتنزيلات -->
+            <!-- شريط الإصدار والحجم معاً بدون تداخل -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="7dp"
+                android:layout_marginTop="6dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -88,12 +89,14 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_version_badge"
                     android:backgroundTint="?attr/colorSurfaceVariant"
+                    android:ellipsize="end"
+                    android:maxLines="1"
                     android:paddingHorizontal="8dp"
-                    android:paddingVertical="2.5dp"
+                    android:paddingVertical="2dp"
                     android:textColor="?attr/colorPrimary"
-                    android:textSize="10.5sp"
+                    android:textSize="10sp"
                     android:textStyle="bold"
-                    tools:text="v2.26.28" />
+                    tools:text="v2.26.39.80" />
 
                 <TextView
                     android:id="@+id/txtAppMeta"
@@ -103,27 +106,27 @@
                     android:ellipsize="end"
                     android:fontFamily="sans-serif-medium"
                     android:maxLines="1"
-                    android:textColor="?attr/colorOutline"
-                    android:textSize="11sp"
-                    tools:text="86 MB • ⬇ 1.2K" />
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="10.5sp"
+                    tools:text="86 MB" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 3. زر الإجراء الذكي بشكل كبسولة (Pill Button) -->
+        <!-- 3. زر الإجراء بحجم متناسق -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDownload"
             style="@style/Widget.Material3.Button.UnelevatedButton"
             android:layout_width="wrap_content"
-            android:layout_height="38dp"
+            android:layout_height="36dp"
             android:backgroundTint="?attr/colorPrimary"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            android:minWidth="80dp"
-            android:paddingHorizontal="14dp"
+            android:minWidth="72dp"
+            android:paddingHorizontal="12dp"
             android:textColor="?attr/colorOnPrimary"
             android:textSize="12sp"
             android:textStyle="bold"
-            app:cornerRadius="19dp"
+            app:cornerRadius="18dp"
             tools:text="تنزيل" />
 
     </LinearLayout>
