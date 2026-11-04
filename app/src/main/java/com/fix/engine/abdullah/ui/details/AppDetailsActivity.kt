@@ -41,8 +41,14 @@ import com.fix.engine.abdullah.data.network.LinkExtractor
 import com.fix.engine.abdullah.databinding.ActivityAppDetailsBinding
 import com.fix.engine.abdullah.service.AndroidDownloadManager
 import com.fix.engine.abdullah.service.DownloadTracker
+import android.content.res.ColorStateList
+import android.graphics.drawable.GradientDrawable
+import android.text.TextUtils
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
@@ -1071,7 +1077,7 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     // ====================================================================
-    // 💬 محرك التعليقات والتقييمات الحي عبر Firebase Realtime Database
+    // 💬 محرك التعليقات والتقييمات الاحترافي الحي عبر Firebase Realtime Database
     // ====================================================================
 
     private fun setupCommentsSection(packageName: String) {
@@ -1086,11 +1092,40 @@ class AppDetailsActivity : AppCompatActivity() {
 
         binding.rvComments.layoutManager = LinearLayoutManager(this)
 
+        // ربط جميع مداخل التقييم (الزر الرئيسي، شريط الإحصائيات العلوي، البطاقة الفارغة، والنجوم الـ 5 التفاعلية)
         binding.btnAddComment.setOnClickListener {
-            showAddCommentDialog(commentsRef)
+            showAddCommentDialog(commentsRef, initialStars = 5)
+        }
+        binding.layoutStatRating.setOnClickListener {
+            showAddCommentDialog(commentsRef, initialStars = 5)
+        }
+        binding.txtEmptyComments.setOnClickListener {
+            showAddCommentDialog(commentsRef, initialStars = 5)
         }
 
-        commentsQuery = commentsRef.limitToLast(30)
+        val quickStarViews = listOf(
+            binding.starRate1,
+            binding.starRate2,
+            binding.starRate3,
+            binding.starRate4,
+            binding.starRate5
+        )
+        quickStarViews.forEachIndexed { index, starView ->
+            starView.setOnClickListener { view ->
+                val chosenStars = index + 1
+                // تحديث بصري سريع للنجوم قبل فتح نافذة التقييم
+                quickStarViews.forEachIndexed { i, tv ->
+                    tv.text = if (i < chosenStars) "★" else "☆"
+                    tv.setTextColor(if (i < chosenStars) Color.parseColor("#FFB300") else Color.parseColor("#888888"))
+                }
+                view.animate().scaleX(1.25f).scaleY(1.25f).setDuration(110).withEndAction {
+                    view.animate().scaleX(1f).scaleY(1f).setDuration(110).start()
+                    showAddCommentDialog(commentsRef, initialStars = chosenStars)
+                }.start()
+            }
+        }
+
+        commentsQuery = commentsRef.limitToLast(40)
         commentsListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val commentsList = mutableListOf<Map<String, Any>>()
@@ -1099,7 +1134,7 @@ class AppDetailsActivity : AppCompatActivity() {
                 for (child in snapshot.children) {
                     val user = child.child("user").getValue(String::class.java) ?: "مستخدم"
                     val text = child.child("text").getValue(String::class.java) ?: continue
-                    val stars = child.child("stars").getValue(Long::class.java) ?: 5L
+                    val stars = (child.child("stars").getValue(Long::class.java) ?: 5L).coerceIn(1L, 5L)
                     val time = child.child("time").getValue(String::class.java) ?: ""
 
                     totalStars += stars
@@ -1121,13 +1156,22 @@ class AppDetailsActivity : AppCompatActivity() {
                         binding.txtEmptyComments.visibility = View.VISIBLE
                         binding.rvComments.visibility = View.GONE
                         binding.txtStatRating.text = "5.0 ★"
-                        binding.txtStatReviewsCount.text = "جديد"
+                        binding.txtStatReviewsCount.text = "قيّم الآن"
+                        binding.txtRatingBigScore.text = "5.0"
+                        binding.txtRatingBigStars.text = "★★★★★"
+                        binding.txtRatingBigCount.text = "جديد • كن أول المقيّمين"
                     } else {
                         binding.txtEmptyComments.visibility = View.GONE
                         binding.rvComments.visibility = View.VISIBLE
                         val avg = totalStars.toDouble() / commentsList.size
-                        binding.txtStatRating.text = String.format(Locale.US, "%.1f ★", avg)
+                        val avgFormatted = String.format(Locale.US, "%.1f", avg)
+                        val roundedStars = kotlin.math.round(avg).toInt().coerceIn(1, 5)
+
+                        binding.txtStatRating.text = "$avgFormatted ★"
                         binding.txtStatReviewsCount.text = "${commentsList.size} مراجعة"
+                        binding.txtRatingBigScore.text = avgFormatted
+                        binding.txtRatingBigStars.text = "★".repeat(roundedStars) + "☆".repeat(5 - roundedStars)
+                        binding.txtRatingBigCount.text = "${commentsList.size} مراجعة موثّقة"
                         binding.rvComments.adapter = SimpleCommentsAdapter(commentsList)
                     }
                 }
@@ -1138,54 +1182,161 @@ class AppDetailsActivity : AppCompatActivity() {
         commentsQuery?.addValueEventListener(commentsListener!!)
     }
 
-    private fun showAddCommentDialog(commentsRef: DatabaseReference) {
+    private fun showAddCommentDialog(commentsRef: DatabaseReference, initialStars: Int = 5) {
         if (isFinishing || isDestroyed) return
         val prefs = getSharedPreferences("FixEnginePrefs", Context.MODE_PRIVATE)
         val savedName = prefs.getString("user_display_name", "") ?: ""
+        val density = resources.displayMetrics.density
+
+        val colorPrimary = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
+        val colorOnSurface = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnSurface)
+        val colorOnSurfaceVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnSurfaceVariant)
+        val colorSurfaceVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceVariant)
+        val colorGold = Color.parseColor("#FFB300")
+
+        var selectedStars = initialStars.coerceIn(1, 5)
 
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            val pad = (20 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad / 2, pad, 0)
+            val padH = (22 * density).toInt()
+            val padTop = (12 * density).toInt()
+            setPadding(padH, padTop, padH, (4 * density).toInt())
         }
 
-        val ratingBar = RatingBar(this, null, android.R.attr.ratingBarStyleIndicator).apply {
-            numStars = 5
-            stepSize = 1f
-            rating = 5f
-            setIsIndicator(false)
+        // 1. صندوق النجوم التفاعلي الفخم داخل النافذة
+        val ratingCard = MaterialCardView(this).apply {
+            radius = 18 * density
+            cardElevation = 0f
+            setCardBackgroundColor(colorSurfaceVariant)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (16 * density).toInt() }
+        }
+
+        val ratingBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            val p = (14 * density).toInt()
+            setPadding(p, p, p, p)
+        }
+
+        val tvRatingStatus = TextView(this).apply {
+            textSize = 13.5f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(colorPrimary)
+            gravity = Gravity.CENTER
+        }
+
+        val starsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutDirection = View.LAYOUT_DIRECTION_LTR
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { gravity = Gravity.CENTER_HORIZONTAL }
+            ).apply { topMargin = (6 * density).toInt() }
         }
 
-        val etName = EditText(this).apply {
-            hint = "اسمك (مثال: محمد)"
+        val starButtons = mutableListOf<TextView>()
+
+        fun updateStarsUi(stars: Int) {
+            selectedStars = stars.coerceIn(1, 5)
+            val label = when (selectedStars) {
+                5 -> " ممتاز جداً • 5/5 😍"
+                4 -> " جيد جداً • 4/5 👍"
+                3 -> " جيد • 3/5 🙂"
+                2 -> " مقبول • 2/5 😐"
+                else -> " يحتاج تحسين • 1/5 😕"
+            }
+            tvRatingStatus.text = label
+            starButtons.forEachIndexed { idx, starTv ->
+                val isSelected = idx < selectedStars
+                starTv.text = if (isSelected) "★" else "☆"
+                starTv.setTextColor(if (isSelected) colorGold else colorOnSurfaceVariant)
+            }
+        }
+
+        for (i in 1..5) {
+            val starTv = TextView(this).apply {
+                textSize = 32f
+                gravity = Gravity.CENTER
+                val sizePx = (46 * density).toInt()
+                layoutParams = LinearLayout.LayoutParams(sizePx, sizePx)
+                setOnClickListener { v ->
+                    updateStarsUi(i)
+                    v.animate().scaleX(1.25f).scaleY(1.25f).setDuration(100).withEndAction {
+                        v.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
+                    }.start()
+                }
+            }
+            starButtons.add(starTv)
+            starsRow.addView(starTv)
+        }
+
+        updateStarsUi(selectedStars)
+        ratingBox.addView(tvRatingStatus)
+        ratingBox.addView(starsRow)
+        ratingCard.addView(ratingBox)
+
+        // 2. حقل الاسم بتصميم Material OutlinedBox
+        val tilName = TextInputLayout(this).apply {
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            val corner = 14 * density
+            setBoxCornerRadii(corner, corner, corner, corner)
+            hint = "اسمك الظاهر في المراجعة (اختياري)"
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (12 * density).toInt() }
+        }
+
+        val etName = TextInputEditText(tilName.context).apply {
             setText(savedName)
             maxLines = 1
+            isSingleLine = true
+            setTextColor(colorOnSurface)
+            textSize = 14f
+        }
+        tilName.addView(etName)
+
+        // 3. حقل التعليق بتصميم Material OutlinedBox مع عداد حروف
+        val tilComment = TextInputLayout(this).apply {
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            val corner = 14 * density
+            setBoxCornerRadii(corner, corner, corner, corner)
+            hint = "اكتب تجربتك أو رأيك حول التطبيق..."
+            isCounterEnabled = true
+            counterMaxLength = 250
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
         }
 
-        val etComment = EditText(this).apply {
-            hint = "اكتب رأيك أو تجربتك للتطبيق هنا..."
-            minLines = 2
-            maxLines = 4
+        val etComment = TextInputEditText(tilComment.context).apply {
+            minLines = 3
+            maxLines = 5
+            gravity = Gravity.TOP or Gravity.START
+            setTextColor(colorOnSurface)
+            textSize = 14f
         }
+        tilComment.addView(etComment)
 
-        container.addView(ratingBar)
-        container.addView(etName)
-        container.addView(etComment)
+        container.addView(ratingCard)
+        container.addView(tilName)
+        container.addView(tilComment)
 
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-            .setTitle("إضافة تقييم وتعليق ⭐")
+            .setTitle("إضافة تقييم ومراجعة ⭐")
             .setView(container)
-            .setPositiveButton("نشر التعليق") { dialog, _ ->
-                val name = etName.text.toString().trim().ifBlank { "مستخدم المتجر" }
-                val comment = etComment.text.toString().trim()
-                val stars = ratingBar.rating.toInt().coerceIn(1, 5)
+            .setPositiveButton("نشر المراجعة") { dialog, _ ->
+                val name = etName.text?.toString()?.trim().orEmpty().ifBlank { "مستخدم المتجر" }
+                val comment = etComment.text?.toString()?.trim().orEmpty()
+                val stars = selectedStars.coerceIn(1, 5)
 
                 if (comment.length < 3) {
-                    Toast.makeText(this, "يرجى كتابة تعليق واضح أولاً", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "يرجى كتابة تعليق واضح أولاً (3 أحرف على الأقل)", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
@@ -1202,7 +1353,7 @@ class AppDetailsActivity : AppCompatActivity() {
                 commentsRef.push().setValue(payload)
                     .addOnSuccessListener {
                         if (!isFinishing && !isDestroyed) {
-                            Toast.makeText(this, "تم نشر تعليقك بنجاح! شكراً لك ✨", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "تم نشر تقييمك بنجاح! شكراً لمشاركتك ✨", Toast.LENGTH_SHORT).show()
                         }
                     }
                     .addOnFailureListener {
@@ -1216,58 +1367,178 @@ class AppDetailsActivity : AppCompatActivity() {
             .show()
     }
 
+    /**
+     * 🎨 محول برمجي احترافي لعرض بطاقات مراجعات المستخدمين بهوية بصرية فخمة
+     * يدعم الوضع النهاري والليلي تلقائياً ويتمدد بأمان مع الخطوط الكبيرة
+     */
     private inner class SimpleCommentsAdapter(
         private val items: List<Map<String, Any>>
     ) : RecyclerView.Adapter<SimpleCommentsAdapter.VH>() {
 
-        inner class VH(val card: MaterialCardView, val tvHeader: TextView, val tvBody: TextView) :
-            RecyclerView.ViewHolder(card)
+        inner class VH(
+            val card: MaterialCardView,
+            val tvAvatar: TextView,
+            val tvUserName: TextView,
+            val tvStars: TextView,
+            val tvDate: TextView,
+            val tvBody: TextView
+        ) : RecyclerView.ViewHolder(card)
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+            val ctx = parent.context
             val density = parent.resources.displayMetrics.density
-            val card = MaterialCardView(parent.context).apply {
+
+            val colorPrimary = MaterialColors.getColor(parent, androidx.appcompat.R.attr.colorPrimary)
+            val colorPrimaryContainer = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorPrimaryContainer)
+            val colorOnPrimaryContainer = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOnPrimaryContainer)
+            val colorSurfaceVariant = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorSurfaceVariant)
+            val colorOnSurface = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOnSurface)
+            val colorOnSurfaceVariant = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOnSurfaceVariant)
+            val colorOutlineVariant = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOutlineVariant)
+
+            val card = MaterialCardView(ctx).apply {
                 layoutParams = RecyclerView.LayoutParams(
                     RecyclerView.LayoutParams.MATCH_PARENT,
                     RecyclerView.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = (10 * density).toInt() }
-                radius = 14 * density
+                ).apply { bottomMargin = (12 * density).toInt() }
+                radius = 20 * density
                 cardElevation = 0f
-                setCardBackgroundColor(ContextCompat.getColor(parent.context, R.color.md_theme_d_surfaceVariant))
+                strokeWidth = (1 * density).toInt()
+                strokeColor = colorOutlineVariant
+                setCardBackgroundColor(colorSurfaceVariant)
             }
 
-            val box = LinearLayout(parent.context).apply {
+            val rootBox = LinearLayout(ctx).apply {
                 orientation = LinearLayout.VERTICAL
-                val p = (14 * density).toInt()
+                val p = (16 * density).toInt()
                 setPadding(p, p, p, p)
             }
 
-            val tvHeader = TextView(parent.context).apply {
-                textSize = 13f
+            // الصف العلوي: الصورة الرمزية + اسم المستخدم والنجوم + التاريخ
+            val headerRow = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            // 1. دائرة الحرف الأول من اسم المستخدم (Avatar)
+            val avatarSize = (42 * density).toInt()
+            val tvAvatar = TextView(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(avatarSize, avatarSize)
+                gravity = Gravity.CENTER
+                textSize = 16f
                 setTypeface(typeface, Typeface.BOLD)
-                setTextColor(ContextCompat.getColor(parent.context, R.color.md_theme_d_primary))
+                setTextColor(colorOnPrimaryContainer)
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(colorPrimaryContainer)
+                }
             }
 
-            val tvBody = TextView(parent.context).apply {
+            // 2. عمود الاسم وشريط النجوم
+            val userInfoCol = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    1f
+                ).apply {
+                    marginStart = (12 * density).toInt()
+                    marginEnd = (8 * density).toInt()
+                }
+            }
+
+            val tvUserName = TextView(ctx).apply {
+                textSize = 14f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(colorOnSurface)
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+            }
+
+            val tvStars = TextView(ctx).apply {
+                textSize = 12.5f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(Color.parseColor("#FFB300"))
+                setPadding(0, (2 * density).toInt(), 0, 0)
+                textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+            }
+
+            userInfoCol.addView(tvUserName)
+            userInfoCol.addView(tvStars)
+
+            // 3. شارة التاريخ الأنيقة
+            val tvDate = TextView(ctx).apply {
+                textSize = 11f
+                setTextColor(colorOnSurfaceVariant)
+                val ph = (8 * density).toInt()
+                val pv = (3 * density).toInt()
+                setPadding(ph, pv, ph, pv)
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = 10 * density
+                    setColor(Color.argb(25, Color.red(colorPrimary), Color.green(colorPrimary), Color.blue(colorPrimary)))
+                }
+            }
+
+            headerRow.addView(tvAvatar)
+            headerRow.addView(userInfoCol)
+            headerRow.addView(tvDate)
+
+            // خط فاصل خفيف بين الهيدر ونص المراجعة
+            val divider = View(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    (1 * density).toInt().coerceAtLeast(1)
+                ).apply {
+                    topMargin = (12 * density).toInt()
+                    bottomMargin = (10 * density).toInt()
+                }
+                setBackgroundColor(colorOutlineVariant)
+                alpha = 0.45f
+            }
+
+            // 4. نص المراجعة (يدعم التمدد والخطوط الكبيرة بسلاسة)
+            val tvBody = TextView(ctx).apply {
                 textSize = 13.5f
-                setPadding(0, (6 * density).toInt(), 0, 0)
-                setTextColor(ContextCompat.getColor(parent.context, R.color.md_theme_d_onSurface))
+                setTextColor(colorOnSurface)
+                setLineSpacing(4 * density, 1.05f)
+                textAlignment = View.TEXT_ALIGNMENT_VIEW_START
             }
 
-            box.addView(tvHeader)
-            box.addView(tvBody)
-            card.addView(box)
-            return VH(card, tvHeader, tvBody)
+            rootBox.addView(headerRow)
+            rootBox.addView(divider)
+            rootBox.addView(tvBody)
+            card.addView(rootBox)
+
+            return VH(card, tvAvatar, tvUserName, tvStars, tvDate, tvBody)
         }
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = items[position]
-            val user = item["user"] as? String ?: "مستخدم"
-            val stars = (item["stars"] as? Long ?: 5L).toInt()
-            val time = item["time"] as? String ?: ""
-            val text = item["text"] as? String ?: ""
+            val user = (item["user"] as? String)?.trim().orEmpty().ifBlank { "مستخدم" }
+            val stars = (item["stars"] as? Long ?: 5L).toInt().coerceIn(1, 5)
+            val time = (item["time"] as? String)?.trim().orEmpty()
+            val text = (item["text"] as? String)?.trim().orEmpty()
 
-            val starsText = "★".repeat(stars) + "☆".repeat(5 - stars)
-            holder.tvHeader.text = "$user  •  $starsText   ($time)"
+            val firstChar = user.firstOrNull()?.uppercaseChar()?.toString() ?: "م"
+            holder.tvAvatar.text = firstChar
+            holder.tvUserName.text = user
+
+            val starsVisual = "★".repeat(stars) + "☆".repeat(5 - stars)
+            holder.tvStars.text = "$starsVisual  ($stars.0)"
+
+            if (time.isNotBlank()) {
+                holder.tvDate.visibility = View.VISIBLE
+                holder.tvDate.text = time
+            } else {
+                holder.tvDate.visibility = View.GONE
+            }
+
             holder.tvBody.text = text
         }
 
