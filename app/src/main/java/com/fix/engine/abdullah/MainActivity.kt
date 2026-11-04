@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -18,10 +19,12 @@ import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
@@ -33,6 +36,8 @@ import com.fix.engine.abdullah.ui.adapter.MainPagerAdapter
 import com.fix.engine.abdullah.ui.details.AppDetailsActivity
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.button.MaterialButtonToggleGroup
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.firebase.database.DataSnapshot
@@ -46,7 +51,7 @@ import java.util.Locale
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Official Runtime Core)
- * Feature: JNI C++ Security, Smart Category Chips, Storage Manager & Live Firebase Announcements
+ * Feature: JNI C++ Security, Day/Night Theme Switcher, Smart Category Chips & Storage Manager
  */
 class MainActivity : AppCompatActivity() {
 
@@ -159,93 +164,87 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-private fun setupNavigationDrawer() {
-
-    // 1️⃣ زر فتح الدرج
-    binding.btnMenu.setOnClickListener {
-        binding.drawerLayout.openDrawer(GravityCompat.START)
-    }
-
-    // ☀️🌙 2️⃣ زر التبديل السريع للمظهر في أعلى الصفحة الرئيسية
-    binding.btnThemeQuickToggle.setOnClickListener {
+    private fun setupNavigationDrawer() {
         val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
-        val currentMode = prefs.getInt(
-            "theme_mode",
-            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-        )
-        val isCurrentlyDark = (resources.configuration.uiMode and
-                android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-                android.content.res.Configuration.UI_MODE_NIGHT_YES
 
-        val nextMode = if (currentMode == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO || !isCurrentlyDark) {
-            Toast.makeText(this, "تم تفعيل الوضع الليلي 🌙", Toast.LENGTH_SHORT).show()
-            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
-        } else {
-            Toast.makeText(this, "تم تفعيل الوضع النهاري ☀️", Toast.LENGTH_SHORT).show()
-            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+        // 1. زر فتح القائمة الجانبية
+        binding.btnMenu.setOnClickListener {
+            binding.drawerLayout.openDrawer(GravityCompat.START)
         }
 
-        prefs.edit().putInt("theme_mode", nextMode).apply()
-        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(nextMode)
-    }
-
-    // 🎨 3️⃣ إعداد عناصر الهيدر ومبدل المظهر
-    if (binding.navView.headerCount > 0) {
-        val headerView = binding.navView.getHeaderView(0)
-        val txtHeaderVersion = headerView.findViewById<android.widget.TextView>(R.id.txtHeaderVersion)
-        val toggleGroupTheme = headerView.findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.toggleGroupTheme)
-
-        // جلب رقم الإصدار
-        try {
-            val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+        // 2. زر التبديل السريع للمظهر (☀️ / 🌙) في أعلى الصفحة الرئيسية
+        binding.btnThemeQuickToggle.setOnClickListener {
+            val isCurrentlyDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            val nextMode = if (isCurrentlyDark) {
+                Toast.makeText(this, "تم تفعيل الوضع النهاري ☀️", Toast.LENGTH_SHORT).show()
+                AppCompatDelegate.MODE_NIGHT_NO
             } else {
-                @Suppress("DEPRECATION")
-                packageManager.getPackageInfo(packageName, 0)
+                Toast.makeText(this, "تم تفعيل الوضع الليلي 🌙", Toast.LENGTH_SHORT).show()
+                AppCompatDelegate.MODE_NIGHT_YES
             }
-            txtHeaderVersion?.text = "الإصدار ${pInfo.versionName} الرسمي • 🛡️"
-        } catch (_: Exception) {}
-
-        // تحديد الزر المحفوظ
-        val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
-        val currentNightMode = prefs.getInt(
-            "theme_mode",
-            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-        )
-
-        val initialCheckedId = when (currentNightMode) {
-            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO -> R.id.btnThemeLight
-            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES -> R.id.btnThemeDark
-            else -> R.id.btnThemeAuto
+            prefs.edit().putInt("theme_mode", nextMode).apply()
+            AppCompatDelegate.setDefaultNightMode(nextMode)
         }
-        toggleGroupTheme?.check(initialCheckedId)
 
-        // الاستماع لتغيير المظهر
-        toggleGroupTheme?.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (!isChecked) return@addOnButtonCheckedListener
+        // 3. إعداد الهيدر داخل القائمة الجانبية ومبدل المظهر الثلاثي
+        if (binding.navView.headerCount > 0) {
+            val headerView = binding.navView.getHeaderView(0)
+            val txtHeaderVersion = headerView.findViewById<TextView>(R.id.txtHeaderVersion)
+            val toggleGroupTheme = headerView.findViewById<MaterialButtonToggleGroup>(R.id.toggleGroupTheme)
 
-            val selectedMode = when (checkedId) {
-                R.id.btnThemeLight -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
-                R.id.btnThemeDark -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
-                else -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            try {
+                val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageManager.getPackageInfo(packageName, 0)
+                }
+                txtHeaderVersion?.text = "الإصدار ${pInfo.versionName} الرسمي • 🛡️"
+            } catch (_: Exception) {}
+
+            val currentNightMode = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+            val initialCheckedId = when (currentNightMode) {
+                AppCompatDelegate.MODE_NIGHT_NO -> R.id.btnThemeLight
+                AppCompatDelegate.MODE_NIGHT_YES -> R.id.btnThemeDark
+                else -> R.id.btnThemeAuto
             }
+            toggleGroupTheme?.check(initialCheckedId)
 
-            if (selectedMode != prefs.getInt("theme_mode", androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)) {
-                prefs.edit().putInt("theme_mode", selectedMode).apply()
-                androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(selectedMode)
+            toggleGroupTheme?.addOnButtonCheckedListener { _, checkedId, isChecked ->
+                if (!isChecked) return@addOnButtonCheckedListener
+
+                val selectedMode = when (checkedId) {
+                    R.id.btnThemeLight -> AppCompatDelegate.MODE_NIGHT_NO
+                    R.id.btnThemeDark -> AppCompatDelegate.MODE_NIGHT_YES
+                    else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                }
+
+                if (selectedMode != prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)) {
+                    prefs.edit().putInt("theme_mode", selectedMode).apply()
+                    AppCompatDelegate.setDefaultNightMode(selectedMode)
+                }
             }
+        }
+
+        // 4. عناصر القائمة الجانبية
+        binding.navView.setNavigationItemSelectedListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.nav_settings -> showSettingsAndStorageDialog()
+                R.id.nav_dev_about -> showAboutDeveloperDialog()
+                R.id.nav_add_app -> showAddAppDeveloperDialog()
+            }
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+            true
         }
     }
 
-    // 4️⃣ قائمة عناصر الدرج
-    binding.navView.setNavigationItemSelectedListener { menuItem ->
-        when (menuItem.itemId) {
-            R.id.nav_settings -> showSettingsAndStorageDialog()
-            R.id.nav_dev_about -> showAboutDeveloperDialog()
-            R.id.nav_add_app -> showAddAppDeveloperDialog()
-        }
-        binding.drawerLayout.closeDrawer(GravityCompat.START)
-        true
+    private fun showAboutDeveloperDialog() {
+        if (isFinishing || isDestroyed) return
+        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setTitle("حول المطور")
+            .setMessage("تم تطوير المتجر بواسطة م/ عبدالله التميمي.\nنهدف إلى تقديم تجربة فريدة، آمنة واحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
+            .setPositiveButton("حسناً", null)
+            .show()
     }
 
     private fun showAddAppDeveloperDialog() {
@@ -454,8 +453,8 @@ private fun setupNavigationDrawer() {
     }
 
     private fun setupSearchAnimation() {
-        val colorPrimary = ContextCompat.getColor(this, R.color.md_theme_d_primary)
-        val colorOutlineVariant = ContextCompat.getColor(this, R.color.md_theme_d_outlineVariant)
+        val colorPrimary = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
+        val colorOutlineVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOutlineVariant)
 
         binding.etSearch.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
@@ -490,7 +489,7 @@ private fun setupNavigationDrawer() {
                 if (updateCount > 0) {
                     badge?.isVisible = true
                     badge?.number = updateCount
-                    badge?.backgroundColor = ContextCompat.getColor(this@MainActivity, R.color.md_theme_d_error)
+                    badge?.backgroundColor = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorError)
 
                     if (binding.etSearch.text.isNullOrBlank() && !isNotificationSent) {
                         sendUpdateNotification(updateCount)
