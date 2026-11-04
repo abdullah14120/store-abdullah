@@ -23,6 +23,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationCompat
@@ -51,7 +52,7 @@ import java.util.Locale
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Official Runtime Core)
- * Feature: JNI C++ Security, Day/Night Theme Switcher, Smart Category Chips & Storage Manager
+ * Feature: JNI C++ Security, Synced Day/Night Theme Switcher, Smart Repo/Network Diagnostics & Storage Manager
  */
 class MainActivity : AppCompatActivity() {
 
@@ -64,6 +65,8 @@ class MainActivity : AppCompatActivity() {
     private var isDataLoadedSuccessfully = false
 
     private var isNotificationSent = false
+    private var isUpdatingThemeProgrammatically = false
+    private var activeErrorDialog: AlertDialog? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -83,6 +86,12 @@ class MainActivity : AppCompatActivity() {
     private external fun getSecureRepoUrl(): String
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
+        val savedTheme = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        if (AppCompatDelegate.getDefaultNightMode() != savedTheme) {
+            AppCompatDelegate.setDefaultNightMode(savedTheme)
+        }
+
         super.onCreate(savedInstanceState)
 
         verifySignatureNative(applicationContext)
@@ -107,6 +116,20 @@ class MainActivity : AppCompatActivity() {
         refreshData()
     }
 
+    /**
+     * 🌐 فحص فوري ودقيق لما إذا كان الإنترنت متوفراً وفعالاً على الجهاز
+     */
+    private fun isInternetAvailable(): Boolean {
+        return try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = cm.activeNetwork ?: return false
+            val capabilities = cm.getNetworkCapabilities(network) ?: return false
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     private fun registerNetworkMonitoring() {
         try {
             connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -116,11 +139,10 @@ class MainActivity : AppCompatActivity() {
                     super.onAvailable(network)
                     runOnUiThread {
                         if (isFinishing || isDestroyed) return@runOnUiThread
+                        activeErrorDialog?.dismiss()
                         if (!isDataLoadedSuccessfully) {
                             Toast.makeText(this@MainActivity, "تم استعادة الاتصال! جاري مزامنة المتجر... 🔄", Toast.LENGTH_SHORT).show()
                             refreshData()
-                        } else {
-                            Toast.makeText(this@MainActivity, "متصل بالإنترنت ✨", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -129,7 +151,7 @@ class MainActivity : AppCompatActivity() {
                     super.onLost(network)
                     runOnUiThread {
                         if (isFinishing || isDestroyed) return@runOnUiThread
-                        Toast.makeText(this@MainActivity, "عذراً، انقطع الاتصال بالإنترنت!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainActivity, "تنبيه: انقطع الاتصال بالإنترنت 🌐", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -164,6 +186,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * 🎨 دالة موحدة لتغيير المظهر ومزامنة زر الصفحة الرئيسية مع أزرار القائمة الجانبية بدون تعارض
+     */
+    private fun applyThemeMode(targetMode: Int, toggleGroup: MaterialButtonToggleGroup?, showToast: Boolean) {
+        val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
+        prefs.edit().putInt("theme_mode", targetMode).apply()
+
+        isUpdatingThemeProgrammatically = true
+        val targetButtonId = when (targetMode) {
+            AppCompatDelegate.MODE_NIGHT_NO -> R.id.btnThemeLight
+            AppCompatDelegate.MODE_NIGHT_YES -> R.id.btnThemeDark
+            else -> R.id.btnThemeAuto
+        }
+        if (toggleGroup != null && toggleGroup.checkedButtonId != targetButtonId) {
+            toggleGroup.check(targetButtonId)
+        }
+        isUpdatingThemeProgrammatically = false
+
+        if (showToast) {
+            val modeText = when (targetMode) {
+                AppCompatDelegate.MODE_NIGHT_NO -> "تم تفعيل الوضع النهاري ☀️"
+                AppCompatDelegate.MODE_NIGHT_YES -> "تم تفعيل الوضع الليلي 🌙"
+                else -> "تم تفعيل الوضع التلقائي 🔄"
+            }
+            Toast.makeText(this, modeText, Toast.LENGTH_SHORT).show()
+        }
+
+        AppCompatDelegate.setDefaultNightMode(targetMode)
+    }
+
     private fun setupNavigationDrawer() {
         val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
 
@@ -172,26 +224,39 @@ class MainActivity : AppCompatActivity() {
             binding.drawerLayout.openDrawer(GravityCompat.START)
         }
 
+        val headerView = if (binding.navView.headerCount > 0) binding.navView.getHeaderView(0) else null
+        val txtHeaderVersion = headerView?.findViewById<TextView>(R.id.txtHeaderVersion)
+        val toggleGroupTheme = headerView?.findViewById<MaterialButtonToggleGroup>(R.id.toggleGroupTheme)
+
+        // تعطيل حفظ الحالة التلقائي لمجموعة الأزرار لمنع إبطال عمل زر الصفحة الرئيسية عند إعادة بناء الشاشة
+        toggleGroupTheme?.isSaveEnabled = false
+
+        // تحديث أيقونة زر الصفحة الرئيسية حسب الوضع الحالي
+        val isNightActive = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        binding.btnThemeQuickToggle.setImageResource(
+            if (isNightActive) android.R.drawable.ic_menu_day else android.R.drawable.ic_menu_recent_history
+        )
+
         // 2. زر التبديل السريع للمظهر (☀️ / 🌙) في أعلى الصفحة الرئيسية
         binding.btnThemeQuickToggle.setOnClickListener {
-            val isCurrentlyDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-            val nextMode = if (isCurrentlyDark) {
-                Toast.makeText(this, "تم تفعيل الوضع النهاري ☀️", Toast.LENGTH_SHORT).show()
+            val savedMode = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+            val currentlyDark = when (savedMode) {
+                AppCompatDelegate.MODE_NIGHT_YES -> true
+                AppCompatDelegate.MODE_NIGHT_NO -> false
+                else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            }
+
+            val nextMode = if (currentlyDark) {
                 AppCompatDelegate.MODE_NIGHT_NO
             } else {
-                Toast.makeText(this, "تم تفعيل الوضع الليلي 🌙", Toast.LENGTH_SHORT).show()
                 AppCompatDelegate.MODE_NIGHT_YES
             }
-            prefs.edit().putInt("theme_mode", nextMode).apply()
-            AppCompatDelegate.setDefaultNightMode(nextMode)
+
+            applyThemeMode(nextMode, toggleGroupTheme, showToast = true)
         }
 
         // 3. إعداد الهيدر داخل القائمة الجانبية ومبدل المظهر الثلاثي
-        if (binding.navView.headerCount > 0) {
-            val headerView = binding.navView.getHeaderView(0)
-            val txtHeaderVersion = headerView.findViewById<TextView>(R.id.txtHeaderVersion)
-            val toggleGroupTheme = headerView.findViewById<MaterialButtonToggleGroup>(R.id.toggleGroupTheme)
-
+        if (headerView != null) {
             try {
                 val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
@@ -208,10 +273,13 @@ class MainActivity : AppCompatActivity() {
                 AppCompatDelegate.MODE_NIGHT_YES -> R.id.btnThemeDark
                 else -> R.id.btnThemeAuto
             }
+
+            isUpdatingThemeProgrammatically = true
             toggleGroupTheme?.check(initialCheckedId)
+            isUpdatingThemeProgrammatically = false
 
             toggleGroupTheme?.addOnButtonCheckedListener { _, checkedId, isChecked ->
-                if (!isChecked) return@addOnButtonCheckedListener
+                if (!isChecked || isUpdatingThemeProgrammatically) return@addOnButtonCheckedListener
 
                 val selectedMode = when (checkedId) {
                     R.id.btnThemeLight -> AppCompatDelegate.MODE_NIGHT_NO
@@ -220,8 +288,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 if (selectedMode != prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)) {
-                    prefs.edit().putInt("theme_mode", selectedMode).apply()
-                    AppCompatDelegate.setDefaultNightMode(selectedMode)
+                    applyThemeMode(selectedMode, toggleGroupTheme, showToast = true)
                 }
             }
         }
@@ -236,6 +303,65 @@ class MainActivity : AppCompatActivity() {
             binding.drawerLayout.closeDrawer(GravityCompat.START)
             true
         }
+    }
+
+    /**
+     * 🛡️ نافذة تشخيصية أنيقة توضح للمستخدم بدقة سبب عدم ظهور التطبيقات
+     * (تميز تلقائياً بين انقطاع الإنترنت وبين صيانة/تحديث مستودع JSON)
+     */
+    private fun showSmartRepoDiagnosticDialog() {
+        if (isFinishing || isDestroyed) return
+        activeErrorDialog?.dismiss()
+
+        val hasInternet = isInternetAvailable()
+
+        val builder = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setCancelable(true)
+
+        if (!hasInternet) {
+            builder.setTitle("لا يوجد اتصال بالإنترنت 🌐")
+                .setMessage(
+                    "يبدو أن جهازك غير متصل بالإنترنت حالياً.\n\n" +
+                            "• يرجى التحقق من اتصال الشبكة (Wi-Fi أو بيانات الهاتف).\n" +
+                            "• سيقوم المتجر بجلب ومزامنة التطبيقات تلقائياً فور عودة الاتصال."
+                )
+                .setPositiveButton("إعادة المحاولة 🔄") { dialog, _ ->
+                    dialog.dismiss()
+                    refreshData()
+                }
+                .setNeutralButton("إعدادات الشبكة ⚙️") { dialog, _ ->
+                    dialog.dismiss()
+                    try {
+                        startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
+                    } catch (_: Exception) {
+                        try {
+                            startActivity(Intent(Settings.ACTION_SETTINGS))
+                        } catch (_: Exception) {}
+                    }
+                }
+                .setNegativeButton("إغلاق", null)
+        } else {
+            builder.setTitle("تحديث المستودع جاري الآن 🛠️")
+                .setMessage(
+                    "اتصالك بالإنترنت يعمل بشكل سليم، ولكن يتعذر قراءة قائمة التطبيقات مؤقتاً لأحد الأسباب التالية:\n\n" +
+                            "📦 جاري حالياً رفع تطبيقات أو إصدارات حديثة إلى المستودع.\n" +
+                            "🔧 أو يتم إجراء عملية إصلاح وتحديث سريعة لقاعدة البيانات (JSON).\n\n" +
+                            "يرجى الانتظار لحظات قليلة ثم الضغط على إعادة المحاولة."
+                )
+                .setPositiveButton("إعادة المحاولة الآن 🔄") { dialog, _ ->
+                    dialog.dismiss()
+                    try {
+                        val secureUrl = getSecureRepoUrl()
+                        viewModel.forceReloadApps(secureUrl.toByteArray(Charsets.UTF_8), 0.toByte())
+                    } catch (e: Exception) {
+                        refreshData()
+                    }
+                }
+                .setNegativeButton("حسناً، سأنتظر", null)
+        }
+
+        activeErrorDialog = builder.create()
+        activeErrorDialog?.show()
     }
 
     private fun showAboutDeveloperDialog() {
@@ -431,6 +557,10 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnRefreshMain.setOnClickListener { view ->
             view.animate().rotationBy(360f).setDuration(600).start()
+            if (!isInternetAvailable()) {
+                showSmartRepoDiagnosticDialog()
+                return@setOnClickListener
+            }
             Toast.makeText(this, "جاري تحديث قائمة التطبيقات... 🔄", Toast.LENGTH_SHORT).show()
             try {
                 val secureUrl = getSecureRepoUrl()
@@ -475,6 +605,7 @@ class MainActivity : AppCompatActivity() {
         viewModel.appsUiStateList.observe(this) { uiStates ->
             if (!uiStates.isNullOrEmpty()) {
                 isDataLoadedSuccessfully = true
+                activeErrorDialog?.dismiss()
                 val apps = uiStates.map { it.app }
                 checkMandatoryUpdate(apps)
             }
@@ -501,22 +632,28 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        viewModel.errorMessage.observe(this) {
-            it?.let {
-                Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+        // 🛡️ استبدال رسالة "فشل جلب البيانات" بنافذة التشخيص الأنيقة (إنترنت أو صيانة/تحديث المستودع)
+        viewModel.errorMessage.observe(this) { errorMsg ->
+            if (!errorMsg.isNullOrBlank()) {
                 isDataLoadedSuccessfully = false
+                showSmartRepoDiagnosticDialog()
             }
         }
     }
 
     private fun refreshData() {
+        if (!isInternetAvailable()) {
+            isDataLoadedSuccessfully = false
+            showSmartRepoDiagnosticDialog()
+            return
+        }
         try {
             val secureUrl = getSecureRepoUrl()
             val urlBytes = secureUrl.toByteArray(Charsets.UTF_8)
             viewModel.loadApps(urlBytes, 0.toByte())
         } catch (e: Exception) {
-            Toast.makeText(this, "خطأ في معالجة بوابة الأمان", Toast.LENGTH_LONG).show()
             isDataLoadedSuccessfully = false
+            showSmartRepoDiagnosticDialog()
         }
     }
 
