@@ -29,88 +29,124 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:paddingTop="20dp"
+                    android:paddingTop="18dp"
                     android:paddingHorizontal="20dp"
                     android:paddingBottom="8dp">
 
                     <!-- ========================================== -->
-                    <!-- 1. الهيدر العلوي: الترحيب + أزرار التحكم   -->
+                    <!-- 1. الهيدر الرئيسي الفخم (الشعار + الاسم + أزرار التحكم) -->
                     <!-- ========================================== -->
-                    <RelativeLayout
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp">
+                        android:layout_marginBottom="16dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
+                        <!-- شعار المتجر المتوهج في الصفحة الرئيسية -->
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:cardBackgroundColor="?attr/colorSurfaceVariant"
+                            app:cardCornerRadius="24dp"
+                            app:cardElevation="0dp"
+                            app:strokeColor="?attr/colorPrimary"
+                            app:strokeWidth="1.5dp">
+
+                            <com.google.android.material.imageview.ShapeableImageView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:padding="2dp"
+                                android:scaleType="centerCrop"
+                                android:src="@mipmap/ic_launcher"
+                                app:shapeAppearanceOverlay="@style/Shape.Circle" />
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <!-- اسم المتجر والترحيب -->
                         <LinearLayout
-                            android:layout_width="wrap_content"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_alignParentStart="true"
-                            android:layout_toStartOf="@id/layoutHeaderActions"
+                            android:layout_marginStart="12dp"
+                            android:layout_marginEnd="8dp"
+                            android:layout_weight="1"
                             android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="sans-serif-black"
+                                android:text="متجر Abdullah"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
 
                             <TextView
                                 android:id="@+id/txtWelcomeSub"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="مرحبًا بكم، هنا ستجد جميع التطبيقات المعدلة"
+                                android:fontFamily="sans-serif-medium"
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                android:text="جميع التطبيقات المعدلة والآمنة 🛡️"
                                 android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="12.5sp"
-                                android:fontFamily="sans-serif-medium" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="متجر Abdullah"
-                                android:textColor="?attr/colorPrimary"
-                                android:textAppearance="?attr/textAppearanceHeadlineMedium"
-                                android:fontFamily="sans-serif-black"
-                                android:layout_marginTop="2dp" />
+                                android:textSize="11.5sp" />
                         </LinearLayout>
 
-                        <!-- حاوية أزرار الهيدر (زر التحديث السريع + زر القائمة) -->
+                        <!-- أزرار الهيدر (تبديل المظهر ☀️/🌙 + التحديث 🔄 + القائمة ☰) -->
                         <LinearLayout
                             android:id="@+id/layoutHeaderActions"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_alignParentEnd="true"
-                            android:layout_centerVertical="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal">
 
                             <com.google.android.material.imageview.ShapeableImageView
-                                android:id="@+id/btnRefreshMain"
-                                android:layout_width="42dp"
-                                android:layout_height="42dp"
-                                android:layout_marginEnd="10dp"
-                                android:src="@android:drawable/stat_notify_sync"
+                                android:id="@+id/btnThemeQuickToggle"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:layout_marginEnd="8dp"
                                 android:background="?attr/colorSurfaceVariant"
-                                app:tint="?attr/colorPrimary"
-                                android:padding="10dp"
                                 android:clickable="true"
                                 android:focusable="true"
                                 android:foreground="?attr/selectableItemBackgroundBorderless"
+                                android:padding="9dp"
+                                android:src="@android:drawable/ic_menu_day"
                                 app:shapeAppearanceOverlay="@style/Shape.Circle"
+                                app:tint="?attr/colorPrimary"
+                                tools:ignore="ContentDescription" />
+
+                            <com.google.android.material.imageview.ShapeableImageView
+                                android:id="@+id/btnRefreshMain"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:layout_marginEnd="8dp"
+                                android:background="?attr/colorSurfaceVariant"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:foreground="?attr/selectableItemBackgroundBorderless"
+                                android:padding="9dp"
+                                android:src="@android:drawable/stat_notify_sync"
+                                app:shapeAppearanceOverlay="@style/Shape.Circle"
+                                app:tint="?attr/colorPrimary"
                                 tools:ignore="ContentDescription" />
 
                             <com.google.android.material.imageview.ShapeableImageView
                                 android:id="@+id/btnMenu"
-                                android:layout_width="45dp"
-                                android:layout_height="45dp"
-                                android:src="@drawable/ic_menu"
+                                android:layout_width="42dp"
+                                android:layout_height="42dp"
                                 android:background="?attr/colorSurfaceVariant"
-                                app:tint="?attr/colorOnSurface"
-                                android:padding="11dp"
                                 android:clickable="true"
                                 android:focusable="true"
                                 android:foreground="?attr/selectableItemBackgroundBorderless"
+                                android:padding="10dp"
+                                android:src="@drawable/ic_menu"
                                 app:shapeAppearanceOverlay="@style/Shape.Circle"
+                                app:tint="?attr/colorOnSurface"
                                 tools:ignore="ContentDescription" />
                         </LinearLayout>
-                    </RelativeLayout>
+                    </LinearLayout>
 
-                    <!-- ========================================== -->
-                    <!-- 2. بطاقة التنبيهات العاجلة من Firebase     -->
-                    <!-- ========================================== -->
+                    <!-- 2. بطاقة التنبيهات العاجلة من Firebase -->
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/cardAnnouncement"
                         android:layout_width="match_parent"
@@ -167,17 +203,15 @@
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
-                    <!-- ========================================== -->
-                    <!-- 3. شريط البحث المتقدم مع زر المسح الفوري   -->
-                    <!-- ========================================== -->
+                    <!-- 3. شريط البحث المتقدم -->
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/searchCard"
                         android:layout_width="match_parent"
-                        android:layout_height="54dp"
+                        android:layout_height="52dp"
                         app:cardBackgroundColor="?attr/colorSurfaceVariant"
                         app:cardCornerRadius="@dimen/shape_large_corner"
                         app:cardElevation="0dp"
-                        app:strokeColor="?attr/colorOutline"
+                        app:strokeColor="?attr/colorOutlineVariant"
                         app:strokeWidth="1dp">
 
                         <LinearLayout
@@ -200,14 +234,14 @@
                                 android:layout_weight="1"
                                 android:background="@android:color/transparent"
                                 android:hint="ابحث عن اسم التطبيق أو المطور.."
-                                android:textColorHint="?attr/colorOutline"
-                                android:textColor="?attr/colorOnSurface"
-                                android:textSize="14.5sp"
-                                android:paddingHorizontal="12dp"
-                                android:maxLines="1"
-                                android:singleLine="true"
                                 android:imeOptions="actionSearch"
-                                android:inputType="text" />
+                                android:inputType="text"
+                                android:maxLines="1"
+                                android:paddingHorizontal="12dp"
+                                android:singleLine="true"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textColorHint="?attr/colorOutline"
+                                android:textSize="14.5sp" />
 
                             <ImageButton
                                 android:id="@+id/btnClearSearch"
@@ -221,22 +255,20 @@
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
-                    <!-- ========================================== -->
-                    <!-- 4. شريط الفلاتر والتصنيفات السريعة (Chips) -->
-                    <!-- ========================================== -->
+                    <!-- 4. شريط الفلاتر والتصنيفات السريعة -->
                     <HorizontalScrollView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:scrollbars="none"
-                        android:overScrollMode="never">
+                        android:overScrollMode="never"
+                        android:scrollbars="none">
 
                         <com.google.android.material.chip.ChipGroup
                             android:id="@+id/chipGroupCategories"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            app:singleSelection="true"
-                            app:selectionRequired="true">
+                            app:selectionRequired="true"
+                            app:singleSelection="true">
 
                             <com.google.android.material.chip.Chip
                                 android:id="@+id/chipAll"
@@ -280,22 +312,19 @@
                 </LinearLayout>
             </com.google.android.material.appbar.CollapsingToolbarLayout>
 
-            <!-- ========================================== -->
-            <!-- 5. شريط التبويبات ومؤشر التحميل            -->
-            <!-- ========================================== -->
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/tabLayoutMain"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:background="?android:attr/colorBackground"
-                app:tabIndicatorFullWidth="false"
-                app:tabIndicatorHeight="3dp"
-                app:tabIndicatorGravity="bottom"
                 app:tabIndicatorColor="?attr/colorPrimary"
+                app:tabIndicatorFullWidth="false"
+                app:tabIndicatorGravity="bottom"
+                app:tabIndicatorHeight="3dp"
+                app:tabRippleColor="@android:color/transparent"
                 app:tabSelectedTextColor="?attr/colorPrimary"
-                app:tabTextColor="?attr/colorOnSurfaceVariant"
                 app:tabTextAppearance="@style/CustomTabText"
-                app:tabRippleColor="@android:color/transparent" />
+                app:tabTextColor="?attr/colorOnSurfaceVariant" />
 
             <ProgressBar
                 android:id="@+id/progressBar"
@@ -303,8 +332,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="4dp"
                 android:indeterminate="true"
-                android:visibility="gone"
-                android:indeterminateTint="?attr/colorPrimary" />
+                android:indeterminateTint="?attr/colorPrimary"
+                android:visibility="gone" />
 
         </com.google.android.material.appbar.AppBarLayout>
 
@@ -325,8 +354,8 @@
         android:background="?attr/colorSurface"
         android:theme="@style/Theme.FixEngine"
         app:headerLayout="@layout/nav_header_main"
-        app:itemTextColor="?attr/colorOnSurface"
         app:itemIconTint="?attr/colorPrimary"
+        app:itemTextColor="?attr/colorOnSurface"
         app:menu="@menu/drawer_menu" />
 
 </androidx.drawerlayout.widget.DrawerLayout>
