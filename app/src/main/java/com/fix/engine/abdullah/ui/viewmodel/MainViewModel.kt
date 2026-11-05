@@ -19,7 +19,7 @@ import java.io.File
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Architecture: Hybrid State Management with Smart Version Comparison & Validated APK Check
+ * Architecture: 3-Tab Hybrid State Management (All Apps, Updates & Installed Apps) with Smart Version & Tag Check
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -28,6 +28,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var fullAppsList: List<AppModel> = emptyList()
     private var fullUpdatesList: List<AppModel> = emptyList()
+    private var fullInstalledList: List<AppModel> = emptyList()
     private var downloadsMap: Map<Int, Long> = emptyMap()
     private var currentSearchQuery: String = ""
     private var isObservingDownloads: Boolean = false
@@ -37,6 +38,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _updatesUiStateList = MutableLiveData<List<AppItemUiState>>()
     val updatesUiStateList: LiveData<List<AppItemUiState>> get() = _updatesUiStateList
+
+    private val _installedUiStateList = MutableLiveData<List<AppItemUiState>>()
+    val installedUiStateList: LiveData<List<AppItemUiState>> get() = _installedUiStateList
 
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> get() = _isLoading
@@ -65,47 +69,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     viewModelScope.launch(Dispatchers.IO) {
                         repository.observeDownloads().collect { newMap ->
                             downloadsMap = newMap
-                            refreshAppStates()
+                            recalculateAndPublishStates()
                         }
                     }
                 }
 
-                fullUpdatesList = list.filter { app ->
-                    try {
-                        val flags = PackageManager.GET_META_DATA
-
-                        val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            packageManager.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(flags.toLong()))
-                        } else {
-                            @Suppress("DEPRECATION")
-                            packageManager.getPackageInfo(app.packageName, flags)
-                        }
-
-                        val installedVerName = pInfo.versionName ?: ""
-                        val isServerNewer = compareVersionNames(app.versionName, installedVerName) > 0
-
-                        if (isServerNewer) {
-                            val serverTag = app.manifestTag
-                            if (!serverTag.isNullOrBlank()) {
-                                val bundle = pInfo.applicationInfo?.metaData
-                                val installedTag = bundle?.getString("ABDULLAH_STORE_TAG")
-                                if (installedTag == null || installedTag.trim() != serverTag.trim()) {
-                                    return@filter false
-                                }
-                            }
-                            return@filter true
-                        } else {
-                            return@filter false
-                        }
-                    } catch (e: PackageManager.NameNotFoundException) {
-                        false
-                    } catch (e: Exception) {
-                        false
-                    }
-                }
-
-                _appsUiStateList.postValue(mapToUiState(fullAppsList))
-                _updatesUiStateList.postValue(mapToUiState(fullUpdatesList))
+                recalculateAndPublishStates()
                 _isLoading.postValue(false)
 
             }.onFailure { exception ->
@@ -116,47 +85,84 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun filterApps(query: String) {
-        val cleanQuery = query.trim()
-        currentSearchQuery = cleanQuery
-
-        if (cleanQuery.isBlank()) {
-            refreshAppStates()
-            return
-        }
-
-        viewModelScope.launch(Dispatchers.Default) {
-            val filteredApps = fullAppsList.filter { app ->
-                val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
-                val devMatch = app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
-                nameMatch || devMatch
-            }
-
-            val filteredUpdates = fullUpdatesList.filter { app ->
-                val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
-                val devMatch = app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
-                nameMatch || devMatch
-            }
-
-            _appsUiStateList.postValue(mapToUiState(filteredApps))
-            _updatesUiStateList.postValue(mapToUiState(filteredUpdates))
+        currentSearchQuery = query.trim()
+        viewModelScope.launch(Dispatchers.IO) {
+            recalculateAndPublishStates()
         }
     }
 
     fun refreshAppStates() {
         if (fullAppsList.isEmpty()) return
-
         viewModelScope.launch(Dispatchers.IO) {
-            if (currentSearchQuery.isNotBlank()) {
-                val filteredApps = fullAppsList.filter { it.name?.contains(currentSearchQuery, true) == true || it.developer?.contains(currentSearchQuery, true) == true }
-                val filteredUpdates = fullUpdatesList.filter { it.name?.contains(currentSearchQuery, true) == true || it.developer?.contains(currentSearchQuery, true) == true }
+            recalculateAndPublishStates()
+        }
+    }
 
-                _appsUiStateList.postValue(mapToUiState(filteredApps))
-                _updatesUiStateList.postValue(mapToUiState(filteredUpdates))
-            } else {
-                _appsUiStateList.postValue(mapToUiState(fullAppsList))
-                _updatesUiStateList.postValue(mapToUiState(fullUpdatesList))
+    /**
+     * 🧠 إعادة فحص الحزم المثبتة والتحديثات المتاحة بشكل حي ودقيق لجميع التبويبات الثلاثة
+     */
+    private fun recalculateAndPublishStates() {
+        if (fullAppsList.isEmpty()) return
+
+        val updates = mutableListOf<AppModel>()
+        val installed = mutableListOf<AppModel>()
+
+        for (app in fullAppsList) {
+            try {
+                val flags = PackageManager.GET_META_DATA
+                val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    packageManager.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(flags.toLong()))
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageManager.getPackageInfo(app.packageName, flags)
+                }
+
+                // التحقق من تطابق وسم المتجر (ABDULLAH_STORE_TAG) إن وجد للتمييز بين النسخ التي تحمل نفس الحزمة
+                val serverTag = app.manifestTag
+                var isTagMatched = true
+                if (!serverTag.isNullOrBlank()) {
+                    val bundle = pInfo.applicationInfo?.metaData
+                    val installedTag = bundle?.getString("ABDULLAH_STORE_TAG")
+                    if (installedTag == null || installedTag.trim() != serverTag.trim()) {
+                        isTagMatched = false
+                    }
+                }
+
+                if (isTagMatched) {
+                    installed.add(app)
+                    val installedVerName = pInfo.versionName ?: ""
+                    if (compareVersionNames(app.versionName, installedVerName) > 0) {
+                        updates.add(app)
+                    }
+                }
+            } catch (_: PackageManager.NameNotFoundException) {
+                // التطبيق غير مثبت على الجهاز
+            } catch (_: Exception) {
             }
         }
+
+        fullUpdatesList = updates
+        fullInstalledList = installed
+
+        val cleanQuery = currentSearchQuery
+        val matchesQuery: (AppModel) -> Boolean = { app ->
+            if (cleanQuery.isBlank()) {
+                true
+            } else {
+                val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
+                val devMatch = app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
+                val pkgMatch = app.packageName.contains(cleanQuery, ignoreCase = true)
+                nameMatch || devMatch || pkgMatch
+            }
+        }
+
+        val filteredAll = fullAppsList.filter(matchesQuery)
+        val filteredUpdates = fullUpdatesList.filter(matchesQuery)
+        val filteredInstalled = fullInstalledList.filter(matchesQuery)
+
+        _appsUiStateList.postValue(mapToUiState(filteredAll))
+        _updatesUiStateList.postValue(mapToUiState(filteredUpdates))
+        _installedUiStateList.postValue(mapToUiState(filteredInstalled))
     }
 
     fun getUpdatesCount(): Int {
@@ -176,7 +182,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val fileName = app.getUniqueFileName()
             val localFile = File(downloadsDir, fileName)
 
-            // 🛡️ لا يعتبر الملف جاهزاً للتثبيت إلا إذا اكتمل تحميله 100% وكان حزمة APK صالحة
             val isDownloaded = AbdullahStoreApp.isApkCompleteAndValid(appContext, localFile)
 
             var installedVerName = ""
@@ -191,7 +196,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 installedVerName = pInfo.versionName ?: ""
                 isInstalled = true
-            } catch (e: PackageManager.NameNotFoundException) {
+            } catch (_: PackageManager.NameNotFoundException) {
                 // غير مثبت
             }
 
@@ -235,11 +240,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun filterInstalledOnly() {
         viewModelScope.launch(Dispatchers.IO) {
-            val allStates = mapToUiState(fullAppsList)
-            val installedOnly = allStates.filter {
-                it.status == AppInstallStatus.INSTALLED || it.status == AppInstallStatus.UPDATE_AVAILABLE
-            }
-            _appsUiStateList.postValue(installedOnly)
+            recalculateAndPublishStates()
         }
     }
 }
