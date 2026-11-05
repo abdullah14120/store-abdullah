@@ -297,14 +297,7 @@
                                 style="@style/Widget.Material3.Chip.Filter"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="درع الحماية 🛡️" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipInstalledOnly"
-                                style="@style/Widget.Material3.Chip.Filter"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="المثبتة بهاتفي 📱" />
+                                android:text="درع الحماية 🛡️" />  
 
                         </com.google.android.material.chip.ChipGroup>
                     </HorizontalScrollView>
