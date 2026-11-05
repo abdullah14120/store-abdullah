@@ -535,7 +535,11 @@ class MainActivity : AppCompatActivity() {
     private fun setupTabs() {
         binding.viewPagerMain.adapter = MainPagerAdapter(this)
         TabLayoutMediator(binding.tabLayoutMain, binding.viewPagerMain) { tab, position ->
-            tab.text = if (position == 0) "التطبيقات" else "التحديثات"
+            tab.text = when (position) {
+                0 -> "التطبيقات"
+                1 -> "التحديثات"
+                else -> "المثبتة بهاتفي"
+            }
         }.attach()
     }
 
@@ -577,7 +581,6 @@ class MainActivity : AppCompatActivity() {
                 R.id.chipAbMods -> viewModel.filterApps("ABWhatsApp")
                 R.id.chipObMods -> viewModel.filterApps("عمر")
                 R.id.chipShieldMods -> viewModel.filterApps("درع الحماية")
-                R.id.chipInstalledOnly -> viewModel.filterInstalledOnly()
             }
         }
     }
