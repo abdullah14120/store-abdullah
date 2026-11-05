@@ -8,25 +8,25 @@ import com.fix.engine.abdullah.ui.main.UpdatesFragment
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Architecture: Strict Index Mapping & Exception Handling for ViewPager2
+ * Architecture: 3-Tab ViewPager2 Adapter (All Apps, Updates, Installed Apps)
  */
 class MainPagerAdapter(fragmentActivity: FragmentActivity) : FragmentStateAdapter(fragmentActivity) {
 
-    // Core Logic: تعريف ثوابت التوجيه الهيكلية
     companion object {
-        private const val TABS_COUNT = 2
+        private const val TABS_COUNT = 3
         private const val INDEX_ALL_APPS = 0
         private const val INDEX_UPDATES = 1
+        private const val INDEX_INSTALLED = 2
     }
 
     override fun getItemCount(): Int = TABS_COUNT
 
-    // UI Instantiation: بناء الواجهات بناءً على التوجيه المعماري
     override fun createFragment(position: Int): Fragment {
         return when (position) {
-            INDEX_ALL_APPS -> AllAppsFragment()
+            INDEX_ALL_APPS -> AllAppsFragment.newInstance(onlyInstalled = false)
             INDEX_UPDATES -> UpdatesFragment()
-            else -> throw IllegalArgumentException("Invalid ViewPager position: $position. Expected 0 or 1.")
+            INDEX_INSTALLED -> AllAppsFragment.newInstance(onlyInstalled = true)
+            else -> throw IllegalArgumentException("Invalid ViewPager position: $position. Expected 0, 1, or 2.")
         }
     }
 }
