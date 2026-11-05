@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.view.ViewCompat
 import androidx.fragment.app.Fragment
@@ -18,16 +19,16 @@ import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Refactored: UI State Observation, Clean Architecture Navigation & Janky-Free Scrolling
+ * Refactored: UI State Observation, Interactive Empty State & Janky-Free Scrolling
  */
 class UpdatesFragment : Fragment() {
 
     private var _binding: FragmentUpdatesBinding? = null
     private val binding get() = _binding!!
-    
+
     private val viewModel: MainViewModel by activityViewModels()
     private lateinit var appAdapter: AppAdapter
-    
+
     private var isFirstLoad = true
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -38,7 +39,15 @@ class UpdatesFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
+        setupEmptyStateButton()
         setupObserver()
+    }
+
+    private fun setupEmptyStateButton() {
+        binding.btnCheckUpdatesAgain.setOnClickListener {
+            Toast.makeText(requireContext(), "جاري فحص التحديثات... 🔄", Toast.LENGTH_SHORT).show()
+            viewModel.refreshAppStates()
+        }
     }
 
     private fun setupRecyclerView() {
@@ -46,38 +55,38 @@ class UpdatesFragment : Fragment() {
             val intent = Intent(requireContext(), AppDetailsActivity::class.java).apply {
                 putExtra("APP_DATA", app)
             }
-            
+
             val iconView = itemView.findViewById<View>(R.id.imgAppIcon)
-            val uniqueTransitionName = "transition_app_icon_${app.packageName}"
-            
-            ViewCompat.setTransitionName(iconView, uniqueTransitionName)
-            
-            val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
-                requireActivity(),
-                iconView,
-                uniqueTransitionName
-            )
-            
-            startActivity(intent, options.toBundle())
+            if (iconView != null) {
+                val uniqueTransitionName = "transition_app_icon_${app.packageName}"
+                ViewCompat.setTransitionName(iconView, uniqueTransitionName)
+
+                val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
+                    requireActivity(),
+                    iconView,
+                    uniqueTransitionName
+                )
+                startActivity(intent, options.toBundle())
+            } else {
+                startActivity(intent)
+            }
         }
-        
+
         binding.rvUpdates.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = appAdapter
             setHasFixedSize(true)
-            setItemViewCacheSize(20) 
+            setItemViewCacheSize(20)
         }
     }
 
     private fun setupObserver() {
-        // 🚨 التعديل الجوهري: مراقبة حالة الواجهة للتحديثات (UI States) بدلاً من البيانات الخام
         viewModel.updatesUiStateList.observe(viewLifecycleOwner) { uiStates ->
-            
             appAdapter.submitList(uiStates)
-            
+
             if (!uiStates.isNullOrEmpty()) {
                 binding.layoutAllUpdated.visibility = View.GONE
-                
+
                 if (isFirstLoad) {
                     binding.rvUpdates.alpha = 0f
                     binding.rvUpdates.animate().alpha(1f).setDuration(350).start()
@@ -93,7 +102,6 @@ class UpdatesFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // 🟢 التعديل الهندسي: طلب تحديث الحالات من الخلفية بصمت عند العودة للشاشة
         if (!isFirstLoad) {
             viewModel.refreshAppStates()
         }
