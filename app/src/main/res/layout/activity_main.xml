@@ -1,4 +1,5 @@
-<androidx.drawerlayout.widget.DrawerLayout 
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -8,7 +9,7 @@
     android:background="?android:attr/colorBackground"
     tools:context=".MainActivity">
 
-    <androidx.coordinatorlayout.widget.CoordinatorLayout 
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
@@ -17,8 +18,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="?android:attr/colorBackground"
-            app:liftOnScroll="true"
-            app:elevation="0dp">
+            app:elevation="0dp"
+            app:liftOnScroll="true">
 
             <com.google.android.material.appbar.CollapsingToolbarLayout
                 android:layout_width="match_parent"
@@ -29,8 +30,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:paddingTop="18dp"
-                    android:paddingHorizontal="20dp"
+                    android:paddingHorizontal="18dp"
+                    android:paddingTop="16dp"
                     android:paddingBottom="8dp">
 
                     <!-- ========================================== -->
@@ -39,11 +40,11 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
+                        android:layout_marginBottom="14dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <!-- شعار المتجر المتوهج في الصفحة الرئيسية -->
+                        <!-- شعار المتجر المتوهج -->
                         <com.google.android.material.card.MaterialCardView
                             android:layout_width="48dp"
                             android:layout_height="48dp"
@@ -62,7 +63,7 @@
                                 app:shapeAppearanceOverlay="@style/Shape.Circle" />
                         </com.google.android.material.card.MaterialCardView>
 
-                        <!-- اسم المتجر والترحيب -->
+                        <!-- اسم المتجر والترحيب الديناميكي -->
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -75,6 +76,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="sans-serif-black"
+                                android:includeFontPadding="false"
                                 android:text="متجر Abdullah"
                                 android:textColor="?attr/colorPrimary"
                                 android:textSize="20sp"
@@ -84,9 +86,10 @@
                                 android:id="@+id/txtWelcomeSub"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:ellipsize="end"
                                 android:fontFamily="sans-serif-medium"
                                 android:maxLines="1"
-                                android:ellipsize="end"
                                 android:text="جميع التطبيقات المعدلة والآمنة 🛡️"
                                 android:textColor="?attr/colorOnSurfaceVariant"
                                 android:textSize="11.5sp" />
@@ -146,7 +149,9 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <!-- 2. بطاقة التنبيهات العاجلة من Firebase -->
+                    <!-- ========================================== -->
+                    <!-- 2. بطاقة التنبيهات العاجلة من Firebase       -->
+                    <!-- ========================================== -->
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/cardAnnouncement"
                         android:layout_width="match_parent"
@@ -154,10 +159,10 @@
                         android:layout_marginBottom="14dp"
                         android:visibility="gone"
                         app:cardBackgroundColor="?attr/colorSurfaceVariant"
-                        app:cardCornerRadius="18dp"
+                        app:cardCornerRadius="20dp"
                         app:cardElevation="0dp"
                         app:strokeColor="?attr/colorPrimary"
-                        app:strokeWidth="1dp"
+                        app:strokeWidth="1.5dp"
                         tools:visibility="visible">
 
                         <LinearLayout
@@ -188,6 +193,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="4dp"
+                                    android:lineSpacingExtra="2dp"
                                     android:textColor="?attr/colorOnSurface"
                                     android:textSize="12.5sp"
                                     tools:text="تم توفير تحديث جديد لجميع نسخ الواتساب ضد الحظر." />
@@ -203,63 +209,251 @@
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
-                    <!-- 3. شريط البحث المتقدم -->
+                    <!-- ========================================== -->
+                    <!-- 3. بطاقة البانر التفاعلي للتطبيقات المميزة (Hero Spotlight) -->
+                    <!-- ========================================== -->
                     <com.google.android.material.card.MaterialCardView
-                        android:id="@+id/searchCard"
+                        android:id="@+id/cardHeroSpotlight"
                         android:layout_width="match_parent"
-                        android:layout_height="52dp"
-                        app:cardBackgroundColor="?attr/colorSurfaceVariant"
-                        app:cardCornerRadius="@dimen/shape_large_corner"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="14dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:visibility="gone"
+                        app:cardBackgroundColor="?attr/colorPrimaryContainer"
+                        app:cardCornerRadius="26dp"
                         app:cardElevation="0dp"
                         app:strokeColor="?attr/colorOutlineVariant"
-                        app:strokeWidth="1dp">
+                        app:strokeWidth="1dp"
+                        tools:visibility="visible">
 
-                        <LinearLayout
+                        <FrameLayout
                             android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal"
-                            android:paddingHorizontal="16dp">
+                            android:layout_height="wrap_content">
 
-                            <ImageView
-                                android:layout_width="22dp"
-                                android:layout_height="22dp"
-                                android:src="@android:drawable/ic_menu_search"
-                                app:tint="?attr/colorOnSurfaceVariant" />
+                            <!-- أيقونة خلفية مائية كبيرة تعطي عمقاً بصرياً مثل متجر Orion -->
+                            <com.google.android.material.imageview.ShapeableImageView
+                                android:id="@+id/imgHeroWatermark"
+                                android:layout_width="130dp"
+                                android:layout_height="130dp"
+                                android:layout_gravity="bottom|end"
+                                android:layout_marginEnd="-20dp"
+                                android:layout_marginBottom="-25dp"
+                                android:alpha="0.10"
+                                android:rotation="-14"
+                                android:scaleType="centerCrop"
+                                app:shapeAppearanceOverlay="@style/Shape.Medium"
+                                tools:src="@mipmap/ic_launcher" />
 
-                            <EditText
-                                android:id="@+id/etSearch"
-                                android:layout_width="0dp"
-                                android:layout_height="match_parent"
-                                android:layout_weight="1"
-                                android:background="@android:color/transparent"
-                                android:hint="ابحث عن اسم التطبيق أو المطور.."
-                                android:imeOptions="actionSearch"
-                                android:inputType="text"
-                                android:maxLines="1"
-                                android:paddingHorizontal="12dp"
-                                android:singleLine="true"
-                                android:textColor="?attr/colorOnSurface"
-                                android:textColorHint="?attr/colorOutline"
-                                android:textSize="14.5sp" />
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:paddingHorizontal="18dp"
+                                android:paddingVertical="16dp">
 
-                            <ImageButton
-                                android:id="@+id/btnClearSearch"
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
-                                android:background="?attr/selectableItemBackgroundBorderless"
-                                android:src="@drawable/ic_close"
-                                android:visibility="gone"
-                                app:tint="?attr/colorOnSurfaceVariant"
-                                tools:visibility="visible" />
-                        </LinearLayout>
+                                <!-- شريط الشارة العلوية + نقاط التنقل -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal">
+
+                                    <TextView
+                                        android:id="@+id/txtHeroBadge"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/bg_version_badge"
+                                        android:backgroundTint="?attr/colorSurface"
+                                        android:paddingHorizontal="10dp"
+                                        android:paddingVertical="3dp"
+                                        android:text="👑 مختارات المتجر • أحدث إصدار"
+                                        android:textColor="?attr/colorPrimary"
+                                        android:textSize="10.5sp"
+                                        android:textStyle="bold" />
+
+                                    <Space
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1" />
+
+                                    <TextView
+                                        android:id="@+id/txtHeroIndicator"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:fontFamily="sans-serif-black"
+                                        android:text="1 / 3"
+                                        android:textColor="?attr/colorOnPrimaryContainer"
+                                        android:textSize="11sp"
+                                        android:textStyle="bold" />
+                                </LinearLayout>
+
+                                <!-- صف بيانات التطبيق المميز -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="12dp"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal">
+
+                                    <com.google.android.material.imageview.ShapeableImageView
+                                        android:id="@+id/imgHeroIcon"
+                                        android:layout_width="62dp"
+                                        android:layout_height="62dp"
+                                        android:background="?attr/colorSurface"
+                                        android:scaleType="centerCrop"
+                                        app:shapeAppearanceOverlay="@style/Shape.Medium"
+                                        app:strokeColor="?attr/colorOutlineVariant"
+                                        app:strokeWidth="1dp"
+                                        tools:src="@mipmap/ic_launcher" />
+
+                                    <LinearLayout
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="14dp"
+                                        android:layout_marginEnd="10dp"
+                                        android:layout_weight="1"
+                                        android:orientation="vertical">
+
+                                        <TextView
+                                            android:id="@+id/txtHeroTitle"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:ellipsize="end"
+                                            android:fontFamily="sans-serif-black"
+                                            android:includeFontPadding="false"
+                                            android:lineSpacingExtra="2dp"
+                                            android:maxLines="2"
+                                            android:textAlignment="viewStart"
+                                            android:textColor="?attr/colorOnPrimaryContainer"
+                                            android:textSize="16sp"
+                                            android:textStyle="bold"
+                                            tools:text="ABWhatsApp العنابي ضد الحظر" />
+
+                                        <TextView
+                                            android:id="@+id/txtHeroSub"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginTop="3dp"
+                                            android:ellipsize="end"
+                                            android:fontFamily="sans-serif-medium"
+                                            android:maxLines="1"
+                                            android:textAlignment="viewStart"
+                                            android:textColor="?attr/colorOnPrimaryContainer"
+                                            android:textSize="12sp"
+                                            tools:text="عبدالله التميمي • v2.26.39.80 • 86 MB" />
+                                    </LinearLayout>
+
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btnHeroAction"
+                                        style="@style/Widget.Material3.Button.UnelevatedButton"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="38dp"
+                                        android:backgroundTint="?attr/colorPrimary"
+                                        android:insetTop="0dp"
+                                        android:insetBottom="0dp"
+                                        android:minWidth="76dp"
+                                        android:paddingHorizontal="14dp"
+                                        android:text="استعراض"
+                                        android:textColor="?attr/colorOnPrimary"
+                                        android:textSize="12sp"
+                                        android:textStyle="bold"
+                                        app:cornerRadius="19dp" />
+                                </LinearLayout>
+                            </LinearLayout>
+                        </FrameLayout>
                     </com.google.android.material.card.MaterialCardView>
 
-                    <!-- 4. شريط الفلاتر والتصنيفات السريعة -->
+                    <!-- ========================================== -->
+                    <!-- 4. صف البحث المتقدم + زر الفرز الذكي (Sort) -->
+                    <!-- ========================================== -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/searchCard"
+                            android:layout_width="0dp"
+                            android:layout_height="50dp"
+                            android:layout_weight="1"
+                            app:cardBackgroundColor="?attr/colorSurfaceVariant"
+                            app:cardCornerRadius="@dimen/shape_large_corner"
+                            app:cardElevation="0dp"
+                            app:strokeColor="?attr/colorOutlineVariant"
+                            app:strokeWidth="1dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingHorizontal="14dp">
+
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:src="@android:drawable/ic_menu_search"
+                                    app:tint="?attr/colorOnSurfaceVariant" />
+
+                                <EditText
+                                    android:id="@+id/etSearch"
+                                    android:layout_width="0dp"
+                                    android:layout_height="match_parent"
+                                    android:layout_weight="1"
+                                    android:background="@android:color/transparent"
+                                    android:hint="ابحث عن اسم التطبيق أو المطور.."
+                                    android:imeOptions="actionSearch"
+                                    android:inputType="text"
+                                    android:maxLines="1"
+                                    android:paddingHorizontal="10dp"
+                                    android:singleLine="true"
+                                    android:textColor="?attr/colorOnSurface"
+                                    android:textColorHint="?attr/colorOutline"
+                                    android:textSize="14sp" />
+
+                                <ImageButton
+                                    android:id="@+id/btnClearSearch"
+                                    android:layout_width="30dp"
+                                    android:layout_height="30dp"
+                                    android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:src="@drawable/ic_close"
+                                    android:visibility="gone"
+                                    app:tint="?attr/colorOnSurfaceVariant"
+                                    tools:visibility="visible" />
+                            </LinearLayout>
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <!-- زر الفرز الذكي المستوحى من المتاجر العالمية -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSortApps"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="50dp"
+                            android:layout_marginStart="8dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minWidth="52dp"
+                            android:paddingHorizontal="14dp"
+                            android:text="الترتيب ⇅"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            app:backgroundTint="?attr/colorSurfaceVariant"
+                            app:cornerRadius="18dp"
+                            app:strokeColor="?attr/colorOutlineVariant"
+                            app:strokeWidth="1dp" />
+                    </LinearLayout>
+
+                    <!-- ========================================== -->
+                    <!-- 5. شريط الفلاتر والتصنيفات السريعة           -->
+                    <!-- ========================================== -->
                     <HorizontalScrollView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="10dp"
                         android:overScrollMode="never"
                         android:scrollbars="none">
 
@@ -297,10 +491,43 @@
                                 style="@style/Widget.Material3.Chip.Filter"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="درع الحماية 🛡️" />  
+                                android:text="درع الحماية 🛡️" />
 
                         </com.google.android.material.chip.ChipGroup>
                     </HorizontalScrollView>
+
+                    <!-- شريط الإحصائية السريعة ونوع الترتيب النشط -->
+                    <LinearLayout
+                        android:id="@+id/layoutCatalogStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="4dp">
+
+                        <TextView
+                            android:id="@+id/txtCatalogSummary"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:fontFamily="sans-serif-medium"
+                            android:maxLines="1"
+                            android:text="جاري فحص قائمة التطبيقات..."
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="11.5sp" />
+
+                        <TextView
+                            android:id="@+id/txtActiveSortLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="الترتيب: الأحدث ✨"
+                            android:textColor="?attr/colorPrimary"
+                            android:textSize="11.5sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.appbar.CollapsingToolbarLayout>
