@@ -19,17 +19,9 @@ import java.io.File
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Architecture: 3-Tab Hybrid State Management, Multi-Criteria Smart Sorting & Hero Spotlight Engine
+ * Architecture: 3-Tab Hybrid State Management (All Apps, Updates & Installed Apps) with Smart Version & Tag Check
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
-
-    enum class SortOption(val label: String, val shortLabel: String) {
-        DEFAULT("الأحدث والإصدارات المميزة ✨", "الأحدث ✨"),
-        DOWNLOADS_DESC("الأكثر تحميلاً وشعبية 🔥", "الأكثر تحميلاً 🔥"),
-        NAME_ASC("الترتيب الأبجدي (أ - ي) 🔤", "أبجدياً 🔤"),
-        SIZE_ASC("الحجم (من الأصغر للأكبر) 📦", "الأصغر حجماً 📦"),
-        SIZE_DESC("الحجم (من الأكبر للأصغر) 💎", "الأكبر حجماً 💎")
-    }
 
     private val repository = AppRepository()
     private val packageManager: PackageManager = application.packageManager
@@ -39,7 +31,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var fullInstalledList: List<AppModel> = emptyList()
     private var downloadsMap: Map<Int, Long> = emptyMap()
     private var currentSearchQuery: String = ""
-    private var currentSortOption: SortOption = SortOption.DEFAULT
     private var isObservingDownloads: Boolean = false
 
     private val _appsUiStateList = MutableLiveData<List<AppItemUiState>>()
@@ -50,9 +41,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _installedUiStateList = MutableLiveData<List<AppItemUiState>>()
     val installedUiStateList: LiveData<List<AppItemUiState>> get() = _installedUiStateList
-
-    private val _activeSortOption = MutableLiveData<SortOption>(SortOption.DEFAULT)
-    val activeSortOption: LiveData<SortOption> get() = _activeSortOption
 
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> get() = _isLoading
@@ -103,17 +91,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setSortOption(option: SortOption) {
-        if (currentSortOption == option) return
-        currentSortOption = option
-        _activeSortOption.postValue(option)
-        viewModelScope.launch(Dispatchers.IO) {
-            recalculateAndPublishStates()
-        }
-    }
-
-    fun getCurrentSortOption(): SortOption = currentSortOption
-
     fun refreshAppStates() {
         if (fullAppsList.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
@@ -122,7 +99,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * 🧠 إعادة فحص الحزم المثبتة والتحديثات المتاحة مع تطبيق الفلترة والفرز الذكي
+     * 🧠 إعادة فحص الحزم المثبتة والتحديثات المتاحة بشكل حي ودقيق لجميع التبويبات الثلاثة
      */
     private fun recalculateAndPublishStates() {
         if (fullAppsList.isEmpty()) return
@@ -140,6 +117,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     packageManager.getPackageInfo(app.packageName, flags)
                 }
 
+                // التحقق من تطابق وسم المتجر (ABDULLAH_STORE_TAG) إن وجد للتمييز بين النسخ التي تحمل نفس الحزمة
                 val serverTag = app.manifestTag
                 var isTagMatched = true
                 if (!serverTag.isNullOrBlank()) {
@@ -158,6 +136,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             } catch (_: PackageManager.NameNotFoundException) {
+                // التطبيق غير مثبت على الجهاز
             } catch (_: Exception) {
             }
         }
@@ -177,23 +156,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        val filteredAll = applySort(mapToUiState(fullAppsList.filter(matchesQuery)))
-        val filteredUpdates = applySort(mapToUiState(fullUpdatesList.filter(matchesQuery)))
-        val filteredInstalled = applySort(mapToUiState(fullInstalledList.filter(matchesQuery)))
+        val filteredAll = fullAppsList.filter(matchesQuery)
+        val filteredUpdates = fullUpdatesList.filter(matchesQuery)
+        val filteredInstalled = fullInstalledList.filter(matchesQuery)
 
-        _appsUiStateList.postValue(filteredAll)
-        _updatesUiStateList.postValue(filteredUpdates)
-        _installedUiStateList.postValue(filteredInstalled)
-    }
-
-    private fun applySort(items: List<AppItemUiState>): List<AppItemUiState> {
-        return when (currentSortOption) {
-            SortOption.DEFAULT -> items
-            SortOption.DOWNLOADS_DESC -> items.sortedByDescending { it.app.size.toLongOrNull() ?: 0L }
-            SortOption.NAME_ASC -> items.sortedBy { it.app.name?.lowercase() ?: "" }
-            SortOption.SIZE_ASC -> items.sortedBy { it.app.size.toLongOrNull() ?: Long.MAX_VALUE }
-            SortOption.SIZE_DESC -> items.sortedByDescending { it.app.size.toLongOrNull() ?: 0L }
-        }
+        _appsUiStateList.postValue(mapToUiState(filteredAll))
+        _updatesUiStateList.postValue(mapToUiState(filteredUpdates))
+        _installedUiStateList.postValue(mapToUiState(filteredInstalled))
     }
 
     fun getUpdatesCount(): Int {
@@ -228,6 +197,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 installedVerName = pInfo.versionName ?: ""
                 isInstalled = true
             } catch (_: PackageManager.NameNotFoundException) {
+                // غير مثبت
             }
 
             val comparisonResult = if (isInstalled) compareVersionNames(app.versionName, installedVerName) else 0
