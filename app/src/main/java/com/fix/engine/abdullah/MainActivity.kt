@@ -26,16 +26,11 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.app.ActivityOptionsCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
-import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
-import com.bumptech.glide.Glide
-import com.fix.engine.abdullah.data.model.AppInstallStatus
-import com.fix.engine.abdullah.data.model.AppItemUiState
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.MainPagerAdapter
@@ -50,16 +45,14 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Official Runtime Core)
- * Feature: Hero Spotlight Banner, Smart Sort Control, 3-Tab Live Badges, Synced Day/Night Theme & Smart Diagnostics
+ * Feature: JNI C++ Security, Synced Day/Night Theme Switcher, Smart Repo/Network Diagnostics & Storage Manager
  */
 class MainActivity : AppCompatActivity() {
 
@@ -74,10 +67,6 @@ class MainActivity : AppCompatActivity() {
     private var isNotificationSent = false
     private var isUpdatingThemeProgrammatically = false
     private var activeErrorDialog: AlertDialog? = null
-
-    private var spotlightApps: List<AppItemUiState> = emptyList()
-    private var currentSpotlightIndex = 0
-    private var spotlightRotationJob: Job? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -113,7 +102,7 @@ class MainActivity : AppCompatActivity() {
         setupTabs()
         setupNavigationDrawer()
         setupObservers()
-        setupSearchAndSortLogic()
+        setupSearchLogic()
         setupSearchAnimation()
         observeStoreAnnouncement()
 
@@ -127,6 +116,9 @@ class MainActivity : AppCompatActivity() {
         refreshData()
     }
 
+    /**
+     * 🌐 فحص فوري ودقيق لما إذا كان الإنترنت متوفراً وفعالاً على الجهاز
+     */
     private fun isInternetAvailable(): Boolean {
         return try {
             val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -180,12 +172,10 @@ class MainActivity : AppCompatActivity() {
         if (!isNetworkCallbackRegistered) {
             registerNetworkMonitoring()
         }
-        startSpotlightAutoRotation()
     }
 
     override fun onStop() {
         super.onStop()
-        spotlightRotationJob?.cancel()
         if (isNetworkCallbackRegistered) {
             try {
                 connectivityManager.unregisterNetworkCallback(networkCallback)
@@ -196,134 +186,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ====================================================================
-    // 👑 محرك البانر التفاعلي للتطبيقات المميزة (Hero Spotlight Carousel)
-    // ====================================================================
-
-    private fun updateSpotlightList(allStates: List<AppItemUiState>) {
-        // اختيار أبرز التطبيقات (التي يتوفر لها تحديث أولاً ثم أحدث التطبيقات في المتجر، مع استبعاد حزمة المتجر نفسه)
-        val candidates = allStates.filter { it.app.packageName != packageName }
-        val prioritized = candidates.sortedByDescending {
-            when (it.status) {
-                AppInstallStatus.UPDATE_AVAILABLE -> 3
-                AppInstallStatus.DOWNLOADED -> 2
-                else -> 1
-            }
-        }.take(4)
-
-        spotlightApps = prioritized
-        val shouldShowHero = spotlightApps.isNotEmpty() && binding.etSearch.text.isNullOrBlank()
-        binding.cardHeroSpotlight.isVisible = shouldShowHero
-
-        if (shouldShowHero) {
-            currentSpotlightIndex = currentSpotlightIndex.coerceIn(0, spotlightApps.lastIndex)
-            bindSpotlightCard(spotlightApps[currentSpotlightIndex], animate = false)
-            startSpotlightAutoRotation()
-        } else {
-            spotlightRotationJob?.cancel()
-        }
-    }
-
-    private fun startSpotlightAutoRotation() {
-        spotlightRotationJob?.cancel()
-        if (spotlightApps.size <= 1) return
-
-        spotlightRotationJob = lifecycleScope.launch {
-            while (isActive) {
-                delay(5500)
-                if (!isFinishing && !isDestroyed && binding.cardHeroSpotlight.isVisible && spotlightApps.size > 1) {
-                    currentSpotlightIndex = (currentSpotlightIndex + 1) % spotlightApps.size
-                    bindSpotlightCard(spotlightApps[currentSpotlightIndex], animate = true)
-                }
-            }
-        }
-    }
-
-    private fun bindSpotlightCard(uiState: AppItemUiState, animate: Boolean) {
-        val app = uiState.app
-
-        val updateAction = Runnable {
-            binding.txtHeroIndicator.text = "${currentSpotlightIndex + 1} / ${spotlightApps.size}"
-            binding.txtHeroTitle.text = app.name
-            val sizeText = app.getFormattedSize().ifBlank { "نسخة رسمية" }
-            binding.txtHeroSub.text = "${app.developer}  •  v${app.versionName}  •  $sizeText"
-
-            when (uiState.status) {
-                AppInstallStatus.UPDATE_AVAILABLE -> {
-                    binding.txtHeroBadge.text = "🚀 تحديث هام متوفر الآن"
-                    binding.btnHeroAction.text = "تحديث"
-                }
-                AppInstallStatus.DOWNLOADED -> {
-                    binding.txtHeroBadge.text = "✨ جاهز للتثبيت الفوري"
-                    binding.btnHeroAction.text = "تثبيت"
-                }
-                AppInstallStatus.INSTALLED -> {
-                    binding.txtHeroBadge.text = "👑 مثبت ومحدث على جهازك"
-                    binding.btnHeroAction.text = "فتح"
-                }
-                AppInstallStatus.NOT_INSTALLED -> {
-                    binding.txtHeroBadge.text = "👑 مختارات المتجر • أحدث إصدار"
-                    binding.btnHeroAction.text = "تنزيل"
-                }
-            }
-
-            Glide.with(this)
-                .load(app.iconUrl)
-                .placeholder(R.mipmap.ic_launcher)
-                .error(R.mipmap.ic_launcher)
-                .dontAnimate()
-                .into(binding.imgHeroIcon)
-
-            Glide.with(this)
-                .load(app.iconUrl)
-                .placeholder(R.mipmap.ic_launcher)
-                .error(R.mipmap.ic_launcher)
-                .dontAnimate()
-                .into(binding.imgHeroWatermark)
-
-            val openDetails = {
-                val intent = Intent(this, AppDetailsActivity::class.java).apply {
-                    putExtra("APP_DATA", app)
-                }
-                val uniqueTransitionName = "transition_app_icon_${app.packageName}"
-                ViewCompat.setTransitionName(binding.imgHeroIcon, uniqueTransitionName)
-                val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
-                    this,
-                    binding.imgHeroIcon,
-                    uniqueTransitionName
-                )
-                startActivity(intent, options.toBundle())
-            }
-
-            binding.cardHeroSpotlight.setOnClickListener { openDetails() }
-            binding.btnHeroAction.setOnClickListener { openDetails() }
-        }
-
-        if (animate) {
-            binding.cardHeroSpotlight.animate()
-                .alpha(0.65f)
-                .scaleX(0.98f)
-                .scaleY(0.98f)
-                .setDuration(140)
-                .withEndAction {
-                    updateAction.run()
-                    binding.cardHeroSpotlight.animate()
-                        .alpha(1f)
-                        .scaleX(1f)
-                        .scaleY(1f)
-                        .setDuration(200)
-                        .start()
-                }
-                .start()
-        } else {
-            updateAction.run()
-        }
-    }
-
-    // ====================================================================
-    // 🎨 إدارة المظهر والقائمة الجانبية
-    // ====================================================================
-
+    /**
+     * 🎨 دالة موحدة لتغيير المظهر ومزامنة زر الصفحة الرئيسية مع أزرار القائمة الجانبية بدون تعارض
+     */
     private fun applyThemeMode(targetMode: Int, toggleGroup: MaterialButtonToggleGroup?, showToast: Boolean) {
         val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
         prefs.edit().putInt("theme_mode", targetMode).apply()
@@ -354,6 +219,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupNavigationDrawer() {
         val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
 
+        // 1. زر فتح القائمة الجانبية
         binding.btnMenu.setOnClickListener {
             binding.drawerLayout.openDrawer(GravityCompat.START)
         }
@@ -362,13 +228,16 @@ class MainActivity : AppCompatActivity() {
         val txtHeaderVersion = headerView?.findViewById<TextView>(R.id.txtHeaderVersion)
         val toggleGroupTheme = headerView?.findViewById<MaterialButtonToggleGroup>(R.id.toggleGroupTheme)
 
+        // تعطيل حفظ الحالة التلقائي لمجموعة الأزرار لمنع إبطال عمل زر الصفحة الرئيسية عند إعادة بناء الشاشة
         toggleGroupTheme?.isSaveEnabled = false
 
+        // تحديث أيقونة زر الصفحة الرئيسية حسب الوضع الحالي
         val isNightActive = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         binding.btnThemeQuickToggle.setImageResource(
             if (isNightActive) android.R.drawable.ic_menu_day else android.R.drawable.ic_menu_recent_history
         )
 
+        // 2. زر التبديل السريع للمظهر (☀️ / 🌙) في أعلى الصفحة الرئيسية
         binding.btnThemeQuickToggle.setOnClickListener {
             val savedMode = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
             val currentlyDark = when (savedMode) {
@@ -386,6 +255,7 @@ class MainActivity : AppCompatActivity() {
             applyThemeMode(nextMode, toggleGroupTheme, showToast = true)
         }
 
+        // 3. إعداد الهيدر داخل القائمة الجانبية ومبدل المظهر الثلاثي
         if (headerView != null) {
             try {
                 val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -423,6 +293,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // 4. عناصر القائمة الجانبية
         binding.navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.nav_settings -> showSettingsAndStorageDialog()
@@ -434,6 +305,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * 🛡️ نافذة تشخيصية أنيقة توضح للمستخدم بدقة سبب عدم ظهور التطبيقات
+     * (تميز تلقائياً بين انقطاع الإنترنت وبين صيانة/تحديث مستودع JSON)
+     */
     private fun showSmartRepoDiagnosticDialog() {
         if (isFinishing || isDestroyed) return
         activeErrorDialog?.dismiss()
@@ -668,13 +543,12 @@ class MainActivity : AppCompatActivity() {
         }.attach()
     }
 
-    private fun setupSearchAndSortLogic() {
+    private fun setupSearchLogic() {
         binding.etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 val query = s?.toString() ?: ""
                 binding.btnClearSearch.isVisible = query.isNotEmpty()
-                binding.cardHeroSpotlight.isVisible = query.isBlank() && spotlightApps.isNotEmpty()
                 viewModel.filterApps(query)
             }
             override fun afterTextChanged(s: Editable?) {}
@@ -683,14 +557,6 @@ class MainActivity : AppCompatActivity() {
         binding.btnClearSearch.setOnClickListener {
             binding.etSearch.setText("")
             binding.etSearch.clearFocus()
-        }
-
-        // ⇅ زر الفرز الذكي المستوحى من المتاجر العالمية
-        binding.btnSortApps.setOnClickListener {
-            showSortOptionsDialog()
-        }
-        binding.txtActiveSortLabel.setOnClickListener {
-            showSortOptionsDialog()
         }
 
         binding.btnRefreshMain.setOnClickListener { view ->
@@ -711,41 +577,12 @@ class MainActivity : AppCompatActivity() {
         binding.chipGroupCategories.setOnCheckedStateChangeListener { _, checkedIds ->
             val checkedId = checkedIds.firstOrNull() ?: R.id.chipAll
             when (checkedId) {
-                R.id.chipAll -> {
-                    binding.cardHeroSpotlight.isVisible = binding.etSearch.text.isNullOrBlank() && spotlightApps.isNotEmpty()
-                    viewModel.filterApps(binding.etSearch.text.toString())
-                }
-                R.id.chipAbMods -> {
-                    binding.cardHeroSpotlight.isVisible = false
-                    viewModel.filterApps("ABWhatsApp")
-                }
-                R.id.chipObMods -> {
-                    binding.cardHeroSpotlight.isVisible = false
-                    viewModel.filterApps("عمر")
-                }
-                R.id.chipShieldMods -> {
-                    binding.cardHeroSpotlight.isVisible = false
-                    viewModel.filterApps("درع الحماية")
-                }
+                R.id.chipAll -> viewModel.filterApps(binding.etSearch.text.toString())
+                R.id.chipAbMods -> viewModel.filterApps("ABWhatsApp")
+                R.id.chipObMods -> viewModel.filterApps("عمر")
+                R.id.chipShieldMods -> viewModel.filterApps("درع الحماية")
             }
         }
-    }
-
-    private fun showSortOptionsDialog() {
-        if (isFinishing || isDestroyed) return
-        val options = MainViewModel.SortOption.values()
-        val labels = options.map { it.label }.toTypedArray()
-        val currentIndex = options.indexOf(viewModel.getCurrentSortOption()).coerceAtLeast(0)
-
-        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-            .setTitle("ترتيب التطبيقات حسب ⇅")
-            .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
-                val selectedOption = options[which]
-                viewModel.setSortOption(selectedOption)
-                dialog.dismiss()
-            }
-            .setNegativeButton("إلغاء", null)
-            .show()
     }
 
     private fun setupSearchAnimation() {
@@ -766,32 +603,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupObservers() {
-        viewModel.isLoading.observe(this) { isLoading ->
-            binding.progressBar.isVisible = isLoading
-            if (isLoading && !isDataLoadedSuccessfully) {
-                binding.txtCatalogSummary.text = "جاري مزامنة أحدث التطبيقات..."
-            }
-        }
-
-        viewModel.activeSortOption.observe(this) { sortOption ->
-            if (sortOption != null) {
-                binding.txtActiveSortLabel.text = "الترتيب: ${sortOption.shortLabel}"
-            }
-        }
+        viewModel.isLoading.observe(this) { binding.progressBar.isVisible = it }
 
         viewModel.appsUiStateList.observe(this) { uiStates ->
-            if (uiStates != null) {
-                binding.txtCatalogSummary.text = "متوفر ${uiStates.size} تطبيق في القائمة"
-                if (uiStates.isNotEmpty()) {
-                    isDataLoadedSuccessfully = true
-                    activeErrorDialog?.dismiss()
-                    val apps = uiStates.map { it.app }
-                    checkMandatoryUpdate(apps)
-
-                    if (spotlightApps.isEmpty()) {
-                        updateSpotlightList(uiStates)
-                    }
-                }
+            if (!uiStates.isNullOrEmpty()) {
+                isDataLoadedSuccessfully = true
+                activeErrorDialog?.dismiss()
+                val apps = uiStates.map { it.app }
+                checkMandatoryUpdate(apps)
             }
         }
 
@@ -816,23 +635,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // شارة أنيقة لتبويب "المثبتة بهاتفي" تعرض عدد التطبيقات المثبتة
-        viewModel.installedUiStateList.observe(this) { installedStates ->
-            if (installedStates != null) {
-                val installedCount = installedStates.size
-                val installedTab = binding.tabLayoutMain.getTabAt(2)
-                val badge = installedTab?.orCreateBadge
-
-                if (installedCount > 0) {
-                    badge?.isVisible = true
-                    badge?.number = installedCount
-                    badge?.backgroundColor = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
-                } else {
-                    badge?.isVisible = false
-                }
-            }
-        }
-
+        // 🛡️ استبدال رسالة "فشل جلب البيانات" بنافذة التشخيص الأنيقة (إنترنت أو صيانة/تحديث المستودع)
         viewModel.errorMessage.observe(this) { errorMsg ->
             if (!errorMsg.isNullOrBlank()) {
                 isDataLoadedSuccessfully = false
