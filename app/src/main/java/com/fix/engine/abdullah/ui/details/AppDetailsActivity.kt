@@ -244,8 +244,10 @@ class AppDetailsActivity : AppCompatActivity() {
     private fun verifyBackgroundInstallSessionState(app: AppModel) {
         if (!isInstalling) return
         lifecycleScope.launch(Dispatchers.IO) {
-            delay(2200)
+            // فحص سريع بعد عودة المستخدم للشاشة (مثلاً بعد إغلاق أو إلغاء نافذة تأكيد النظام)
+            delay(600)
             if (!isInstalling) return@launch
+
             val sessionId = activeSessionId
             if (sessionId != -1) {
                 val sessionInfo = try {
@@ -253,23 +255,37 @@ class AppDetailsActivity : AppCompatActivity() {
                 } catch (_: Exception) {
                     null
                 }
-                if (sessionInfo == null) {
-                    delay(1200)
-                    if (isInstalling && activeSessionId == sessionId) {
-                        val recheckInfo = try {
-                            packageManager.packageInstaller.getSessionInfo(sessionId)
-                        } catch (_: Exception) {
-                            null
+
+                // إذا انتهت الجلسة أو تم إلغاؤها من نافذة النظام، نعيد زر "تثبيت" فوراً
+                if (sessionInfo == null || !sessionInfo.isActive) {
+                    withContext(Dispatchers.Main) {
+                        if (!isFinishing && !isDestroyed && isInstalling) {
+                            isInstalling = false
+                            activeSessionId = -1
+                            setupLogic(app)
                         }
-                        if (recheckInfo == null) {
-                            withContext(Dispatchers.Main) {
-                                if (!isFinishing && !isDestroyed && isInstalling) {
-                                    isInstalling = false
-                                    activeSessionId = -1
-                                    setupLogic(app)
-                                }
-                            }
-                        }
+                    }
+                    return@launch
+                }
+            }
+
+            // صمام أمان إضافي: إذا ظلت الجلسة معلقة بدون استجابة لأكثر من 4 ثوانٍ بعد العودة للشاشة، نعيد فحصها وتحرير الزر
+            delay(3500)
+            if (!isInstalling) return@launch
+            val latestInfo = if (activeSessionId != -1) {
+                try {
+                    packageManager.packageInstaller.getSessionInfo(activeSessionId)
+                } catch (_: Exception) {
+                    null
+                }
+            } else null
+
+            if (latestInfo == null || !latestInfo.isActive) {
+                withContext(Dispatchers.Main) {
+                    if (!isFinishing && !isDestroyed && isInstalling) {
+                        isInstalling = false
+                        activeSessionId = -1
+                        setupLogic(app)
                     }
                 }
             }
@@ -305,7 +321,7 @@ class AppDetailsActivity : AppCompatActivity() {
             addAction("com.fix.engine.abdullah.UPDATE_UI")
             addAction("com.fix.engine.abdullah.DOWNLOAD_STATE_CHANGED")
         }
-        ContextCompat.registerReceiver(this, installStateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(this, installStateReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
     }
 
     private fun initFirebase() {
@@ -466,17 +482,26 @@ class AppDetailsActivity : AppCompatActivity() {
                         tvDownloadSize.text = sizeLabel
                     } else if (progress >= 100) {
                         isDownloading = false
-                        isInstalling = true
-                        showInstallingStateUi(
-                            statusText = "جاري تجهيز التثبيت...",
-                            subText = "اكتمل التنزيل، جاري البدء في التثبيت..."
-                        )
 
                         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                         val finalFile = File(downloadFolder, currentApp!!.getUniqueFileName())
 
                         showReadyToInstallNotification(currentApp!!, finalFile)
-                        triggerAdvancedInstall(finalFile)
+
+                        // 🛡️ إذا كان المستخدم داخل صفحة التطبيق، نبدأ التثبيت تلقائياً فوراً
+                        // أما إذا اكتمل التحميل والمستخدم خارج المتجر، نجهز زر "تثبيت" لكي لا يحظر النظام نافذة التأكيد في الخلفية
+                        if (isActivityVisible && !isFinishing && !isDestroyed) {
+                            isInstalling = true
+                            showInstallingStateUi(
+                                statusText = "جاري تجهيز التثبيت...",
+                                subText = "اكتمل التنزيل، جاري البدء في التثبيت..."
+                            )
+                            triggerAdvancedInstall(finalFile)
+                        } else {
+                            isInstalling = false
+                            activeSessionId = -1
+                            setupLogic(currentApp!!)
+                        }
                     }
                 }
             }
