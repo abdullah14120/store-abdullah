@@ -446,11 +446,8 @@ class MainActivity : AppCompatActivity() {
         if (!hasInternet) {
             builder.setTitle("لا يوجد اتصال بالإنترنت 🌐")
                 .setMessage(
-                    "يبدو أن جهازك غير متصل بالإنترنت حالياً.
-
-" +
-                            "• يرجى التحقق من اتصال الشبكة (Wi-Fi أو بيانات الهاتف).
-" +
+                    "يبدو أن جهازك غير متصل بالإنترنت حالياً.\n\n" +
+                            "• يرجى التحقق من اتصال الشبكة (Wi-Fi أو بيانات الهاتف).\n" +
                             "• سيقوم المتجر بجلب ومزامنة التطبيقات تلقائياً فور عودة الاتصال."
                 )
                 .setPositiveButton("إعادة المحاولة 🔄") { dialog, _ ->
@@ -471,14 +468,9 @@ class MainActivity : AppCompatActivity() {
         } else {
             builder.setTitle("تحديث المستودع جاري الآن 🛠️")
                 .setMessage(
-                    "اتصالك بالإنترنت يعمل بشكل سليم، ولكن يتعذر قراءة قائمة التطبيقات مؤقتاً لأحد الأسباب التالية:
-
-" +
-                            "📦 جاري حالياً رفع تطبيقات أو إصدارات حديثة إلى المستودع.
-" +
-                            "🔧 أو يتم إجراء عملية إصلاح وتحديث سريعة لقاعدة البيانات (JSON).
-
-" +
+                    "اتصالك بالإنترنت يعمل بشكل سليم، ولكن يتعذر قراءة قائمة التطبيقات مؤقتاً لأحد الأسباب التالية:\n\n" +
+                            "📦 جاري حالياً رفع تطبيقات أو إصدارات حديثة إلى المستودع.\n" +
+                            "🔧 أو يتم إجراء عملية إصلاح وتحديث سريعة لقاعدة البيانات (JSON).\n\n" +
                             "يرجى الانتظار لحظات قليلة ثم الضغط على إعادة المحاولة."
                 )
                 .setPositiveButton("إعادة المحاولة الآن 🔄") { dialog, _ ->
@@ -501,8 +493,7 @@ class MainActivity : AppCompatActivity() {
         if (isFinishing || isDestroyed) return
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
             .setTitle("حول المطور")
-            .setMessage("تم تطوير المتجر بواسطة م/ عبدالله التميمي.
-نهدف إلى تقديم تجربة فريدة، آمنة واحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
+            .setMessage("تم تطوير المتجر بواسطة م/ عبدالله التميمي.\nنهدف إلى تقديم تجربة فريدة، آمنة واحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
             .setPositiveButton("حسناً", null)
             .show()
     }
@@ -878,11 +869,8 @@ class MainActivity : AppCompatActivity() {
         val totalSizeBytes = apkFiles.sumOf { it.length() }
         val totalSizeMb = String.format(Locale.US, "%.1f MB", totalSizeBytes / (1024.0 * 1024.0))
 
-        val message = "📦 عدد ملفات التثبيت المحفوظة: ${apkFiles.size} ملف
-" +
-                "💾 المساحة المستهلكة: $totalSizeMb
-
-" +
+        val message = "📦 عدد ملفات التثبيت المحفوظة: ${apkFiles.size} ملف\n" +
+                "💾 المساحة المستهلكة: $totalSizeMb\n\n" +
                 "يمكنك مسح ملفات التثبيت المؤقتة بعد تثبيت تطبيقاتك لتوفير مساحة تخزين إضافية في هاتفك."
 
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
