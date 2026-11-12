@@ -640,6 +640,11 @@ class AppDetailsActivity : AppCompatActivity() {
                 val packageInstaller = packageManager.packageInstaller
                 val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                     currentApp?.packageName?.let { setAppPackageName(it) }
+                    // 🛡️ تصريح رسمي لخدمة Google Play Protect بأن التثبيت يتم بطلب المستخدم ومن متجر تطبيقات شرعي
+                    setInstallReason(PackageManager.INSTALL_REASON_USER)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        setPackageSource(PackageInstaller.PACKAGE_SOURCE_STORE)
+                    }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
                     }
