@@ -58,8 +58,8 @@ import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: ظ…طھط¬ط± Abdullah (Official Runtime Core)
- * Feature: Hero Spotlight Banner, Smart Sort Control, 3-Tab Live Badges, Synced Day/Night Theme & Smart Diagnostics
+ * Project: متجر Abdullah (Official Runtime Core)
+ * Feature: Hero Spotlight Banner, Synced Day/Night Theme & Smart Diagnostics
  */
 class MainActivity : AppCompatActivity() {
 
@@ -83,7 +83,7 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (!isGranted) {
-            Toast.makeText(this, "طھظ… ط±ظپط¶ طµظ„ط§ط­ظٹط© ط§ظ„ط¥ط´ط¹ط§ط±ط§طھ", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "تم رفض صلاحية الإشعارات", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -113,7 +113,7 @@ class MainActivity : AppCompatActivity() {
         setupTabs()
         setupNavigationDrawer()
         setupObservers()
-        setupSearchAndSortLogic()
+        setupSearchLogic()
         setupSearchAnimation()
         observeStoreAnnouncement()
 
@@ -149,7 +149,7 @@ class MainActivity : AppCompatActivity() {
                         if (isFinishing || isDestroyed) return@runOnUiThread
                         activeErrorDialog?.dismiss()
                         if (!isDataLoadedSuccessfully) {
-                            Toast.makeText(this@MainActivity, "طھظ… ط§ط³طھط¹ط§ط¯ط© ط§ظ„ط§طھطµط§ظ„! ط¬ط§ط±ظٹ ظ…ط²ط§ظ…ظ†ط© ط§ظ„ظ…طھط¬ط±... ًں”„", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, "تم استعادة الاتصال! جاري مزامنة المتجر... 🔄", Toast.LENGTH_SHORT).show()
                             refreshData()
                         }
                     }
@@ -159,7 +159,7 @@ class MainActivity : AppCompatActivity() {
                     super.onLost(network)
                     runOnUiThread {
                         if (isFinishing || isDestroyed) return@runOnUiThread
-                        Toast.makeText(this@MainActivity, "طھظ†ط¨ظٹظ‡: ط§ظ†ظ‚ط·ط¹ ط§ظ„ط§طھطµط§ظ„ ط¨ط§ظ„ط¥ظ†طھط±ظ†طھ ًںŒگ", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainActivity, "تنبيه: انقطع الاتصال بالإنترنت 🌐", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -197,11 +197,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ====================================================================
-    // ًں‘‘ ظ…ط­ط±ظƒ ط§ظ„ط¨ط§ظ†ط± ط§ظ„طھظپط§ط¹ظ„ظٹ ظ„ظ„طھط·ط¨ظٹظ‚ط§طھ ط§ظ„ظ…ظ…ظٹط²ط© (Hero Spotlight Carousel)
+    // 👑 محرك البانر التفاعلي للتطبيقات المميزة (Hero Spotlight Carousel)
     // ====================================================================
 
     private fun updateSpotlightList(allStates: List<AppItemUiState>) {
-        // ط§ط®طھظٹط§ط± ط£ط¨ط±ط² ط§ظ„طھط·ط¨ظٹظ‚ط§طھ (ط§ظ„طھظٹ ظٹطھظˆظپط± ظ„ظ‡ط§ طھط­ط¯ظٹط« ط£ظˆظ„ط§ظ‹ ط«ظ… ط£ط­ط¯ط« ط§ظ„طھط·ط¨ظٹظ‚ط§طھ ظپظٹ ط§ظ„ظ…طھط¬ط±طŒ ظ…ط¹ ط§ط³طھط¨ط¹ط§ط¯ ط­ط²ظ…ط© ط§ظ„ظ…طھط¬ط± ظ†ظپط³ظ‡)
         val candidates = allStates.filter { it.app.packageName != packageName }
         val prioritized = candidates.sortedByDescending {
             when (it.status) {
@@ -245,25 +244,25 @@ class MainActivity : AppCompatActivity() {
         val updateAction = Runnable {
             binding.txtHeroIndicator.text = "${currentSpotlightIndex + 1} / ${spotlightApps.size}"
             binding.txtHeroTitle.text = app.name
-            val sizeText = app.getFormattedSize().ifBlank { "ظ†ط³ط®ط© ط±ط³ظ…ظٹط©" }
-            binding.txtHeroSub.text = "${app.developer}  â€¢  v${app.versionName}  â€¢  $sizeText"
+            val sizeText = app.getFormattedSize().ifBlank { "نسخة رسمية" }
+            binding.txtHeroSub.text = "${app.developer}  •  v${app.versionName}  •  $sizeText"
 
             when (uiState.status) {
                 AppInstallStatus.UPDATE_AVAILABLE -> {
-                    binding.txtHeroBadge.text = "ًںڑ€ طھط­ط¯ظٹط« ظ‡ط§ظ… ظ…طھظˆظپط± ط§ظ„ط¢ظ†"
-                    binding.btnHeroAction.text = "طھط­ط¯ظٹط«"
+                    binding.txtHeroBadge.text = "🚀 تحديث هام متوفر الآن"
+                    binding.btnHeroAction.text = "تحديث"
                 }
                 AppInstallStatus.DOWNLOADED -> {
-                    binding.txtHeroBadge.text = "âœ¨ ط¬ط§ظ‡ط² ظ„ظ„طھط«ط¨ظٹطھ ط§ظ„ظپظˆط±ظٹ"
-                    binding.btnHeroAction.text = "طھط«ط¨ظٹطھ"
+                    binding.txtHeroBadge.text = "✨ جاهز للتثبيت الفوري"
+                    binding.btnHeroAction.text = "تثبيت"
                 }
                 AppInstallStatus.INSTALLED -> {
-                    binding.txtHeroBadge.text = "ًں‘‘ ظ…ط«ط¨طھ ظˆظ…ط­ط¯ط« ط¹ظ„ظ‰ ط¬ظ‡ط§ط²ظƒ"
-                    binding.btnHeroAction.text = "ظپطھط­"
+                    binding.txtHeroBadge.text = "👑 مثبت ومحدث على جهازك"
+                    binding.btnHeroAction.text = "فتح"
                 }
                 AppInstallStatus.NOT_INSTALLED -> {
-                    binding.txtHeroBadge.text = "ًں‘‘ ظ…ط®طھط§ط±ط§طھ ط§ظ„ظ…طھط¬ط± â€¢ ط£ط­ط¯ط« ط¥طµط¯ط§ط±"
-                    binding.btnHeroAction.text = "طھظ†ط²ظٹظ„"
+                    binding.txtHeroBadge.text = "👑 مختارات المتجر • أحدث إصدار"
+                    binding.btnHeroAction.text = "تنزيل"
                 }
             }
 
@@ -321,7 +320,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ====================================================================
-    // ًںژ¨ ط¥ط¯ط§ط±ط© ط§ظ„ظ…ط¸ظ‡ط± ظˆط§ظ„ظ‚ط§ط¦ظ…ط© ط§ظ„ط¬ط§ظ†ط¨ظٹط©
+    // 🎨 إدارة المظهر والقائمة الجانبية
     // ====================================================================
 
     private fun applyThemeMode(targetMode: Int, toggleGroup: MaterialButtonToggleGroup?, showToast: Boolean) {
@@ -341,9 +340,9 @@ class MainActivity : AppCompatActivity() {
 
         if (showToast) {
             val modeText = when (targetMode) {
-                AppCompatDelegate.MODE_NIGHT_NO -> "طھظ… طھظپط¹ظٹظ„ ط§ظ„ظˆط¶ط¹ ط§ظ„ظ†ظ‡ط§ط±ظٹ âک€ï¸ڈ"
-                AppCompatDelegate.MODE_NIGHT_YES -> "طھظ… طھظپط¹ظٹظ„ ط§ظ„ظˆط¶ط¹ ط§ظ„ظ„ظٹظ„ظٹ ًںŒ™"
-                else -> "طھظ… طھظپط¹ظٹظ„ ط§ظ„ظˆط¶ط¹ ط§ظ„طھظ„ظ‚ط§ط¦ظٹ ًں”„"
+                AppCompatDelegate.MODE_NIGHT_NO -> "تم تفعيل الوضع النهاري ☀️"
+                AppCompatDelegate.MODE_NIGHT_YES -> "تم تفعيل الوضع الليلي 🌙"
+                else -> "تم تفعيل الوضع التلقائي 🔄"
             }
             Toast.makeText(this, modeText, Toast.LENGTH_SHORT).show()
         }
@@ -394,7 +393,7 @@ class MainActivity : AppCompatActivity() {
                     @Suppress("DEPRECATION")
                     packageManager.getPackageInfo(packageName, 0)
                 }
-                txtHeaderVersion?.text = "ط§ظ„ط¥طµط¯ط§ط± ${pInfo.versionName} ط§ظ„ط±ط³ظ…ظٹ â€¢ ًں›،ï¸ڈ"
+                txtHeaderVersion?.text = "الإصدار ${pInfo.versionName} الرسمي • 🛡️"
             } catch (_: Exception) {}
 
             val currentNightMode = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
@@ -444,17 +443,17 @@ class MainActivity : AppCompatActivity() {
             .setCancelable(true)
 
         if (!hasInternet) {
-            builder.setTitle("ظ„ط§ ظٹظˆط¬ط¯ ط§طھطµط§ظ„ ط¨ط§ظ„ط¥ظ†طھط±ظ†طھ ًںŒگ")
+            builder.setTitle("لا يوجد اتصال بالإنترنت 🌐")
                 .setMessage(
-                    "ظٹط¨ط¯ظˆ ط£ظ† ط¬ظ‡ط§ط²ظƒ ط؛ظٹط± ظ…طھطµظ„ ط¨ط§ظ„ط¥ظ†طھط±ظ†طھ ط­ط§ظ„ظٹط§ظ‹.\n\n" +
-                            "â€¢ ظٹط±ط¬ظ‰ ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† ط§طھطµط§ظ„ ط§ظ„ط´ط¨ظƒط© (Wi-Fi ط£ظˆ ط¨ظٹط§ظ†ط§طھ ط§ظ„ظ‡ط§طھظپ).\n" +
-                            "â€¢ ط³ظٹظ‚ظˆظ… ط§ظ„ظ…طھط¬ط± ط¨ط¬ظ„ط¨ ظˆظ…ط²ط§ظ…ظ†ط© ط§ظ„طھط·ط¨ظٹظ‚ط§طھ طھظ„ظ‚ط§ط¦ظٹط§ظ‹ ظپظˆط± ط¹ظˆط¯ط© ط§ظ„ط§طھطµط§ظ„."
+                    "يبدو أن جهازك غير متصل بالإنترنت حالياً.\n\n" +
+                            "• يرجى التحقق من اتصال الشبكة (Wi-Fi أو بيانات الهاتف).\n" +
+                            "• سيقوم المتجر بجلب ومزامنة التطبيقات تلقائياً فور عودة الاتصال."
                 )
-                .setPositiveButton("ط¥ط¹ط§ط¯ط© ط§ظ„ظ…ط­ط§ظˆظ„ط© ًں”„") { dialog, _ ->
+                .setPositiveButton("إعادة المحاولة 🔄") { dialog, _ ->
                     dialog.dismiss()
                     refreshData()
                 }
-                .setNeutralButton("ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ط´ط¨ظƒط© âڑ™ï¸ڈ") { dialog, _ ->
+                .setNeutralButton("إعدادات الشبكة ⚙️") { dialog, _ ->
                     dialog.dismiss()
                     try {
                         startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
@@ -464,16 +463,16 @@ class MainActivity : AppCompatActivity() {
                         } catch (_: Exception) {}
                     }
                 }
-                .setNegativeButton("ط¥ط؛ظ„ط§ظ‚", null)
+                .setNegativeButton("إغلاق", null)
         } else {
-            builder.setTitle("طھط­ط¯ظٹط« ط§ظ„ظ…ط³طھظˆط¯ط¹ ط¬ط§ط±ظٹ ط§ظ„ط¢ظ† ًں› ï¸ڈ")
+            builder.setTitle("تحديث المستودع جاري الآن 🛠️")
                 .setMessage(
-                    "ط§طھطµط§ظ„ظƒ ط¨ط§ظ„ط¥ظ†طھط±ظ†طھ ظٹط¹ظ…ظ„ ط¨ط´ظƒظ„ ط³ظ„ظٹظ…طŒ ظˆظ„ظƒظ† ظٹطھط¹ط°ط± ظ‚ط±ط§ط،ط© ظ‚ط§ط¦ظ…ط© ط§ظ„طھط·ط¨ظٹظ‚ط§طھ ظ…ط¤ظ‚طھط§ظ‹ ظ„ط£ط­ط¯ ط§ظ„ط£ط³ط¨ط§ط¨ ط§ظ„طھط§ظ„ظٹط©:\n\n" +
-                            "ًں“¦ ط¬ط§ط±ظٹ ط­ط§ظ„ظٹط§ظ‹ ط±ظپط¹ طھط·ط¨ظٹظ‚ط§طھ ط£ظˆ ط¥طµط¯ط§ط±ط§طھ ط­ط¯ظٹط«ط© ط¥ظ„ظ‰ ط§ظ„ظ…ط³طھظˆط¯ط¹.\n" +
-                            "ًں”§ ط£ظˆ ظٹطھظ… ط¥ط¬ط±ط§ط، ط¹ظ…ظ„ظٹط© ط¥طµظ„ط§ط­ ظˆطھط­ط¯ظٹط« ط³ط±ظٹط¹ط© ظ„ظ‚ط§ط¹ط¯ط© ط§ظ„ط¨ظٹط§ظ†ط§طھ (JSON).\n\n" +
-                            "ظٹط±ط¬ظ‰ ط§ظ„ط§ظ†طھط¸ط§ط± ظ„ط­ط¸ط§طھ ظ‚ظ„ظٹظ„ط© ط«ظ… ط§ظ„ط¶ط؛ط· ط¹ظ„ظ‰ ط¥ط¹ط§ط¯ط© ط§ظ„ظ…ط­ط§ظˆظ„ط©."
+                    "اتصالك بالإنترنت يعمل بشكل سليم، ولكن يتعذر قراءة قائمة التطبيقات مؤقتاً لأحد الأسباب التالية:\n\n" +
+                            "📦 جاري حالياً رفع تطبيقات أو إصدارات حديثة إلى المستودع.\n" +
+                            "🔧 أو يتم إجراء عملية إصلاح وتحديث سريعة لقاعدة البيانات (JSON).\n\n" +
+                            "يرجى الانتظار لحظات قليلة ثم الضغط على إعادة المحاولة."
                 )
-                .setPositiveButton("ط¥ط¹ط§ط¯ط© ط§ظ„ظ…ط­ط§ظˆظ„ط© ط§ظ„ط¢ظ† ًں”„") { dialog, _ ->
+                .setPositiveButton("إعادة المحاولة الآن 🔄") { dialog, _ ->
                     dialog.dismiss()
                     try {
                         val secureUrl = getSecureRepoUrl()
@@ -482,7 +481,7 @@ class MainActivity : AppCompatActivity() {
                         refreshData()
                     }
                 }
-                .setNegativeButton("ط­ط³ظ†ط§ظ‹طŒ ط³ط£ظ†طھط¸ط±", null)
+                .setNegativeButton("حسناً، سأنتظر", null)
         }
 
         activeErrorDialog = builder.create()
@@ -492,25 +491,25 @@ class MainActivity : AppCompatActivity() {
     private fun showAboutDeveloperDialog() {
         if (isFinishing || isDestroyed) return
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-            .setTitle("ط­ظˆظ„ ط§ظ„ظ…ط·ظˆط±")
-            .setMessage("طھظ… طھط·ظˆظٹط± ط§ظ„ظ…طھط¬ط± ط¨ظˆط§ط³ط·ط© ظ…/ ط¹ط¨ط¯ط§ظ„ظ„ظ‡ ط§ظ„طھظ…ظٹظ…ظٹ.\nظ†ظ‡ط¯ظپ ط¥ظ„ظ‰ طھظ‚ط¯ظٹظ… طھط¬ط±ط¨ط© ظپط±ظٹط¯ط©طŒ ط¢ظ…ظ†ط© ظˆط§ط­طھط±ط§ظپظٹط© ظ„ط¥ط¯ط§ط±ط© ظˆطھط­ط¯ظٹط« طھط·ط¨ظٹظ‚ط§طھ ط§ظ„ط£ظ†ط¯ط±ظˆظٹط¯ ط§ظ„ظ…طھظ‚ط¯ظ…ط©.")
-            .setPositiveButton("ط­ط³ظ†ط§ظ‹", null)
+            .setTitle("حول المطور")
+            .setMessage("تم تطوير المتجر بواسطة م/ عبدالله التميمي.\nنهدف إلى تقديم تجربة فريدة، آمنة واحترافية لإدارة وتحديث تطبيقات الأندرويد المتقدمة.")
+            .setPositiveButton("حسناً", null)
             .show()
     }
 
     private fun showAddAppDeveloperDialog() {
         if (isFinishing || isDestroyed) return
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-            .setTitle("ط¥ط¶ط§ظپط© طھط·ط¨ظٹظ‚ظƒ ظپظٹ ط§ظ„ظ…طھط¬ط±")
-            .setMessage("ظٹظ…ظƒظ†ظƒظ… ط§ظ„طھظˆط§طµظ„ ظ…ط¨ط§ط´ط±ط© ط¹ظ„ظ‰ ط§ظ„ظˆط§طھط³ط§ط¨ ط§ظ„ط±ظ‚ظ… 770034578 ظ„ط¥ط±ط³ط§ظ„ طھظپط§طµظٹظ„ طھط·ط¨ظٹظ‚ظƒظ…طŒ ظˆط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ط¨ط±ظ…ط¬ظٹط© ظ‚ط¨ظ„ ط§ظ„ط±ظپط¹.")
-            .setPositiveButton("ظ…ط±ط§ط³ظ„ط© ط§ظ„ط¢ظ†") { _, _ ->
+            .setTitle("إضافة تطبيقك في المتجر")
+            .setMessage("يمكنكم التواصل مباشرة على الواتساب الرقم 770034578 لإرسال تفاصيل تطبيقكم، والمراجعة البرمجية قبل الرفع.")
+            .setPositiveButton("مراسلة الآن") { _, _ ->
                 try {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/967770034578")))
                 } catch (e: Exception) {
-                    Toast.makeText(this, "طھط·ط¨ظٹظ‚ ظˆط§طھط³ط§ط¨ ط؛ظٹط± ظ…ط«ط¨طھ ظپظٹ ط¬ظ‡ط§ط²ظƒ", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "تطبيق واتساب غير مثبت في جهازك", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("ط¥ظ„ط؛ط§ط،", null)
+            .setNegativeButton("إلغاء", null)
             .show()
     }
 
@@ -605,17 +604,17 @@ class MainActivity : AppCompatActivity() {
     private fun showMandatoryUpdateDialog(storeApp: AppModel) {
         if (isFinishing || isDestroyed) return
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-            .setTitle("طھط­ط¯ظٹط« ط¥ط¬ط¨ط§ط±ظٹ!")
-            .setMessage("ظٹظˆط¬ط¯ ط¥طµط¯ط§ط± ط¬ط¯ظٹط¯ ظ…ظ† ظ…طھط¬ط± Abdullah ظٹط­ظ„ ط¨ط¹ط¶ ط§ظ„ظ…ط´ط§ظƒظ„ ط§ظ„طھظ‚ظ†ظٹط©. ظٹط±ط¬ظ‰ ط§ظ„طھط­ط¯ظٹط« ظ„ظ„ظ…طھط§ط¨ط¹ط©.")
+            .setTitle("تحديث إجباري!")
+            .setMessage("يوجد إصدار جديد من متجر Abdullah يحل بعض المشاكل التقنية. يرجى التحديث للمتابعة.")
             .setCancelable(false)
-            .setPositiveButton("طھط­ط¯ظٹط« ط§ظ„ط¢ظ†") { _, _ ->
+            .setPositiveButton("تحديث الآن") { _, _ ->
                 val intent = Intent(this, AppDetailsActivity::class.java).apply {
                     putExtra("APP_DATA", storeApp)
                 }
                 startActivity(intent)
                 finish()
             }
-            .setNegativeButton("ط®ط±ظˆط¬") { _, _ -> finishAffinity() }
+            .setNegativeButton("خروج") { _, _ -> finishAffinity() }
             .show()
     }
 
@@ -623,9 +622,9 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 "store_updates_channel",
-                "طھط­ط¯ظٹط«ط§طھ ط§ظ„ظ…طھط¬ط±",
+                "تحديثات المتجر",
                 NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { description = "طھظ†ط¨ظٹظ‡ط§طھ طھظ„ظ‚ط§ط¦ظٹط© ط¹ظ†ط¯ طھظˆظپط± طھط­ط¯ظٹط«ط§طھ ط¬ط¯ظٹط¯ط© ظ„ظ„طھط·ط¨ظٹظ‚ط§طھ ط§ظ„ظ…ط«ط¨طھط©" }
+            ).apply { description = "تنبيهات تلقائية عند توفر تحديثات جديدة للتطبيقات المثبتة" }
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
         }
     }
@@ -645,8 +644,8 @@ class MainActivity : AppCompatActivity() {
 
             val builder = NotificationCompat.Builder(this, "store_updates_channel")
                 .setSmallIcon(R.drawable.ic_notification_transparent)
-                .setContentTitle("طھط­ط¯ظٹط«ط§طھ ظ…طھظˆظپط±ط© ظ„ظ€ طھط·ط¨ظٹظ‚ط§طھظƒ! ًںڑ€")
-                .setContentText("ظٹظˆط¬ط¯ ط¹ط¯ط¯ ($updatesCount) ظ…ظ† طھط·ط¨ظٹظ‚ط§طھظƒ طھظ…طھظ„ظƒ ط¥طµط¯ط§ط±ط§طھ ظ…ط­ط¯ط«ط©طŒ ظ‚ظ… ط¨طھط«ط¨ظٹطھظ‡ط§ ط§ظ„ط¢ظ†.")
+                .setContentTitle("تحديثات متوفرة لـ تطبيقاتك! 🚀")
+                .setContentText("يوجد عدد ($updatesCount) من تطبيقاتك تمتلك إصدارات محدثة، قم بتثبيتها الآن.")
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
@@ -661,14 +660,14 @@ class MainActivity : AppCompatActivity() {
         binding.viewPagerMain.adapter = MainPagerAdapter(this)
         TabLayoutMediator(binding.tabLayoutMain, binding.viewPagerMain) { tab, position ->
             tab.text = when (position) {
-                0 -> "ط§ظ„طھط·ط¨ظٹظ‚ط§طھ"
-                1 -> "ط§ظ„طھط­ط¯ظٹط«ط§طھ"
-                else -> "ط§ظ„ظ…ط«ط¨طھط© ط¨ظ‡ط§طھظپظٹ"
+                0 -> "التطبيقات"
+                1 -> "التحديثات"
+                else -> "المثبتة بهاتفي"
             }
         }.attach()
     }
 
-    private fun setupSearchAndSortLogic() {
+    private fun setupSearchLogic() {
         binding.etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -685,21 +684,13 @@ class MainActivity : AppCompatActivity() {
             binding.etSearch.clearFocus()
         }
 
-        // â‡… ط²ط± ط§ظ„ظپط±ط² ط§ظ„ط°ظƒظٹ ط§ظ„ظ…ط³طھظˆط­ظ‰ ظ…ظ† ط§ظ„ظ…طھط§ط¬ط± ط§ظ„ط¹ط§ظ„ظ…ظٹط©
-        binding.btnSortApps.setOnClickListener {
-            showSortOptionsDialog()
-        }
-        binding.txtActiveSortLabel.setOnClickListener {
-            showSortOptionsDialog()
-        }
-
         binding.btnRefreshMain.setOnClickListener { view ->
             view.animate().rotationBy(360f).setDuration(600).start()
             if (!isInternetAvailable()) {
                 showSmartRepoDiagnosticDialog()
                 return@setOnClickListener
             }
-            Toast.makeText(this, "ط¬ط§ط±ظٹ طھط­ط¯ظٹط« ظ‚ط§ط¦ظ…ط© ط§ظ„طھط·ط¨ظٹظ‚ط§طھ... ًں”„", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "جاري تحديث قائمة التطبيقات... 🔄", Toast.LENGTH_SHORT).show()
             try {
                 val secureUrl = getSecureRepoUrl()
                 viewModel.forceReloadApps(secureUrl.toByteArray(Charsets.UTF_8), 0.toByte())
@@ -721,31 +712,14 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.chipObMods -> {
                     binding.cardHeroSpotlight.isVisible = false
-                    viewModel.filterApps("ط¹ظ…ط±")
+                    viewModel.filterApps("عمر")
                 }
                 R.id.chipShieldMods -> {
                     binding.cardHeroSpotlight.isVisible = false
-                    viewModel.filterApps("ط¯ط±ط¹ ط§ظ„ط­ظ…ط§ظٹط©")
+                    viewModel.filterApps("درع الحماية")
                 }
             }
         }
-    }
-
-    private fun showSortOptionsDialog() {
-        if (isFinishing || isDestroyed) return
-        val options = MainViewModel.SortOption.values()
-        val labels = options.map { it.label }.toTypedArray()
-        val currentIndex = options.indexOf(viewModel.getCurrentSortOption()).coerceAtLeast(0)
-
-        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-            .setTitle("طھط±طھظٹط¨ ط§ظ„طھط·ط¨ظٹظ‚ط§طھ ط­ط³ط¨ â‡…")
-            .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
-                val selectedOption = options[which]
-                viewModel.setSortOption(selectedOption)
-                dialog.dismiss()
-            }
-            .setNegativeButton("ط¥ظ„ط؛ط§ط،", null)
-            .show()
     }
 
     private fun setupSearchAnimation() {
@@ -769,19 +743,13 @@ class MainActivity : AppCompatActivity() {
         viewModel.isLoading.observe(this) { isLoading ->
             binding.progressBar.isVisible = isLoading
             if (isLoading && !isDataLoadedSuccessfully) {
-                binding.txtCatalogSummary.text = "ط¬ط§ط±ظٹ ظ…ط²ط§ظ…ظ†ط© ط£ط­ط¯ط« ط§ظ„طھط·ط¨ظٹظ‚ط§طھ..."
-            }
-        }
-
-        viewModel.activeSortOption.observe(this) { sortOption ->
-            if (sortOption != null) {
-                binding.txtActiveSortLabel.text = "ط§ظ„طھط±طھظٹط¨: ${sortOption.shortLabel}"
+                binding.txtCatalogSummary.text = "جاري مزامنة أحدث التطبيقات..."
             }
         }
 
         viewModel.appsUiStateList.observe(this) { uiStates ->
             if (uiStates != null) {
-                binding.txtCatalogSummary.text = "ظ…طھظˆظپط± ${uiStates.size} طھط·ط¨ظٹظ‚ ظپظٹ ط§ظ„ظ‚ط§ط¦ظ…ط©"
+                binding.txtCatalogSummary.text = "متوفر ${uiStates.size} تطبيق في القائمة"
                 if (uiStates.isNotEmpty()) {
                     isDataLoadedSuccessfully = true
                     activeErrorDialog?.dismiss()
@@ -816,22 +784,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // ط´ط§ط±ط© ط£ظ†ظٹظ‚ط© ظ„طھط¨ظˆظٹط¨ "ط§ظ„ظ…ط«ط¨طھط© ط¨ظ‡ط§طھظپظٹ" طھط¹ط±ط¶ ط¹ط¯ط¯ ط§ظ„طھط·ط¨ظٹظ‚ط§طھ ط§ظ„ظ…ط«ط¨طھط©
-        viewModel.installedUiStateList.observe(this) { installedStates ->
-            if (installedStates != null) {
-                val installedCount = installedStates.size
-                val installedTab = binding.tabLayoutMain.getTabAt(2)
-                val badge = installedTab?.orCreateBadge
-
-                if (installedCount > 0) {
-                    badge?.isVisible = true
-                    badge?.number = installedCount
-                    badge?.backgroundColor = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
-                } else {
-                    badge?.isVisible = false
-                }
-            }
-        }
+        // ⚠️ تم حذف observer الخاص بـ installedUiStateList (شارة عدد التطبيقات المثبتة)
+        // لتقليل بصمة المراقبة على Play Protect. التبويب "المثبتة بهاتفي" يعمل بشكل طبيعي
+        // لكن بدون شارة رقمية.
 
         viewModel.errorMessage.observe(this) { errorMsg ->
             if (!errorMsg.isNullOrBlank()) {
@@ -869,21 +824,21 @@ class MainActivity : AppCompatActivity() {
         val totalSizeBytes = apkFiles.sumOf { it.length() }
         val totalSizeMb = String.format(Locale.US, "%.1f MB", totalSizeBytes / (1024.0 * 1024.0))
 
-        val message = "ًں“¦ ط¹ط¯ط¯ ظ…ظ„ظپط§طھ ط§ظ„طھط«ط¨ظٹطھ ط§ظ„ظ…ط­ظپظˆط¸ط©: ${apkFiles.size} ظ…ظ„ظپ\n" +
-                "ًں’¾ ط§ظ„ظ…ط³ط§ط­ط© ط§ظ„ظ…ط³طھظ‡ظ„ظƒط©: $totalSizeMb\n\n" +
-                "ظٹظ…ظƒظ†ظƒ ظ…ط³ط­ ظ…ظ„ظپط§طھ ط§ظ„طھط«ط¨ظٹطھ ط§ظ„ظ…ط¤ظ‚طھط© ط¨ط¹ط¯ طھط«ط¨ظٹطھ طھط·ط¨ظٹظ‚ط§طھظƒ ظ„طھظˆظپظٹط± ظ…ط³ط§ط­ط© طھط®ط²ظٹظ† ط¥ط¶ط§ظپظٹط© ظپظٹ ظ‡ط§طھظپظƒ."
+        val message = "📦 عدد ملفات التثبيت المحفوظة: ${apkFiles.size} ملف\n" +
+                "💾 المساحة المستهلكة: $totalSizeMb\n\n" +
+                "يمكنك مسح ملفات التثبيت المؤقتة بعد تثبيت تطبيقاتك لتوفير مساحة تخزين إضافية في هاتفك."
 
         MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-            .setTitle("ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ…طھط¬ط± ظˆط§ظ„طھط®ط²ظٹظ† âڑ™ï¸ڈ")
+            .setTitle("إعدادات المتجر والتخزين ⚙️")
             .setMessage(message)
-            .setPositiveButton("طھظ†ط¸ظٹظپ ط§ظ„ظ…ط³ط§ط­ط© ($totalSizeMb)") { dialog, _ ->
+            .setPositiveButton("تنظيف المساحة ($totalSizeMb)") { dialog, _ ->
                 var deletedCount = 0
                 apkFiles.forEach { if (it.delete()) deletedCount++ }
                 viewModel.refreshAppStates()
-                Toast.makeText(this, "طھظ… طھظ†ط¸ظٹظپ $deletedCount ظ…ظ„ظپ ظˆطھظپط±ظٹط؛ ط§ظ„ظ…ط³ط§ط­ط© ط¨ظ†ط¬ط§ط­! âœ¨", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "تم تنظيف $deletedCount ملف وتفريغ المساحة بنجاح! ✨", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             }
-            .setNegativeButton("ط¥ط؛ظ„ط§ظ‚", null)
+            .setNegativeButton("إغلاق", null)
             .show()
     }
 
@@ -895,7 +850,7 @@ class MainActivity : AppCompatActivity() {
                 .addValueEventListener(object : ValueEventListener {
                     override fun onDataChange(snapshot: DataSnapshot) {
                         val isActive = snapshot.child("active").getValue(Boolean::class.java) ?: false
-                        val title = snapshot.child("title").getValue(String::class.java) ?: "ًں“¢ ط¥ط´ط¹ط§ط± ظ‡ط§ظ…"
+                        val title = snapshot.child("title").getValue(String::class.java) ?: "📢 إشعار هام"
                         val body = snapshot.child("body").getValue(String::class.java) ?: ""
 
                         runOnUiThread {
