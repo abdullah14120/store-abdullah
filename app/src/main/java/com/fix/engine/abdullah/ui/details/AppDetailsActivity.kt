@@ -148,6 +148,7 @@ class AppDetailsActivity : AppCompatActivity() {
                     if (pkgName.isBlank() || pkgName == currentApp?.packageName) {
                         runOnUiThread {
                             if (isFinishing || isDestroyed) return@runOnUiThread
+                            installWatchdogJob?.cancel()
                             isInstalling = false
                             activeSessionId = -1
                             binding.btnInstallState.isEnabled = true
@@ -228,59 +229,63 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
+    private var installWatchdogJob: kotlinx.coroutines.Job? = null
+
     override fun onResume() {
         super.onResume()
         isActivityVisible = true
         currentApp?.let { app ->
             syncDownloadAndUiState(app)
-            verifyBackgroundInstallSessionState(app)
+            if (isInstalling) {
+                startInstallCompletionWatchdog(app)
+            }
         }
     }
 
     /**
-     * 🛡️ مراقبة ذكية لجلسة التثبيت في الخلفية:
-     * تضمن بقاء الشريط الدائري ظاهراً طوال فترة التثبيت، وتعيد الأزرار لوضعها الطبيعي فقط إذا انتهت الجلسة أو ألغاها المستخدم
+     * 🛡️ مراقب ذكي لعملية التثبيت في الخلفية:
+     * يحافظ على ظهور الشريط الدائري واختفاء زر "تثبيت" طوال فترة تثبيت النظام للحزمة (مهما استغرقت على الأجهزة البطيئة)،
+     * وفور رصد تثبيت الحزمة في النظام يحوّل الواجهة مباشرة إلى أزرار "فتح" و"إلغاء التثبيت".
      */
-    private fun verifyBackgroundInstallSessionState(app: AppModel) {
-        if (!isInstalling) return
-        lifecycleScope.launch(Dispatchers.IO) {
-            // فحص سريع بعد عودة المستخدم للشاشة (مثلاً بعد إغلاق أو إلغاء نافذة تأكيد النظام)
-            delay(600)
-            if (!isInstalling) return@launch
+    private fun startInstallCompletionWatchdog(app: AppModel) {
+        installWatchdogJob?.cancel()
+        installWatchdogJob = lifecycleScope.launch(Dispatchers.IO) {
+            val startTime = System.currentTimeMillis()
+            val maxWaitMillis = 120_000L // مهلة قصوى دقيقتان للتطبيقات الضخمة والأجهزة البطيئة
 
-            val sessionId = activeSessionId
-            if (sessionId != -1) {
-                val sessionInfo = try {
-                    packageManager.packageInstaller.getSessionInfo(sessionId)
+            while (isInstalling && (System.currentTimeMillis() - startTime) < maxWaitMillis) {
+                delay(800)
+                if (!isInstalling) return@launch
+
+                val isNowInstalled = try {
+                    val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        packageManager.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(0L))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        packageManager.getPackageInfo(app.packageName, 0)
+                    }
+                    val installedVer = pInfo.versionName ?: ""
+                    compareVersionNames(app.versionName, installedVer) <= 0
                 } catch (_: Exception) {
-                    null
+                    false
                 }
 
-                // إذا انتهت الجلسة أو تم إلغاؤها من نافذة النظام، نعيد زر "تثبيت" فوراً
-                if (sessionInfo == null || !sessionInfo.isActive) {
+                if (isNowInstalled) {
                     withContext(Dispatchers.Main) {
-                        if (!isFinishing && !isDestroyed && isInstalling) {
+                        if (!isFinishing && !isDestroyed) {
                             isInstalling = false
                             activeSessionId = -1
-                            setupLogic(app)
+                            val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                            File(downloadFolder, app.getUniqueFileName()).delete()
+                            showInstalledStateDirectly(app)
                         }
                     }
                     return@launch
                 }
             }
 
-            // صمام أمان إضافي: إذا ظلت الجلسة معلقة بدون استجابة لأكثر من 4 ثوانٍ بعد العودة للشاشة، نعيد فحصها وتحرير الزر
-            delay(3500)
-            if (!isInstalling) return@launch
-            val latestInfo = if (activeSessionId != -1) {
-                try {
-                    packageManager.packageInstaller.getSessionInfo(activeSessionId)
-                } catch (_: Exception) {
-                    null
-                }
-            } else null
-
-            if (latestInfo == null || !latestInfo.isActive) {
+            // في حال انتهاء المهلة القصوى (دقيقتين) دون استجابة من النظام، نعيد ضبط الواجهة بأمان
+            if (isInstalling) {
                 withContext(Dispatchers.Main) {
                     if (!isFinishing && !isDestroyed && isInstalling) {
                         isInstalling = false
@@ -299,6 +304,7 @@ class AppDetailsActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        installWatchdogJob?.cancel()
         isActivityVisible = false
         if (::tracker.isInitialized) tracker.stopTracking()
         try {
@@ -612,6 +618,7 @@ class AppDetailsActivity : AppCompatActivity() {
             statusText = "جاري تجهيز التثبيت...",
             subText = "يرجى الانتظار..."
         )
+        currentApp?.let { startInstallCompletionWatchdog(it) }
 
         lifecycleScope.launch(Dispatchers.IO) {
             delay(100)
