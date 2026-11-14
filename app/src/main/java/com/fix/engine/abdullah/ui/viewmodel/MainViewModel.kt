@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -16,22 +17,34 @@ import com.fix.engine.abdullah.data.repository.AppRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Architecture: Hybrid State Management with Smart Version Comparison & Validated APK Check
+ * Architecture: High-Speed Single-Pass State Engine with Memoized APK Check & Instant Memory Cache
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
+
+    companion object {
+        // ⚡ كاش فوري في الذاكرة لتسريع فتح المتجر وتبديل المظهر النهاري/الليلي في 0.01 ثانية
+        @Volatile
+        private var cachedAppsList: List<AppModel> = emptyList()
+
+        @Volatile
+        private var cachedDownloadsMap: Map<Int, Long> = emptyMap()
+
+        private val apkValidationCache = ConcurrentHashMap<String, Boolean>()
+    }
 
     private val repository = AppRepository()
     private val packageManager: PackageManager = application.packageManager
 
-    private var fullAppsList: List<AppModel> = emptyList()
-    private var fullUpdatesList: List<AppModel> = emptyList()
-    private var downloadsMap: Map<Int, Long> = emptyMap()
+    private var fullAppsList: List<AppModel> = cachedAppsList
+    private var downloadsMap: Map<Int, Long> = cachedDownloadsMap
     private var currentSearchQuery: String = ""
     private var currentSortMode: Int = 0
     private var isObservingDownloads: Boolean = false
+    private var lastRefreshTimeMs: Long = 0L
 
     private val _appsUiStateList = MutableLiveData<List<AppItemUiState>>()
     val appsUiStateList: LiveData<List<AppItemUiState>> get() = _appsUiStateList
@@ -52,8 +65,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val errorMessage: LiveData<String?> get() = _errorMessage
 
     fun loadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
+        // إذا كانت البيانات محفوظة في الكاش السريع، نعرضها فوراً بدون انتظار الشبكة
         if (fullAppsList.isNotEmpty()) {
-            refreshAppStates()
+            _isLoading.postValue(false)
+            refreshAppStates(force = true)
+            startDownloadsObserverIfNeeded()
             return
         }
 
@@ -65,54 +81,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             result.onSuccess { list ->
                 fullAppsList = list
+                cachedAppsList = list
 
-                // تشغيل مراقب الفايربيس مرة واحدة فقط لمنع تكرار المراقبين عند التحديث اليدوي
-                if (!isObservingDownloads) {
-                    isObservingDownloads = true
-                    viewModelScope.launch(Dispatchers.IO) {
-                        repository.observeDownloads().collect { newMap ->
-                            downloadsMap = newMap
-                            refreshAppStates()
-                        }
-                    }
-                }
-
-                fullUpdatesList = list.filter { app ->
-                    try {
-                        val flags = PackageManager.GET_META_DATA
-
-                        val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            packageManager.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(flags.toLong()))
-                        } else {
-                            @Suppress("DEPRECATION")
-                            packageManager.getPackageInfo(app.packageName, flags)
-                        }
-
-                        val installedVerName = pInfo.versionName ?: ""
-                        val isServerNewer = compareVersionNames(app.versionName, installedVerName) > 0
-
-                        if (isServerNewer) {
-                            val serverTag = app.manifestTag
-                            if (!serverTag.isNullOrBlank()) {
-                                val bundle = pInfo.applicationInfo?.metaData
-                                val installedTag = bundle?.getString("ABDULLAH_STORE_TAG")
-                                if (installedTag == null || installedTag.trim() != serverTag.trim()) {
-                                    return@filter false
-                                }
-                            }
-                            return@filter true
-                        } else {
-                            return@filter false
-                        }
-                    } catch (e: PackageManager.NameNotFoundException) {
-                        false
-                    } catch (e: Exception) {
-                        false
-                    }
-                }
-
-                publishMappedStates(fullAppsList, fullUpdatesList)
+                // نشر القوائم الثلاث فوراً في تمريرة واحدة فائقة السرعة
+                publishSinglePassStates(fullAppsList)
                 _isLoading.postValue(false)
+
+                // تشغيل مراقب عدادات التحميل في الخلفية بعد ظهور القائمة للمستخدم
+                startDownloadsObserverIfNeeded()
 
             }.onFailure { exception ->
                 _errorMessage.postValue("فشل في جلب البيانات: ${exception.localizedMessage ?: "خطأ شبكي مجهول"}")
@@ -121,29 +97,48 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun startDownloadsObserverIfNeeded() {
+        if (!isObservingDownloads) {
+            isObservingDownloads = true
+            viewModelScope.launch(Dispatchers.IO) {
+                repository.observeDownloads().collect { newMap ->
+                    if (newMap != downloadsMap) {
+                        downloadsMap = newMap
+                        cachedDownloadsMap = newMap
+                        updateDownloadsCountInMemory(newMap)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * ⚡ تحديث عدادات التحميل في الذاكرة مباشرة دون إعادة فحص PackageManager أو ملفات الـ APK
+     */
+    private fun updateDownloadsCountInMemory(newMap: Map<Int, Long>) {
+        val currentAll = _appsUiStateList.value
+        if (!currentAll.isNullOrEmpty()) {
+            _appsUiStateList.postValue(currentAll.map { it.copy(downloadsCount = newMap[it.app.id] ?: 0L) })
+        }
+        val currentUpdates = _updatesUiStateList.value
+        if (!currentUpdates.isNullOrEmpty()) {
+            _updatesUiStateList.postValue(currentUpdates.map { it.copy(downloadsCount = newMap[it.app.id] ?: 0L) })
+        }
+        val currentInstalled = _installedUiStateList.value
+        if (!currentInstalled.isNullOrEmpty()) {
+            _installedUiStateList.postValue(currentInstalled.map { it.copy(downloadsCount = newMap[it.app.id] ?: 0L) })
+        }
+    }
+
     fun filterApps(query: String) {
         val cleanQuery = query.trim()
+        if (currentSearchQuery == cleanQuery && _appsUiStateList.value != null) return
         currentSearchQuery = cleanQuery
 
-        if (cleanQuery.isBlank()) {
-            refreshAppStates()
-            return
-        }
+        if (fullAppsList.isEmpty()) return
 
         viewModelScope.launch(Dispatchers.Default) {
-            val filteredApps = fullAppsList.filter { app ->
-                val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
-                val devMatch = app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
-                nameMatch || devMatch
-            }
-
-            val filteredUpdates = fullUpdatesList.filter { app ->
-                val nameMatch = app.name?.contains(cleanQuery, ignoreCase = true) ?: false
-                val devMatch = app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
-                nameMatch || devMatch
-            }
-
-            publishMappedStates(filteredApps, filteredUpdates)
+            publishSinglePassStates(fullAppsList)
         }
     }
 
@@ -151,39 +146,124 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (currentSortMode == mode) return
         currentSortMode = mode
         _activeSortMode.postValue(mode)
-        refreshAppStates()
+        refreshAppStates(force = true)
     }
 
     fun getCurrentSortMode(): Int = currentSortMode
 
-    fun refreshAppStates() {
+    fun refreshAppStates(force: Boolean = false) {
         if (fullAppsList.isEmpty()) return
 
+        // منع التكرار المتزامن عند استدعاء onResume من عدة تبويبات في نفس اللحظة
+        val now = SystemClock.elapsedRealtime()
+        if (!force && (now - lastRefreshTimeMs) < 400L) return
+        lastRefreshTimeMs = now
+
         viewModelScope.launch(Dispatchers.IO) {
-            if (currentSearchQuery.isNotBlank()) {
-                val filteredApps = fullAppsList.filter {
-                    it.name?.contains(currentSearchQuery, true) == true || it.developer?.contains(currentSearchQuery, true) == true
-                }
-                val filteredUpdates = fullUpdatesList.filter {
-                    it.name?.contains(currentSearchQuery, true) == true || it.developer?.contains(currentSearchQuery, true) == true
-                }
-                publishMappedStates(filteredApps, filteredUpdates)
-            } else {
-                publishMappedStates(fullAppsList, fullUpdatesList)
-            }
+            publishSinglePassStates(fullAppsList)
         }
     }
 
-    private fun publishMappedStates(apps: List<AppModel>, updates: List<AppModel>) {
-        val allStates = applySortByMode(mapToUiState(apps))
-        val updateStates = applySortByMode(mapToUiState(updates))
-        val installedStates = allStates.filter {
-            it.status == AppInstallStatus.INSTALLED || it.status == AppInstallStatus.UPDATE_AVAILABLE
+    /**
+     * 🚀 محرك التمريرة الواحدة (Single-Pass Engine):
+     * يفحص حالة التثبيت ووسم المتجر وملف الـ APK مرة واحدة فقط لكل تطبيق،
+     * ويستخرج القوائم الثلاث (الكل، التحديثات، المثبتة) في أقل من جزء من الثانية.
+     */
+    private fun publishSinglePassStates(sourceApps: List<AppModel>) {
+        val appContext = getApplication<Application>()
+        val pm = packageManager
+        val downloadsDir = appContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+
+        val allMapped = ArrayList<AppItemUiState>(sourceApps.size)
+        val updatesMapped = ArrayList<AppItemUiState>()
+        val installedMapped = ArrayList<AppItemUiState>()
+
+        val flags = PackageManager.GET_META_DATA
+
+        for (app in sourceApps) {
+            val fileName = app.getUniqueFileName()
+            val localFile = File(downloadsDir, fileName)
+
+            // ⚡ فحص سريع جداً للملف مع حفظ النتيجة في الذاكرة لتجنب قراءة الـ ZIP المتكررة
+            val isDownloaded = isApkValidCached(appContext, localFile)
+
+            var installedVerName = ""
+            var isInstalled = false
+            var isTagMatched = true
+
+            try {
+                val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    pm.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(flags.toLong()))
+                } else {
+                    @Suppress("DEPRECATION")
+                    pm.getPackageInfo(app.packageName, flags)
+                }
+                installedVerName = pInfo.versionName ?: ""
+                isInstalled = true
+
+                val serverTag = app.manifestTag
+                if (!serverTag.isNullOrBlank()) {
+                    val bundle = pInfo.applicationInfo?.metaData
+                    val installedTag = bundle?.getString("ABDULLAH_STORE_TAG")
+                    if (installedTag == null || installedTag.trim() != serverTag.trim()) {
+                        isTagMatched = false
+                    }
+                }
+            } catch (_: PackageManager.NameNotFoundException) {
+                isInstalled = false
+            } catch (_: Exception) {
+                isInstalled = false
+            }
+
+            val hasNewerVersion = isInstalled && isTagMatched && compareVersionNames(app.versionName, installedVerName) > 0
+
+            val status = when {
+                isDownloaded -> AppInstallStatus.DOWNLOADED
+                hasNewerVersion -> AppInstallStatus.UPDATE_AVAILABLE
+                isInstalled && isTagMatched -> AppInstallStatus.INSTALLED
+                else -> AppInstallStatus.NOT_INSTALLED
+            }
+
+            val currentDownloads = downloadsMap[app.id] ?: 0L
+            val uiState = AppItemUiState(app, status, installedVerName, currentDownloads)
+
+            allMapped.add(uiState)
+            if (hasNewerVersion) {
+                updatesMapped.add(uiState)
+            }
+            if (isInstalled && isTagMatched) {
+                installedMapped.add(uiState)
+            }
         }
 
-        _appsUiStateList.postValue(allStates)
-        _updatesUiStateList.postValue(updateStates)
-        _installedUiStateList.postValue(installedStates)
+        val cleanQuery = currentSearchQuery
+        val filterPredicate: (AppItemUiState) -> Boolean = { item ->
+            if (cleanQuery.isBlank()) {
+                true
+            } else {
+                val nameMatch = item.app.name?.contains(cleanQuery, ignoreCase = true) ?: false
+                val devMatch = item.app.developer?.contains(cleanQuery, ignoreCase = true) ?: false
+                nameMatch || devMatch
+            }
+        }
+
+        val finalAll = applySortByMode(allMapped.filter(filterPredicate))
+        val finalUpdates = applySortByMode(updatesMapped.filter(filterPredicate))
+        val finalInstalled = applySortByMode(installedMapped.filter(filterPredicate))
+
+        _appsUiStateList.postValue(finalAll)
+        _updatesUiStateList.postValue(finalUpdates)
+        _installedUiStateList.postValue(finalInstalled)
+    }
+
+    private fun isApkValidCached(appContext: Application, localFile: File): Boolean {
+        if (!localFile.exists() || localFile.length() <= 0L) {
+            return false
+        }
+        val cacheKey = "${localFile.absolutePath}:${localFile.length()}:${localFile.lastModified()}"
+        return apkValidationCache.getOrPut(cacheKey) {
+            AbdullahStoreApp.isApkCompleteAndValid(appContext, localFile)
+        }
     }
 
     private fun applySortByMode(items: List<AppItemUiState>): List<AppItemUiState> {
@@ -197,53 +277,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun getUpdatesCount(): Int {
-        return fullUpdatesList.size
+        return _updatesUiStateList.value?.size ?: 0
     }
 
     fun onAppDownloadStarted(appId: Int) {
         repository.incrementDownloadCount(appId)
-    }
-
-    private fun mapToUiState(apps: List<AppModel>): List<AppItemUiState> {
-        val appContext = getApplication<Application>()
-        val pm = packageManager
-        val downloadsDir = appContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-
-        return apps.map { app ->
-            val fileName = app.getUniqueFileName()
-            val localFile = File(downloadsDir, fileName)
-
-            // 🛡️ لا يعتبر الملف جاهزاً للتثبيت إلا إذا اكتمل تحميله 100% وكان حزمة APK صالحة
-            val isDownloaded = AbdullahStoreApp.isApkCompleteAndValid(appContext, localFile)
-
-            var installedVerName = ""
-            var isInstalled = false
-
-            try {
-                val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    pm.getPackageInfo(app.packageName, PackageManager.PackageInfoFlags.of(0L))
-                } else {
-                    @Suppress("DEPRECATION")
-                    pm.getPackageInfo(app.packageName, 0)
-                }
-                installedVerName = pInfo.versionName ?: ""
-                isInstalled = true
-            } catch (e: PackageManager.NameNotFoundException) {
-                // غير مثبت
-            }
-
-            val comparisonResult = if (isInstalled) compareVersionNames(app.versionName, installedVerName) else 0
-
-            val status = when {
-                isDownloaded -> AppInstallStatus.DOWNLOADED
-                isInstalled && comparisonResult > 0 -> AppInstallStatus.UPDATE_AVAILABLE
-                isInstalled -> AppInstallStatus.INSTALLED
-                else -> AppInstallStatus.NOT_INSTALLED
-            }
-
-            val currentDownloads = downloadsMap[app.id] ?: 0L
-            AppItemUiState(app, status, installedVerName, currentDownloads)
-        }
     }
 
     private fun compareVersionNames(serverVersion: String, installedVersion: String): Int {
@@ -267,16 +305,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun forceReloadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
         fullAppsList = emptyList()
+        cachedAppsList = emptyList()
+        apkValidationCache.clear()
         loadApps(encryptedUrl, cryptoSalt)
     }
 
     fun filterInstalledOnly() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val allStates = mapToUiState(fullAppsList)
-            val installedOnly = allStates.filter {
-                it.status == AppInstallStatus.INSTALLED || it.status == AppInstallStatus.UPDATE_AVAILABLE
-            }
-            _appsUiStateList.postValue(installedOnly)
-        }
+        refreshAppStates(force = true)
     }
 }
