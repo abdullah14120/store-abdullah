@@ -6,7 +6,17 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.StateListDrawable
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -568,13 +578,152 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupTabs() {
         binding.viewPagerMain.adapter = MainPagerAdapter(this)
+
+        val colorPrimary = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
+        val colorOnSurfaceVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnSurfaceVariant)
+
+        val tabColorStates = ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_selected),
+                intArrayOf(-android.R.attr.state_selected)
+            ),
+            intArrayOf(colorPrimary, colorOnSurfaceVariant)
+        )
+
+        binding.tabLayoutMain.tabIconTint = tabColorStates
+        binding.tabLayoutMain.tabTextColors = tabColorStates
+
         TabLayoutMediator(binding.tabLayoutMain, binding.viewPagerMain) { tab, position ->
             tab.text = when (position) {
                 0 -> "التطبيقات"
                 1 -> "التحديثات"
                 else -> "المثبتة بهاتفي"
             }
+            tab.icon = createBottomNavStateIcon(position)
         }.attach()
+
+        // مستوحى من CentralActivity.C4 (onTabReselected): الضغط على التبويب النشط يعيد فتح الهيدر العلوي بسلاسة
+        binding.tabLayoutMain.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
+            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
+            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
+                binding.appBar.setExpanded(true, true)
+            }
+        })
+    }
+
+    /**
+     * 🎨 توليد أيقونات التبويبات السفلية (24dp) بأسلوب تطبيق Outlook و Google Play:
+     * تكون الأيقونة مفرغة (Outlined) في الوضع العادي، وممتلئة (Filled) عند تحديد التبويب.
+     */
+    private fun createBottomNavStateIcon(position: Int): Drawable {
+        val stateList = StateListDrawable()
+        val selectedDrawable = drawTabVectorBitmap(position, isSelected = true)
+        val unselectedDrawable = drawTabVectorBitmap(position, isSelected = false)
+
+        stateList.addState(intArrayOf(android.R.attr.state_selected), selectedDrawable)
+        stateList.addState(intArrayOf(), unselectedDrawable)
+        return stateList
+    }
+
+    private fun drawTabVectorBitmap(position: Int, isSelected: Boolean): Drawable {
+        val density = resources.displayMetrics.density
+        val sizePx = (24 * density).toInt().coerceAtLeast(48)
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val s = sizePx.toFloat()
+        val strokeW = 1.9f * density
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = if (isSelected) Paint.Style.FILL else Paint.Style.STROKE
+            strokeWidth = strokeW
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+
+        when (position) {
+            0 -> {
+                // أيقونة شبكة التطبيقات الرباعية (مطابقة لأيقونة "التطبيقات" في شريط Outlook السفلي)
+                val gap = s * 0.08f
+                val margin = s * 0.14f
+                val boxSize = (s - (margin * 2) - gap) / 2f
+                val radius = boxSize * 0.26f
+
+                val r1 = RectF(margin, margin, margin + boxSize, margin + boxSize)
+                val r2 = RectF(margin + boxSize + gap, margin, s - margin, margin + boxSize)
+                val r3 = RectF(margin, margin + boxSize + gap, margin + boxSize, s - margin)
+                val r4 = RectF(margin + boxSize + gap, margin + boxSize + gap, s - margin, s - margin)
+
+                canvas.drawRoundRect(r1, radius, radius, paint)
+                canvas.drawRoundRect(r2, radius, radius, paint)
+                canvas.drawRoundRect(r3, radius, radius, paint)
+                canvas.drawRoundRect(r4, radius, radius, paint)
+            }
+            1 -> {
+                // أيقونة التحديثات (إطار دائري ناعم مع سهم ترقية علوي)
+                val pad = s * 0.13f
+                val rect = RectF(pad, pad, s - pad, s - pad)
+                val radius = s * 0.24f
+
+                val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = if (isSelected) Color.BLACK else Color.WHITE
+                    style = Paint.Style.STROKE
+                    strokeWidth = strokeW
+                    strokeCap = Paint.Cap.ROUND
+                    strokeJoin = Paint.Join.ROUND
+                    if (isSelected) {
+                        xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_OUT)
+                    }
+                }
+
+                canvas.drawRoundRect(rect, radius, radius, paint)
+
+                val cx = s * 0.5f
+                val topY = s * 0.30f
+                val botY = s * 0.70f
+                val wing = s * 0.16f
+
+                val arrowPath = Path().apply {
+                    moveTo(cx, botY)
+                    lineTo(cx, topY)
+                    moveTo(cx - wing, topY + wing)
+                    lineTo(cx, topY)
+                    lineTo(cx + wing, topY + wing)
+                }
+                canvas.drawPath(arrowPath, arrowPaint)
+            }
+            else -> {
+                // أيقونة المثبتة بهاتفي (هاتف ذكي مع علامة صح بالداخل)
+                val left = s * 0.24f
+                val top = s * 0.10f
+                val right = s * 0.76f
+                val bottom = s * 0.90f
+                val radius = s * 0.12f
+
+                canvas.drawRoundRect(RectF(left, top, right, bottom), radius, radius, paint)
+
+                val checkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = if (isSelected) Color.BLACK else Color.WHITE
+                    style = Paint.Style.STROKE
+                    strokeWidth = strokeW * 0.95f
+                    strokeCap = Paint.Cap.ROUND
+                    strokeJoin = Paint.Join.ROUND
+                    if (isSelected) {
+                        xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_OUT)
+                    }
+                }
+
+                val checkPath = Path().apply {
+                    moveTo(s * 0.38f, s * 0.52f)
+                    lineTo(s * 0.47f, s * 0.61f)
+                    lineTo(s * 0.63f, s * 0.43f)
+                }
+                canvas.drawPath(checkPath, checkPaint)
+            }
+        }
+
+        return BitmapDrawable(resources, bitmap)
     }
 
     private fun setupSearchLogic() {
