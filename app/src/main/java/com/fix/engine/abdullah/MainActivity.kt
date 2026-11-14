@@ -23,14 +23,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.app.ActivityOptionsCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
-import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
@@ -50,16 +47,14 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Official Runtime Core)
- * Feature: Hero Spotlight Banner, Synced Day/Night Theme & Smart Diagnostics
+ * Feature: JNI C++ Security, Synced Day/Night Theme Switcher, Hero Spotlight, Smart Sort & Storage Manager
  */
 class MainActivity : AppCompatActivity() {
 
@@ -73,11 +68,25 @@ class MainActivity : AppCompatActivity() {
 
     private var isNotificationSent = false
     private var isUpdatingThemeProgrammatically = false
-    private var activeErrorDialog: AlertDialog? = null
 
     private var spotlightApps: List<AppItemUiState> = emptyList()
     private var currentSpotlightIndex = 0
-    private var spotlightRotationJob: Job? = null
+
+    private val sortLabels = arrayOf(
+        "الأحدث والإصدارات المميزة ✨",
+        "الأكثر تحميلاً وشعبية 🔥",
+        "الترتيب الأبجدي (أ - ي) 🔤",
+        "الحجم (من الأصغر للأكبر) 📦",
+        "الحجم (من الأكبر للأصغر) 💎"
+    )
+
+    private val sortShortLabels = arrayOf(
+        "الأحدث ✨",
+        "الأكثر تحميلاً 🔥",
+        "أبجدياً 🔤",
+        "الأصغر حجماً 📦",
+        "الأكبر حجماً 💎"
+    )
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -97,12 +106,6 @@ class MainActivity : AppCompatActivity() {
     private external fun getSecureRepoUrl(): String
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
-        val savedTheme = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        if (AppCompatDelegate.getDefaultNightMode() != savedTheme) {
-            AppCompatDelegate.setDefaultNightMode(savedTheme)
-        }
-
         super.onCreate(savedInstanceState)
 
         verifySignatureNative(applicationContext)
@@ -127,17 +130,6 @@ class MainActivity : AppCompatActivity() {
         refreshData()
     }
 
-    private fun isInternetAvailable(): Boolean {
-        return try {
-            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = cm.activeNetwork ?: return false
-            val capabilities = cm.getNetworkCapabilities(network) ?: return false
-            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-        } catch (e: Exception) {
-            false
-        }
-    }
-
     private fun registerNetworkMonitoring() {
         try {
             connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -147,10 +139,11 @@ class MainActivity : AppCompatActivity() {
                     super.onAvailable(network)
                     runOnUiThread {
                         if (isFinishing || isDestroyed) return@runOnUiThread
-                        activeErrorDialog?.dismiss()
                         if (!isDataLoadedSuccessfully) {
                             Toast.makeText(this@MainActivity, "تم استعادة الاتصال! جاري مزامنة المتجر... 🔄", Toast.LENGTH_SHORT).show()
                             refreshData()
+                        } else {
+                            Toast.makeText(this@MainActivity, "متصل بالإنترنت ✨", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -159,7 +152,7 @@ class MainActivity : AppCompatActivity() {
                     super.onLost(network)
                     runOnUiThread {
                         if (isFinishing || isDestroyed) return@runOnUiThread
-                        Toast.makeText(this@MainActivity, "تنبيه: انقطع الاتصال بالإنترنت 🌐", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainActivity, "عذراً، انقطع الاتصال بالإنترنت!", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -180,12 +173,10 @@ class MainActivity : AppCompatActivity() {
         if (!isNetworkCallbackRegistered) {
             registerNetworkMonitoring()
         }
-        startSpotlightAutoRotation()
     }
 
     override fun onStop() {
         super.onStop()
-        spotlightRotationJob?.cancel()
         if (isNetworkCallbackRegistered) {
             try {
                 connectivityManager.unregisterNetworkCallback(networkCallback)
@@ -195,10 +186,6 @@ class MainActivity : AppCompatActivity() {
             isNetworkCallbackRegistered = false
         }
     }
-
-    // ====================================================================
-    // 👑 محرك البانر التفاعلي للتطبيقات المميزة (Hero Spotlight Carousel)
-    // ====================================================================
 
     private fun updateSpotlightList(allStates: List<AppItemUiState>) {
         val candidates = allStates.filter { it.app.packageName != packageName }
@@ -216,112 +203,70 @@ class MainActivity : AppCompatActivity() {
 
         if (shouldShowHero) {
             currentSpotlightIndex = currentSpotlightIndex.coerceIn(0, spotlightApps.lastIndex)
-            bindSpotlightCard(spotlightApps[currentSpotlightIndex], animate = false)
-            startSpotlightAutoRotation()
-        } else {
-            spotlightRotationJob?.cancel()
+            bindSpotlightCard(spotlightApps[currentSpotlightIndex])
         }
     }
 
-    private fun startSpotlightAutoRotation() {
-        spotlightRotationJob?.cancel()
-        if (spotlightApps.size <= 1) return
-
-        spotlightRotationJob = lifecycleScope.launch {
-            while (isActive) {
-                delay(5500)
-                if (!isFinishing && !isDestroyed && binding.cardHeroSpotlight.isVisible && spotlightApps.size > 1) {
-                    currentSpotlightIndex = (currentSpotlightIndex + 1) % spotlightApps.size
-                    bindSpotlightCard(spotlightApps[currentSpotlightIndex], animate = true)
-                }
-            }
-        }
-    }
-
-    private fun bindSpotlightCard(uiState: AppItemUiState, animate: Boolean) {
+    private fun bindSpotlightCard(uiState: AppItemUiState) {
         val app = uiState.app
 
-        val updateAction = Runnable {
-            binding.txtHeroIndicator.text = "${currentSpotlightIndex + 1} / ${spotlightApps.size}"
-            binding.txtHeroTitle.text = app.name
-            val sizeText = app.getFormattedSize().ifBlank { "نسخة رسمية" }
-            binding.txtHeroSub.text = "${app.developer}  •  v${app.versionName}  •  $sizeText"
+        binding.txtHeroIndicator.text = "التالي ⟳ (${currentSpotlightIndex + 1}/${spotlightApps.size})"
+        binding.txtHeroTitle.text = app.name
+        val sizeText = app.getFormattedSize().ifBlank { "نسخة رسمية" }
+        binding.txtHeroSub.text = "${app.developer}  •  v${app.versionName}  •  $sizeText"
 
-            when (uiState.status) {
-                AppInstallStatus.UPDATE_AVAILABLE -> {
-                    binding.txtHeroBadge.text = "🚀 تحديث هام متوفر الآن"
-                    binding.btnHeroAction.text = "تحديث"
-                }
-                AppInstallStatus.DOWNLOADED -> {
-                    binding.txtHeroBadge.text = "✨ جاهز للتثبيت الفوري"
-                    binding.btnHeroAction.text = "تثبيت"
-                }
-                AppInstallStatus.INSTALLED -> {
-                    binding.txtHeroBadge.text = "👑 مثبت ومحدث على جهازك"
-                    binding.btnHeroAction.text = "فتح"
-                }
-                AppInstallStatus.NOT_INSTALLED -> {
-                    binding.txtHeroBadge.text = "👑 مختارات المتجر • أحدث إصدار"
-                    binding.btnHeroAction.text = "تنزيل"
-                }
+        when (uiState.status) {
+            AppInstallStatus.UPDATE_AVAILABLE -> {
+                binding.txtHeroBadge.text = "🚀 تحديث هام متوفر الآن"
+                binding.btnHeroAction.text = "تحديث"
             }
-
-            Glide.with(this)
-                .load(app.iconUrl)
-                .placeholder(R.mipmap.ic_launcher)
-                .error(R.mipmap.ic_launcher)
-                .dontAnimate()
-                .into(binding.imgHeroIcon)
-
-            Glide.with(this)
-                .load(app.iconUrl)
-                .placeholder(R.mipmap.ic_launcher)
-                .error(R.mipmap.ic_launcher)
-                .dontAnimate()
-                .into(binding.imgHeroWatermark)
-
-            val openDetails = {
-                val intent = Intent(this, AppDetailsActivity::class.java).apply {
-                    putExtra("APP_DATA", app)
-                }
-                val uniqueTransitionName = "transition_app_icon_${app.packageName}"
-                ViewCompat.setTransitionName(binding.imgHeroIcon, uniqueTransitionName)
-                val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
-                    this,
-                    binding.imgHeroIcon,
-                    uniqueTransitionName
-                )
-                startActivity(intent, options.toBundle())
+            AppInstallStatus.DOWNLOADED -> {
+                binding.txtHeroBadge.text = "✨ جاهز للتثبيت الفوري"
+                binding.btnHeroAction.text = "تثبيت"
             }
-
-            binding.cardHeroSpotlight.setOnClickListener { openDetails() }
-            binding.btnHeroAction.setOnClickListener { openDetails() }
+            AppInstallStatus.INSTALLED -> {
+                binding.txtHeroBadge.text = "👑 مثبت ومحدث على جهازك"
+                binding.btnHeroAction.text = "فتح"
+            }
+            AppInstallStatus.NOT_INSTALLED -> {
+                binding.txtHeroBadge.text = "👑 مختارات المتجر • أحدث إصدار"
+                binding.btnHeroAction.text = "تنزيل"
+            }
         }
 
-        if (animate) {
-            binding.cardHeroSpotlight.animate()
-                .alpha(0.65f)
-                .scaleX(0.98f)
-                .scaleY(0.98f)
-                .setDuration(140)
-                .withEndAction {
-                    updateAction.run()
-                    binding.cardHeroSpotlight.animate()
-                        .alpha(1f)
-                        .scaleX(1f)
-                        .scaleY(1f)
-                        .setDuration(200)
-                        .start()
-                }
-                .start()
-        } else {
-            updateAction.run()
+        Glide.with(this)
+            .load(app.iconUrl)
+            .placeholder(R.mipmap.ic_launcher)
+            .error(R.mipmap.ic_launcher)
+            .dontAnimate()
+            .into(binding.imgHeroIcon)
+
+        Glide.with(this)
+            .load(app.iconUrl)
+            .placeholder(R.mipmap.ic_launcher)
+            .error(R.mipmap.ic_launcher)
+            .dontAnimate()
+            .into(binding.imgHeroWatermark)
+
+        binding.txtHeroIndicator.setOnClickListener {
+            if (spotlightApps.size > 1) {
+                currentSpotlightIndex = (currentSpotlightIndex + 1) % spotlightApps.size
+                bindSpotlightCard(spotlightApps[currentSpotlightIndex])
+            }
+        }
+
+        binding.cardHeroSpotlight.setOnClickListener {
+            startActivity(Intent(this, AppDetailsActivity::class.java).apply {
+                putExtra("APP_DATA", app)
+            })
+        }
+
+        binding.btnHeroAction.setOnClickListener {
+            startActivity(Intent(this, AppDetailsActivity::class.java).apply {
+                putExtra("APP_DATA", app)
+            })
         }
     }
-
-    // ====================================================================
-    // 🎨 إدارة المظهر والقائمة الجانبية
-    // ====================================================================
 
     private fun applyThemeMode(targetMode: Int, toggleGroup: MaterialButtonToggleGroup?, showToast: Boolean) {
         val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
@@ -433,59 +378,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showSmartRepoDiagnosticDialog() {
+    private fun showRepoStatusDialog() {
         if (isFinishing || isDestroyed) return
-        activeErrorDialog?.dismiss()
-
-        val hasInternet = isInternetAvailable()
-
-        val builder = MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-            .setCancelable(true)
-
-        if (!hasInternet) {
-            builder.setTitle("لا يوجد اتصال بالإنترنت 🌐")
-                .setMessage(
-                    "يبدو أن جهازك غير متصل بالإنترنت حالياً.\n\n" +
-                            "• يرجى التحقق من اتصال الشبكة (Wi-Fi أو بيانات الهاتف).\n" +
-                            "• سيقوم المتجر بجلب ومزامنة التطبيقات تلقائياً فور عودة الاتصال."
-                )
-                .setPositiveButton("إعادة المحاولة 🔄") { dialog, _ ->
-                    dialog.dismiss()
-                    refreshData()
-                }
-                .setNeutralButton("إعدادات الشبكة ⚙️") { dialog, _ ->
-                    dialog.dismiss()
-                    try {
-                        startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
-                    } catch (_: Exception) {
-                        try {
-                            startActivity(Intent(Settings.ACTION_SETTINGS))
-                        } catch (_: Exception) {}
-                    }
-                }
-                .setNegativeButton("إغلاق", null)
-        } else {
-            builder.setTitle("تحديث المستودع جاري الآن 🛠️")
-                .setMessage(
-                    "اتصالك بالإنترنت يعمل بشكل سليم، ولكن يتعذر قراءة قائمة التطبيقات مؤقتاً لأحد الأسباب التالية:\n\n" +
-                            "📦 جاري حالياً رفع تطبيقات أو إصدارات حديثة إلى المستودع.\n" +
-                            "🔧 أو يتم إجراء عملية إصلاح وتحديث سريعة لقاعدة البيانات (JSON).\n\n" +
-                            "يرجى الانتظار لحظات قليلة ثم الضغط على إعادة المحاولة."
-                )
-                .setPositiveButton("إعادة المحاولة الآن 🔄") { dialog, _ ->
-                    dialog.dismiss()
-                    try {
-                        val secureUrl = getSecureRepoUrl()
-                        viewModel.forceReloadApps(secureUrl.toByteArray(Charsets.UTF_8), 0.toByte())
-                    } catch (e: Exception) {
-                        refreshData()
-                    }
-                }
-                .setNegativeButton("حسناً، سأنتظر", null)
-        }
-
-        activeErrorDialog = builder.create()
-        activeErrorDialog?.show()
+        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setTitle("تنبيه مزامنة المتجر 🌐")
+            .setMessage(
+                "تعذر الوصول إلى قائمة التطبيقات في الوقت الحالي، وقد يعود ذلك إلى أحد الأسباب التالية:\n\n" +
+                        "• عدم استقرار أو انقطاع الاتصال بالإنترنت في جهازك.\n" +
+                        "• أو جاري حالياً رفع تطبيقات حديثة وتحديث ملف المستودع (JSON).\n\n" +
+                        "يرجى التحقق من الشبكة أو الانتظار لحظات ثم الضغط على إعادة المحاولة."
+            )
+            .setPositiveButton("إعادة المحاولة 🔄") { dialog, _ ->
+                dialog.dismiss()
+                refreshData()
+            }
+            .setNegativeButton("حسناً", null)
+            .show()
     }
 
     private fun showAboutDeveloperDialog() {
@@ -684,12 +592,15 @@ class MainActivity : AppCompatActivity() {
             binding.etSearch.clearFocus()
         }
 
+        binding.btnSortApps.setOnClickListener {
+            showSortOptionsDialog()
+        }
+        binding.txtActiveSortLabel.setOnClickListener {
+            showSortOptionsDialog()
+        }
+
         binding.btnRefreshMain.setOnClickListener { view ->
             view.animate().rotationBy(360f).setDuration(600).start()
-            if (!isInternetAvailable()) {
-                showSmartRepoDiagnosticDialog()
-                return@setOnClickListener
-            }
             Toast.makeText(this, "جاري تحديث قائمة التطبيقات... 🔄", Toast.LENGTH_SHORT).show()
             try {
                 val secureUrl = getSecureRepoUrl()
@@ -722,6 +633,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showSortOptionsDialog() {
+        if (isFinishing || isDestroyed) return
+        val currentIndex = viewModel.getCurrentSortMode().coerceIn(0, sortLabels.lastIndex)
+
+        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
+            .setTitle("ترتيب التطبيقات حسب ⇅")
+            .setSingleChoiceItems(sortLabels, currentIndex) { dialog, which ->
+                viewModel.setSortMode(which)
+                dialog.dismiss()
+            }
+            .setNegativeButton("إلغاء", null)
+            .show()
+    }
+
     private fun setupSearchAnimation() {
         val colorPrimary = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
         val colorOutlineVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOutlineVariant)
@@ -747,12 +672,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        viewModel.activeSortMode.observe(this) { mode ->
+            val safeIdx = (mode ?: 0).coerceIn(0, sortShortLabels.lastIndex)
+            binding.txtActiveSortLabel.text = "الترتيب: ${sortShortLabels[safeIdx]}"
+        }
+
         viewModel.appsUiStateList.observe(this) { uiStates ->
             if (uiStates != null) {
                 binding.txtCatalogSummary.text = "متوفر ${uiStates.size} تطبيق في القائمة"
                 if (uiStates.isNotEmpty()) {
                     isDataLoadedSuccessfully = true
-                    activeErrorDialog?.dismiss()
                     val apps = uiStates.map { it.app }
                     checkMandatoryUpdate(apps)
 
@@ -784,31 +713,38 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // ⚠️ تم حذف observer الخاص بـ installedUiStateList (شارة عدد التطبيقات المثبتة)
-        // لتقليل بصمة المراقبة على Play Protect. التبويب "المثبتة بهاتفي" يعمل بشكل طبيعي
-        // لكن بدون شارة رقمية.
+        viewModel.installedUiStateList.observe(this) { installedStates ->
+            if (installedStates != null) {
+                val installedCount = installedStates.size
+                val installedTab = binding.tabLayoutMain.getTabAt(2)
+                val badge = installedTab?.orCreateBadge
 
-        viewModel.errorMessage.observe(this) { errorMsg ->
-            if (!errorMsg.isNullOrBlank()) {
+                if (installedCount > 0) {
+                    badge?.isVisible = true
+                    badge?.number = installedCount
+                    badge?.backgroundColor = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
+                } else {
+                    badge?.isVisible = false
+                }
+            }
+        }
+
+        viewModel.errorMessage.observe(this) {
+            it?.let {
                 isDataLoadedSuccessfully = false
-                showSmartRepoDiagnosticDialog()
+                showRepoStatusDialog()
             }
         }
     }
 
     private fun refreshData() {
-        if (!isInternetAvailable()) {
-            isDataLoadedSuccessfully = false
-            showSmartRepoDiagnosticDialog()
-            return
-        }
         try {
             val secureUrl = getSecureRepoUrl()
             val urlBytes = secureUrl.toByteArray(Charsets.UTF_8)
             viewModel.loadApps(urlBytes, 0.toByte())
         } catch (e: Exception) {
+            Toast.makeText(this, "خطأ في معالجة بوابة الأمان", Toast.LENGTH_LONG).show()
             isDataLoadedSuccessfully = false
-            showSmartRepoDiagnosticDialog()
         }
     }
 
