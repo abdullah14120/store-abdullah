@@ -532,20 +532,6 @@
                 </LinearLayout>
             </com.google.android.material.appbar.CollapsingToolbarLayout>
 
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tabLayoutMain"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:background="?android:attr/colorBackground"
-                app:tabIndicatorColor="?attr/colorPrimary"
-                app:tabIndicatorFullWidth="false"
-                app:tabIndicatorGravity="bottom"
-                app:tabIndicatorHeight="3dp"
-                app:tabRippleColor="@android:color/transparent"
-                app:tabSelectedTextColor="?attr/colorPrimary"
-                app:tabTextAppearance="@style/CustomTabText"
-                app:tabTextColor="?attr/colorOnSurfaceVariant" />
-
             <ProgressBar
                 android:id="@+id/progressBar"
                 style="?android:attr/progressBarStyleHorizontal"
@@ -561,8 +547,51 @@
             android:id="@+id/viewPagerMain"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_marginBottom="65dp"
             android:background="?android:attr/colorBackground"
             app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+        <!-- ======================================================== -->
+        <!-- شريط التبويبات السفلي الفخم (بأسلوب Outlook و Google Play) -->
+        <!-- ======================================================== -->
+        <LinearLayout
+            android:id="@+id/bottomNavContainer"
+            android:layout_width="match_parent"
+            android:layout_height="65dp"
+            android:layout_gravity="bottom"
+            android:background="?attr/colorSurface"
+            android:elevation="12dp"
+            android:orientation="vertical">
+
+            <!-- خط فاصل علوي نحيف وأنيق كما في تصميم Outlook -->
+            <View
+                android:id="@+id/bottomNavDivider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:alpha="0.45"
+                android:background="?attr/colorOutlineVariant" />
+
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tabLayoutMain"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:background="?attr/colorSurface"
+                app:tabGravity="fill"
+                app:tabIndicatorColor="?attr/colorPrimary"
+                app:tabIndicatorFullWidth="false"
+                app:tabIndicatorGravity="top"
+                app:tabIndicatorHeight="3dp"
+                app:tabInlineLabel="false"
+                app:tabMaxWidth="0dp"
+                app:tabMode="fixed"
+                app:tabPaddingBottom="6dp"
+                app:tabPaddingTop="6dp"
+                app:tabRippleColor="@android:color/transparent"
+                app:tabSelectedTextColor="?attr/colorPrimary"
+                app:tabTextAppearance="@style/CustomTabText"
+                app:tabTextColor="?attr/colorOnSurfaceVariant" />
+
+        </LinearLayout>
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
