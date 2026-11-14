@@ -113,21 +113,23 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // ⚡ إعطاء الأولوية القصوى لجلب بيانات المستودع فور فتح المتجر
+        refreshData()
+
         setupTabs()
         setupNavigationDrawer()
         setupObservers()
         setupSearchLogic()
         setupSearchAnimation()
-        observeStoreAnnouncement()
 
         checkNotificationPermission()
 
         lifecycleScope.launch {
-            delay(1000)
+            delay(500)
+            observeStoreAnnouncement()
+            delay(500)
             checkInstallPermission()
         }
-
-        refreshData()
     }
 
     private fun registerNetworkMonitoring() {
