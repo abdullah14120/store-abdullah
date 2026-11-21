@@ -24,7 +24,7 @@ import kotlin.random.Random
  * Developed by: Abdullah Al-Tamimi
  * Project: Abdullah Store - Unified Link & Session Engine (gdown + Orion Store)
  * Feature: Shared Persistent OkHttp Session & CookieJar, Google Drive #download-form/UUID Bypass,
- *          FallbackDns (DoH), Exponential Backoff & HTTP/1.1 Split Client
+ *          Exponential Backoff & HTTP/1.1 Split Client
  */
 object LinkExtractor {
 
@@ -77,7 +77,6 @@ object LinkExtractor {
      */
     val sharedDownloadClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
-            .dns(FallbackDns)
             .cookieJar(memoryCookieJar)
             .followRedirects(true)
             .followSslRedirects(true)
