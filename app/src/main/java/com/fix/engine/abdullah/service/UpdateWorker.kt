@@ -17,7 +17,6 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import androidx.work.workDataOf
 import com.fix.engine.abdullah.MainActivity
 import com.fix.engine.abdullah.R
 import com.fix.engine.abdullah.data.repository.AppRepository
@@ -25,30 +24,28 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: متجر Abdullah - Periodic Background Update Checker (Pure Kotlin, Zero Native JNI)
- * Feature: Lazy Scheduling with 12h Initial Delay, Version & Store Tag Comparison
+ * Project: متجر Abdullah - Periodic Background Update Checker (WorkManager)
+ * Feature: Real JSON Version & Store Tag Comparison + Smart Notification Throttling
  */
 class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     companion object {
         private const val UNIQUE_WORK_NAME = "abdullah_store_periodic_update_check"
         private const val PREF_LAST_NOTIFIED_SIG = "last_notified_updates_sig"
-        private const val KEY_REPO_URL = "repo_url"
 
-        fun schedulePeriodicCheck(context: Context, repoUrl: String) {
-            if (repoUrl.isBlank()) return
+        init {
+            System.loadLibrary("native-lib")
+        }
+
+        fun schedulePeriodicCheck(context: Context) {
             runCatching {
                 val constraints = Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .setRequiresBatteryNotLow(true)
                     .build()
 
-                val input = workDataOf(KEY_REPO_URL to repoUrl)
-
                 val request = PeriodicWorkRequestBuilder<UpdateWorker>(12, TimeUnit.HOURS)
-                    .setInitialDelay(12, TimeUnit.HOURS)
                     .setConstraints(constraints)
-                    .setInputData(input)
                     .build()
 
                 WorkManager.getInstance(context.applicationContext).enqueueUniquePeriodicWork(
@@ -59,6 +56,8 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             }
         }
     }
+
+    private external fun getSecureRepoUrl(): String
 
     override suspend fun doWork(): Result {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -71,10 +70,8 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             }
         }
 
-        val secureUrl = inputData.getString(KEY_REPO_URL)?.takeIf { it.isNotBlank() }
-            ?: return Result.success()
-
         return try {
+            val secureUrl = getSecureRepoUrl()
             val repository = AppRepository()
             val result = repository.fetchAppsDirect(secureUrl)
 
