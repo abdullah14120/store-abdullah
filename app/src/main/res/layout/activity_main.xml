@@ -30,26 +30,26 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:paddingHorizontal="18dp"
                     android:paddingTop="16dp"
                     android:paddingBottom="8dp">
 
                     <!-- ========================================== -->
-                    <!-- 1. الهيدر الرئيسي الفخم (الشعار + الاسم + أزرار التحكم) -->
+                    <!-- 1. الهيدر الرئيسي الموحد (أيقونات Vector وإطارات متناسقة) -->
                     <!-- ========================================== -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="18dp"
                         android:layout_marginBottom="14dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
                         <!-- شعار المتجر المتوهج -->
                         <com.google.android.material.card.MaterialCardView
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
+                            android:layout_width="46dp"
+                            android:layout_height="46dp"
                             app:cardBackgroundColor="?attr/colorSurfaceVariant"
-                            app:cardCornerRadius="24dp"
+                            app:cardCornerRadius="23dp"
                             app:cardElevation="0dp"
                             app:strokeColor="?attr/colorPrimary"
                             app:strokeWidth="1.5dp">
@@ -95,7 +95,7 @@
                                 android:textSize="11.5sp" />
                         </LinearLayout>
 
-                        <!-- أزرار الهيدر (تبديل المظهر ☀️/🌙 + التحديث 🔄 + القائمة ☰) -->
+                        <!-- أزرار الهيدر الموحدة (40dp + إطار رفيع + أيقونات Vector) -->
                         <LinearLayout
                             android:id="@+id/layoutHeaderActions"
                             android:layout_width="wrap_content"
@@ -110,13 +110,15 @@
                                 android:layout_marginEnd="8dp"
                                 android:background="?attr/colorSurfaceVariant"
                                 android:clickable="true"
+                                android:contentDescription="تبديل المظهر"
                                 android:focusable="true"
                                 android:foreground="?attr/selectableItemBackgroundBorderless"
                                 android:padding="9dp"
-                                android:src="@android:drawable/ic_menu_day"
+                                android:src="@drawable/ic_header_moon"
                                 app:shapeAppearanceOverlay="@style/Shape.Circle"
-                                app:tint="?attr/colorPrimary"
-                                tools:ignore="ContentDescription" />
+                                app:strokeColor="?attr/colorOutlineVariant"
+                                app:strokeWidth="1dp"
+                                app:tint="?attr/colorPrimary" />
 
                             <com.google.android.material.imageview.ShapeableImageView
                                 android:id="@+id/btnRefreshMain"
@@ -125,27 +127,31 @@
                                 android:layout_marginEnd="8dp"
                                 android:background="?attr/colorSurfaceVariant"
                                 android:clickable="true"
+                                android:contentDescription="تحديث القائمة"
                                 android:focusable="true"
                                 android:foreground="?attr/selectableItemBackgroundBorderless"
                                 android:padding="9dp"
-                                android:src="@android:drawable/stat_notify_sync"
+                                android:src="@drawable/ic_header_refresh"
                                 app:shapeAppearanceOverlay="@style/Shape.Circle"
-                                app:tint="?attr/colorPrimary"
-                                tools:ignore="ContentDescription" />
+                                app:strokeColor="?attr/colorOutlineVariant"
+                                app:strokeWidth="1dp"
+                                app:tint="?attr/colorPrimary" />
 
                             <com.google.android.material.imageview.ShapeableImageView
                                 android:id="@+id/btnMenu"
-                                android:layout_width="42dp"
-                                android:layout_height="42dp"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
                                 android:background="?attr/colorSurfaceVariant"
                                 android:clickable="true"
+                                android:contentDescription="القائمة الجانبية"
                                 android:focusable="true"
                                 android:foreground="?attr/selectableItemBackgroundBorderless"
-                                android:padding="10dp"
+                                android:padding="9dp"
                                 android:src="@drawable/ic_menu"
                                 app:shapeAppearanceOverlay="@style/Shape.Circle"
-                                app:tint="?attr/colorOnSurface"
-                                tools:ignore="ContentDescription" />
+                                app:strokeColor="?attr/colorOutlineVariant"
+                                app:strokeWidth="1dp"
+                                app:tint="?attr/colorOnSurface" />
                         </LinearLayout>
                     </LinearLayout>
 
@@ -156,6 +162,7 @@
                         android:id="@+id/cardAnnouncement"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="18dp"
                         android:layout_marginBottom="14dp"
                         android:visibility="gone"
                         app:cardBackgroundColor="?attr/colorSurfaceVariant"
@@ -204,6 +211,7 @@
                                 android:layout_width="32dp"
                                 android:layout_height="32dp"
                                 android:background="?attr/selectableItemBackgroundBorderless"
+                                android:contentDescription="إغلاق الإشعار"
                                 android:src="@drawable/ic_close"
                                 app:tint="?attr/colorOnSurfaceVariant" />
                         </LinearLayout>
@@ -216,6 +224,7 @@
                         android:id="@+id/cardHeroSpotlight"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="18dp"
                         android:layout_marginBottom="14dp"
                         android:clickable="true"
                         android:focusable="true"
@@ -366,21 +375,22 @@
                     </com.google.android.material.card.MaterialCardView>
 
                     <!-- ========================================== -->
-                    <!-- 4. صف البحث المتقدم + زر الفرز الذكي (Sort) -->
+                    <!-- 4. كبسولة البحث المتقدم + زر الفرز الدائري  -->
                     <!-- ========================================== -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="18dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
                         <com.google.android.material.card.MaterialCardView
                             android:id="@+id/searchCard"
                             android:layout_width="0dp"
-                            android:layout_height="50dp"
+                            android:layout_height="48dp"
                             android:layout_weight="1"
                             app:cardBackgroundColor="?attr/colorSurfaceVariant"
-                            app:cardCornerRadius="@dimen/shape_large_corner"
+                            app:cardCornerRadius="24dp"
                             app:cardElevation="0dp"
                             app:strokeColor="?attr/colorOutlineVariant"
                             app:strokeWidth="1dp">
@@ -390,12 +400,13 @@
                                 android:layout_height="match_parent"
                                 android:gravity="center_vertical"
                                 android:orientation="horizontal"
-                                android:paddingHorizontal="14dp">
+                                android:paddingHorizontal="16dp">
 
                                 <ImageView
                                     android:layout_width="20dp"
                                     android:layout_height="20dp"
-                                    android:src="@android:drawable/ic_menu_search"
+                                    android:contentDescription="بحث"
+                                    android:src="@drawable/ic_header_search"
                                     app:tint="?attr/colorOnSurfaceVariant" />
 
                                 <EditText
@@ -419,6 +430,7 @@
                                     android:layout_width="30dp"
                                     android:layout_height="30dp"
                                     android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:contentDescription="مسح البحث"
                                     android:src="@drawable/ic_close"
                                     android:visibility="gone"
                                     app:tint="?attr/colorOnSurfaceVariant"
@@ -426,41 +438,49 @@
                             </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>
 
-                        <!-- زر الفرز الذكي المستوحى من المتاجر العالمية -->
+                        <!-- زر الفرز الذكي الدائري المدمج -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnSortApps"
                             style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="50dp"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
                             android:layout_marginStart="8dp"
+                            android:contentDescription="ترتيب التطبيقات"
+                            android:insetLeft="0dp"
                             android:insetTop="0dp"
+                            android:insetRight="0dp"
                             android:insetBottom="0dp"
-                            android:minWidth="52dp"
-                            android:paddingHorizontal="14dp"
-                            android:text="الترتيب ⇅"
-                            android:textColor="?attr/colorOnSurface"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:padding="0dp"
                             app:backgroundTint="?attr/colorSurfaceVariant"
-                            app:cornerRadius="18dp"
+                            app:cornerRadius="24dp"
+                            app:icon="@drawable/ic_header_sort"
+                            app:iconGravity="textStart"
+                            app:iconPadding="0dp"
+                            app:iconSize="20dp"
+                            app:iconTint="?attr/colorPrimary"
                             app:strokeColor="?attr/colorOutlineVariant"
                             app:strokeWidth="1dp" />
                     </LinearLayout>
 
                     <!-- ========================================== -->
-                    <!-- 5. شريط الفلاتر والتصنيفات السريعة           -->
+                    <!-- 5. شريط الفلاتر والتصنيفات (تمرير حر بعرض الشاشة) -->
                     <!-- ========================================== -->
                     <HorizontalScrollView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
+                        android:clipToPadding="false"
                         android:overScrollMode="never"
+                        android:paddingHorizontal="18dp"
                         android:scrollbars="none">
 
                         <com.google.android.material.chip.ChipGroup
                             android:id="@+id/chipGroupCategories"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            app:chipSpacingHorizontal="8dp"
                             app:selectionRequired="true"
                             app:singleSelection="true">
 
@@ -470,37 +490,42 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:checked="true"
-                                android:text="الكل ✨" />
+                                android:text="الكل ✨"
+                                app:chipCornerRadius="20dp" />
 
                             <com.google.android.material.chip.Chip
                                 android:id="@+id/chipAbMods"
                                 style="@style/Widget.Material3.Chip.Filter"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="نسخ عبدالله (AB)" />
+                                android:text="نسخ عبدالله (AB)"
+                                app:chipCornerRadius="20dp" />
 
                             <com.google.android.material.chip.Chip
                                 android:id="@+id/chipObMods"
                                 style="@style/Widget.Material3.Chip.Filter"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="نسخ عمر (OB)" />
+                                android:text="نسخ عمر (OB)"
+                                app:chipCornerRadius="20dp" />
 
                             <com.google.android.material.chip.Chip
                                 android:id="@+id/chipShieldMods"
                                 style="@style/Widget.Material3.Chip.Filter"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="درع الحماية 🛡️" />
+                                android:text="درع الحماية 🛡️"
+                                app:chipCornerRadius="20dp" />
 
                         </com.google.android.material.chip.ChipGroup>
                     </HorizontalScrollView>
 
-                    <!-- شريط الإحصائية السريعة ونوع الترتيب النشط -->
+                    <!-- 6. شريط الإحصائية السريعة وشارة الترتيب النشط -->
                     <LinearLayout
                         android:id="@+id/layoutCatalogStatus"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="18dp"
                         android:layout_marginTop="6dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
@@ -522,24 +547,36 @@
                             android:id="@+id/txtActiveSortLabel"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:background="@drawable/bg_version_badge"
+                            android:backgroundTint="?attr/colorSurfaceVariant"
+                            android:clickable="true"
+                            android:focusable="true"
                             android:fontFamily="sans-serif-medium"
-                            android:text="الترتيب: الأحدث ✨"
+                            android:foreground="?attr/selectableItemBackgroundBorderless"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="4dp"
+                            android:text="الأحدث ✨ ▾"
                             android:textColor="?attr/colorPrimary"
-                            android:textSize="11.5sp"
+                            android:textSize="11sp"
                             android:textStyle="bold" />
                     </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.appbar.CollapsingToolbarLayout>
 
-            <ProgressBar
+            <!-- مؤشر تحميل Material 3 العصري -->
+            <com.google.android.material.progressindicator.LinearProgressIndicator
                 android:id="@+id/progressBar"
-                style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
-                android:layout_height="4dp"
+                android:layout_height="wrap_content"
                 android:indeterminate="true"
-                android:indeterminateTint="?attr/colorPrimary"
-                android:visibility="gone" />
+                android:visibility="gone"
+                app:hideAnimationBehavior="outward"
+                app:indicatorColor="?attr/colorPrimary"
+                app:showAnimationBehavior="inward"
+                app:trackColor="?attr/colorSurfaceVariant"
+                app:trackCornerRadius="4dp"
+                app:trackThickness="3dp" />
 
         </com.google.android.material.appbar.AppBarLayout>
 
