@@ -1,8 +1,10 @@
 # ====================================================================
 # Developed by: Abdullah Al-Tamimi
-# Project: متجر Abdullah - Play-Protect Safe R8/ProGuard Production Rules
+# Project: متجر Abdullah - Play-Protect Transparent R8 Rules
 # ====================================================================
 
+# إبقاء أسماء الكلاسات والدوال واضحة لفاحص Google Play Protect مع استمرار R8 بتقليص الحجم وحذف الكود غير المستخدم
+-dontobfuscate
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,SourceFile,LineNumberTable
 -keeppackagenames com.fix.engine.abdullah.**
 
@@ -12,19 +14,16 @@
     public static ** valueOf(java.lang.String);
 }
 
-# حماية دوال الـ JNI النيتف (MainActivity, AppDetailsActivity, UpdateWorker)
+# حماية دوال الـ JNI النيتف (MainActivity, AppDetailsActivity)
 -keepclasseswithmembernames class * {
     native <methods>;
 }
 -keep class com.fix.engine.abdullah.MainActivity {
-    private native void verifySignatureNative(android.content.Context);
+    private native boolean verifySignatureNative(android.content.Context);
     private native java.lang.String getSecureRepoUrl();
 }
 -keep class com.fix.engine.abdullah.ui.details.AppDetailsActivity {
     private native java.lang.String getSecureFirebaseUrl();
-}
--keep class com.fix.engine.abdullah.service.UpdateWorker {
-    private native java.lang.String getSecureRepoUrl();
 }
 
 # حماية الموديلات والـ Gson والـ Parcelize
