@@ -11,7 +11,7 @@
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:paddingTop="8dp"
-        android:paddingBottom="24dp" />
+        android:paddingBottom="104dp" />
 
     <!-- واجهة الحالة الفارغة الاحترافية (تتكيف تلقائياً بين البحث وتبويب المثبتة بهاتفي) -->
     <LinearLayout
@@ -20,6 +20,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_marginHorizontal="32dp"
+        android:layout_marginBottom="40dp"
         android:gravity="center"
         android:orientation="vertical"
         android:padding="24dp"
