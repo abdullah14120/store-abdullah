@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import com.fix.engine.abdullah.data.api.RetrofitClient
 import com.fix.engine.abdullah.service.CrashHandler
 import com.fix.engine.abdullah.service.StoreDownloadEngine
+import com.fix.engine.abdullah.service.UpdateWorker
 import java.io.File
 import java.util.zip.ZipFile
 
@@ -101,6 +102,7 @@ class AbdullahStoreApp : Application() {
         try {
             RetrofitClient.init(this)
             StoreDownloadEngine.init(this)
+            UpdateWorker.schedulePeriodicCheck(this)
         } catch (t: Throwable) {
             CrashHandler.recordException(this, t, "AbdullahStoreApp.initEngines")
         }
