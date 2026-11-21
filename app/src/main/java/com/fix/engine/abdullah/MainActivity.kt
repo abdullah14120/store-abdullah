@@ -320,7 +320,7 @@ class MainActivity : AppCompatActivity() {
 
         val isNightActive = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         binding.btnThemeQuickToggle.setImageResource(
-            if (isNightActive) android.R.drawable.ic_menu_day else android.R.drawable.ic_menu_recent_history
+            if (isNightActive) R.drawable.ic_header_sun else R.drawable.ic_header_moon
         )
 
         binding.btnThemeQuickToggle.setOnClickListener {
@@ -661,15 +661,18 @@ class MainActivity : AppCompatActivity() {
     private fun setupSearchAnimation() {
         val colorPrimary = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
         val colorOutlineVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOutlineVariant)
+        val density = resources.displayMetrics.density
+        val focusedStrokePx = (1.75f * density).toInt().coerceAtLeast(2)
+        val normalStrokePx = (1f * density).toInt().coerceAtLeast(1)
 
         binding.etSearch.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
-                binding.searchCard.animate().scaleX(1.01f).scaleY(1.01f).setDuration(250).start()
-                binding.searchCard.strokeWidth = 2
+                binding.searchCard.animate().scaleX(1.01f).scaleY(1.01f).setDuration(220).start()
+                binding.searchCard.strokeWidth = focusedStrokePx
                 binding.searchCard.strokeColor = colorPrimary
             } else {
-                binding.searchCard.animate().scaleX(1f).scaleY(1f).setDuration(250).start()
-                binding.searchCard.strokeWidth = 1
+                binding.searchCard.animate().scaleX(1f).scaleY(1f).setDuration(220).start()
+                binding.searchCard.strokeWidth = normalStrokePx
                 binding.searchCard.strokeColor = colorOutlineVariant
             }
         }
@@ -685,7 +688,7 @@ class MainActivity : AppCompatActivity() {
 
         viewModel.activeSortMode.observe(this) { mode ->
             val safeIdx = (mode ?: 0).coerceIn(0, sortShortLabels.lastIndex)
-            binding.txtActiveSortLabel.text = "الترتيب: ${sortShortLabels[safeIdx]}"
+            binding.txtActiveSortLabel.text = "${sortShortLabels[safeIdx]} ▾"
         }
 
         viewModel.appsUiStateList.observe(this) { uiStates ->
