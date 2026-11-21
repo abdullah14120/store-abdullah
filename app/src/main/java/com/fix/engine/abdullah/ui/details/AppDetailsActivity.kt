@@ -10,6 +10,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
@@ -21,9 +24,7 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.RatingBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -46,7 +47,15 @@ import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.MaterialColors
+import androidx.core.graphics.ColorUtils
+import androidx.core.widget.NestedScrollView
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.shape.CornerFamily
+import com.google.android.material.shape.MaterialShapeDrawable
+import com.google.android.material.shape.ShapeAppearanceModel
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.database.DataSnapshot
@@ -91,6 +100,7 @@ class AppDetailsActivity : AppCompatActivity() {
 
     private var commentsQuery: Query? = null
     private var commentsListener: ValueEventListener? = null
+    private var isDescriptionExpanded = false
 
     companion object {
         var isActivityVisible: Boolean = false
@@ -205,6 +215,8 @@ class AppDetailsActivity : AppCompatActivity() {
         tracker = DownloadTracker(this)
 
         setupToolbar()
+        applyAdaptiveDockStyling()
+        setupScrollAwareToolbar()
         initFirebase()
         registerInstallReceiver()
 
@@ -218,7 +230,6 @@ class AppDetailsActivity : AppCompatActivity() {
         if (appData != null) {
             currentApp = appData
             displayDetails(appData)
-            binding.txtVerifiedBadge.text = "🛡️ آمن ومفحوص • ${appData.packageName}"
             setupCommentsSection(appData.packageName)
             if (::databaseRef.isInitialized) {
                 loadDownloadsCount(appData.packageName)
@@ -1081,10 +1092,39 @@ class AppDetailsActivity : AppCompatActivity() {
         binding.toolbarDetails.setNavigationOnClickListener { finish() }
     }
 
+    private fun applyAdaptiveDockStyling() {
+        val isNightMode = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        val colorSurface = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurface, Color.WHITE)
+        val colorSurfaceVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceVariant, Color.parseColor("#F1F3F4"))
+        val colorOutlineVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOutlineVariant, Color.LTGRAY)
+
+        if (isNightMode) {
+            binding.floatingActionDock.setCardBackgroundColor(ColorUtils.blendARGB(colorSurface, Color.BLACK, 0.10f))
+            binding.floatingActionDock.strokeColor = ColorUtils.setAlphaComponent(colorOutlineVariant, 115)
+        } else {
+            val pearlOuterBg = ColorUtils.blendARGB(colorSurface, colorSurfaceVariant, 0.35f)
+            binding.floatingActionDock.setCardBackgroundColor(pearlOuterBg)
+            binding.floatingActionDock.strokeColor = ColorUtils.setAlphaComponent(colorOutlineVariant, 125)
+        }
+    }
+
+    private fun setupScrollAwareToolbar() {
+        val thresholdPx = (72f * resources.displayMetrics.density)
+        binding.scrollDetails.setOnScrollChangeListener(
+            NestedScrollView.OnScrollChangeListener { _, _, scrollY, _, _ ->
+                val targetAlpha = ((scrollY - thresholdPx * 0.45f) / (thresholdPx * 0.85f)).coerceIn(0f, 1f)
+                binding.layoutToolbarMiniApp.alpha = targetAlpha
+            }
+        )
+    }
+
     private fun displayDetails(app: AppModel) {
         binding.apply {
             txtDetailsName.text = app.name
+            txtToolbarTitle.text = app.name
             txtDetailsDev.text = app.developer
+            txtVerifiedBadge.text = "آمن ومفحوص • نسخة رسمية"
+            txtPackageNameInfo.text = app.packageName
             txtDescription.text = app.description ?: "لا يوجد وصف متاح لهذا التطبيق."
             txtStatVersion.text = app.versionName
             txtStatSize.text = app.getFormattedSize()
@@ -1096,6 +1136,37 @@ class AppDetailsActivity : AppCompatActivity() {
                 .error(R.mipmap.ic_launcher)
                 .dontAnimate()
                 .into(imgDetailsIcon)
+
+            Glide.with(this@AppDetailsActivity)
+                .load(app.iconUrl)
+                .placeholder(R.mipmap.ic_launcher)
+                .error(R.mipmap.ic_launcher)
+                .dontAnimate()
+                .into(imgToolbarIcon)
+
+            layoutPackageInfo.setOnClickListener {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Package Name", app.packageName))
+                Toast.makeText(this@AppDetailsActivity, "تم نسخ معرّف الحزمة: ${app.packageName}", Toast.LENGTH_SHORT).show()
+            }
+
+            isDescriptionExpanded = false
+            txtDescription.maxLines = 5
+            btnToggleDescription.visibility = View.GONE
+            txtDescription.post {
+                val layout = txtDescription.layout
+                val isTruncated = layout != null && (
+                    layout.lineCount > 5 ||
+                    (layout.lineCount > 0 && layout.getEllipsisCount(layout.lineCount - 1) > 0)
+                )
+                btnToggleDescription.visibility = if (isTruncated) View.VISIBLE else View.GONE
+            }
+
+            btnToggleDescription.setOnClickListener {
+                isDescriptionExpanded = !isDescriptionExpanded
+                txtDescription.maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 5
+                btnToggleDescription.text = if (isDescriptionExpanded) "عرض أقل ▴" else "عرض المزيد ▾"
+            }
         }
     }
 
@@ -1325,7 +1396,7 @@ class AppDetailsActivity : AppCompatActivity() {
                     if (commentsList.isEmpty()) {
                         binding.txtEmptyComments.visibility = View.VISIBLE
                         binding.rvComments.visibility = View.GONE
-                        binding.txtStatRating.text = "5.0 ★"
+                        binding.txtStatRating.text = "5.0"
                         binding.txtStatReviewsCount.text = "قيّم الآن"
                         binding.txtRatingBigScore.text = "5.0"
                         binding.txtRatingBigStars.text = "★★★★★"
@@ -1337,7 +1408,7 @@ class AppDetailsActivity : AppCompatActivity() {
                         val avgFormatted = String.format(Locale.US, "%.1f", avg)
                         val roundedStars = kotlin.math.round(avg).toInt().coerceIn(1, 5)
 
-                        binding.txtStatRating.text = "$avgFormatted ★"
+                        binding.txtStatRating.text = avgFormatted
                         binding.txtStatReviewsCount.text = "${commentsList.size} مراجعة"
                         binding.txtRatingBigScore.text = avgFormatted
                         binding.txtRatingBigStars.text = "★".repeat(roundedStars) + "☆".repeat(5 - roundedStars)
@@ -1359,25 +1430,63 @@ class AppDetailsActivity : AppCompatActivity() {
         val density = resources.displayMetrics.density
 
         val colorPrimary = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
+        val colorOnPrimary = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnPrimary)
+        val colorSurface = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurface)
+        val colorSurfaceContainerLow = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceContainerLow, MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceVariant))
         val colorOnSurface = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnSurface)
         val colorOnSurfaceVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnSurfaceVariant)
-        val colorSurfaceVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceVariant)
+        val colorOutlineVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOutlineVariant)
         val colorGold = Color.parseColor("#FFB300")
 
         var selectedStars = initialStars.coerceIn(1, 5)
 
-        val container = LinearLayout(this).apply {
+        val bottomSheet = BottomSheetDialog(this)
+
+        val rootContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             val padH = (22 * density).toInt()
-            val padTop = (12 * density).toInt()
-            setPadding(padH, padTop, padH, (4 * density).toInt())
+            setPadding(padH, (12 * density).toInt(), padH, (24 * density).toInt())
+            val sheetShape = ShapeAppearanceModel.builder()
+                .setTopLeftCorner(CornerFamily.ROUNDED, 28 * density)
+                .setTopRightCorner(CornerFamily.ROUNDED, 28 * density)
+                .build()
+            background = MaterialShapeDrawable(sheetShape).apply {
+                fillColor = ColorStateList.valueOf(colorSurface)
+            }
         }
 
-        // 1. صندوق النجوم التفاعلي الفخم داخل النافذة
+        // مقبض السحب العلوي (Drag Handle)
+        val handleView = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                (40 * density).toInt(),
+                (4 * density).toInt()
+            ).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                bottomMargin = (16 * density).toInt()
+            }
+            setBackgroundResource(R.drawable.bg_bottom_sheet_handle)
+        }
+
+        // عنوان الـ BottomSheet
+        val tvTitle = TextView(this).apply {
+            text = "إضافة تقييم ومراجعة"
+            textSize = 18f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(colorOnSurface)
+            gravity = Gravity.CENTER_HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (14 * density).toInt() }
+        }
+
+        // 1. بطاقة اختيار النجوم التفاعلية
         val ratingCard = MaterialCardView(this).apply {
-            radius = 18 * density
+            radius = 20 * density
             cardElevation = 0f
-            setCardBackgroundColor(colorSurfaceVariant)
+            strokeWidth = (1 * density).toInt()
+            strokeColor = colorOutlineVariant
+            setCardBackgroundColor(colorSurfaceContainerLow)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -1413,11 +1522,11 @@ class AppDetailsActivity : AppCompatActivity() {
         fun updateStarsUi(stars: Int) {
             selectedStars = stars.coerceIn(1, 5)
             val label = when (selectedStars) {
-                5 -> " ممتاز جداً • 5/5 😍"
-                4 -> " جيد جداً • 4/5 👍"
-                3 -> " جيد • 3/5 🙂"
-                2 -> " مقبول • 2/5 😐"
-                else -> " يحتاج تحسين • 1/5 😕"
+                5 -> "ممتاز جداً • 5/5 😍"
+                4 -> "جيد جداً • 4/5 👍"
+                3 -> "جيد • 3/5 🙂"
+                2 -> "مقبول • 2/5 😐"
+                else -> "يحتاج تحسين • 1/5 😕"
             }
             tvRatingStatus.text = label
             starButtons.forEachIndexed { idx, starTv ->
@@ -1449,10 +1558,10 @@ class AppDetailsActivity : AppCompatActivity() {
         ratingBox.addView(starsRow)
         ratingCard.addView(ratingBox)
 
-        // 2. حقل الاسم بتصميم Material OutlinedBox
+        // 2. حقل الاسم
         val tilName = TextInputLayout(this).apply {
             boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
-            val corner = 14 * density
+            val corner = 16 * density
             setBoxCornerRadii(corner, corner, corner, corner)
             hint = "اسمك الظاهر في المراجعة (اختياري)"
             layoutParams = LinearLayout.LayoutParams(
@@ -1470,10 +1579,10 @@ class AppDetailsActivity : AppCompatActivity() {
         }
         tilName.addView(etName)
 
-        // 3. حقل التعليق بتصميم Material OutlinedBox مع عداد حروف
+        // 3. حقل التعليق مع عداد الحروف
         val tilComment = TextInputLayout(this).apply {
             boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
-            val corner = 14 * density
+            val corner = 16 * density
             setBoxCornerRadii(corner, corner, corner, corner)
             hint = "اكتب تجربتك أو رأيك حول التطبيق..."
             isCounterEnabled = true
@@ -1481,7 +1590,7 @@ class AppDetailsActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            )
+            ).apply { bottomMargin = (16 * density).toInt() }
         }
 
         val etComment = TextInputEditText(tilComment.context).apply {
@@ -1493,21 +1602,53 @@ class AppDetailsActivity : AppCompatActivity() {
         }
         tilComment.addView(etComment)
 
-        container.addView(ratingCard)
-        container.addView(tilName)
-        container.addView(tilComment)
+        // 4. أزرار الإجراء الكبسولية
+        val actionsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
 
-        MaterialAlertDialogBuilder(this, R.style.Theme_FixEngine_Dialog)
-            .setTitle("إضافة تقييم ومراجعة ⭐")
-            .setView(container)
-            .setPositiveButton("نشر المراجعة") { dialog, _ ->
+        val btnCancelSheet = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = "إلغاء"
+            cornerRadius = (25 * density).toInt()
+            minHeight = (50 * density).toInt()
+            insetTop = 0
+            insetBottom = 0
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0.85f
+            ).apply { marginEnd = (10 * density).toInt() }
+            setOnClickListener { bottomSheet.dismiss() }
+        }
+
+        val btnPublish = MaterialButton(this).apply {
+            text = "نشر المراجعة"
+            setTextColor(colorOnPrimary)
+            backgroundTintList = ColorStateList.valueOf(colorPrimary)
+            cornerRadius = (25 * density).toInt()
+            minHeight = (50 * density).toInt()
+            insetTop = 0
+            insetBottom = 0
+            textSize = 14.5f
+            setTypeface(typeface, Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1.4f
+            )
+            setOnClickListener {
                 val name = etName.text?.toString()?.trim().orEmpty().ifBlank { "مستخدم المتجر" }
                 val comment = etComment.text?.toString()?.trim().orEmpty()
                 val stars = selectedStars.coerceIn(1, 5)
 
                 if (comment.length < 3) {
-                    Toast.makeText(this, "يرجى كتابة تعليق واضح أولاً (3 أحرف على الأقل)", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    Toast.makeText(this@AppDetailsActivity, "يرجى كتابة تعليق واضح أولاً (3 أحرف على الأقل)", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
                 }
 
                 prefs.edit().putString("user_display_name", name).apply()
@@ -1523,18 +1664,36 @@ class AppDetailsActivity : AppCompatActivity() {
                 commentsRef.push().setValue(payload)
                     .addOnSuccessListener {
                         if (!isFinishing && !isDestroyed) {
-                            Toast.makeText(this, "تم نشر تقييمك بنجاح! شكراً لمشاركتك ✨", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@AppDetailsActivity, "تم نشر تقييمك بنجاح! شكراً لمشاركتك ✨", Toast.LENGTH_SHORT).show()
                         }
                     }
                     .addOnFailureListener {
                         if (!isFinishing && !isDestroyed) {
-                            Toast.makeText(this, "تعذر نشر التعليق، تأكد من الاتصال بالإنترنت", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@AppDetailsActivity, "تعذر نشر التعليق، تأكد من الاتصال بالإنترنت", Toast.LENGTH_SHORT).show()
                         }
                     }
-                dialog.dismiss()
+                bottomSheet.dismiss()
             }
-            .setNegativeButton("إلغاء", null)
-            .show()
+        }
+
+        actionsRow.addView(btnCancelSheet)
+        actionsRow.addView(btnPublish)
+
+        rootContainer.addView(handleView)
+        rootContainer.addView(tvTitle)
+        rootContainer.addView(ratingCard)
+        rootContainer.addView(tilName)
+        rootContainer.addView(tilComment)
+        rootContainer.addView(actionsRow)
+
+        bottomSheet.setContentView(rootContainer)
+        bottomSheet.setOnShowListener {
+            val sheetView = bottomSheet.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            sheetView?.setBackgroundColor(Color.TRANSPARENT)
+            bottomSheet.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            bottomSheet.behavior.skipCollapsed = true
+        }
+        bottomSheet.show()
     }
 
     /**
@@ -1561,7 +1720,7 @@ class AppDetailsActivity : AppCompatActivity() {
             val colorPrimary = MaterialColors.getColor(parent, androidx.appcompat.R.attr.colorPrimary)
             val colorPrimaryContainer = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorPrimaryContainer)
             val colorOnPrimaryContainer = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOnPrimaryContainer)
-            val colorSurfaceVariant = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorSurfaceVariant)
+            val colorSurfaceVariant = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorSurfaceContainerLow, MaterialColors.getColor(parent, com.google.android.material.R.attr.colorSurfaceVariant))
             val colorOnSurface = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOnSurface)
             val colorOnSurfaceVariant = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOnSurfaceVariant)
             val colorOutlineVariant = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOutlineVariant)
