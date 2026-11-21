@@ -2,7 +2,6 @@ package com.fix.engine.abdullah.data.api
 
 import android.content.Context
 import com.fix.engine.abdullah.BuildConfig
-import com.fix.engine.abdullah.data.network.FallbackDns
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -13,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Architecture: High Performance & DoH-Resilient Network Client with HTTP Disk Cache
+ * Architecture: High Performance Network Client with HTTP Disk Cache
  */
 object RetrofitClient {
 
@@ -39,7 +38,6 @@ object RetrofitClient {
         }
 
         val builder = OkHttpClient.Builder()
-            .dns(FallbackDns)
             .addInterceptor(logging)
             .connectTimeout(25, TimeUnit.SECONDS)
             .readTimeout(35, TimeUnit.SECONDS)
