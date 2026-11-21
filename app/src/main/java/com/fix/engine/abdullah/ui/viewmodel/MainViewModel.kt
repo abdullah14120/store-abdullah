@@ -45,6 +45,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var currentSortMode: Int = 0
     private var isObservingDownloads: Boolean = false
     private var lastRefreshTimeMs: Long = 0L
+    private var lastEncryptedUrl: ByteArray? = null
+    private var lastCryptoSalt: Byte = 0
 
     private val _appsUiStateList = MutableLiveData<List<AppItemUiState>>()
     val appsUiStateList: LiveData<List<AppItemUiState>> get() = _appsUiStateList
@@ -65,6 +67,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val errorMessage: LiveData<String?> get() = _errorMessage
 
     fun loadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
+        lastEncryptedUrl = encryptedUrl
+        lastCryptoSalt = cryptoSalt
         // إذا كانت البيانات محفوظة في الكاش السريع، نعرضها فوراً بدون انتظار الشبكة
         if (fullAppsList.isNotEmpty()) {
             _isLoading.postValue(false)
@@ -304,10 +308,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun forceReloadApps(encryptedUrl: ByteArray, cryptoSalt: Byte) {
+        lastEncryptedUrl = encryptedUrl
+        lastCryptoSalt = cryptoSalt
         fullAppsList = emptyList()
         cachedAppsList = emptyList()
         apkValidationCache.clear()
         loadApps(encryptedUrl, cryptoSalt)
+    }
+
+    /**
+     * 🔄 استدعاء السحب للتحديث (SwipeRefreshLayout) من أي تبويب لإعادة جلب أحدث قائمة من المستودع
+     */
+    fun reloadFromNetwork() {
+        val urlBytes = lastEncryptedUrl
+        if (urlBytes != null) {
+            forceReloadApps(urlBytes, lastCryptoSalt)
+        } else {
+            refreshAppStates(force = true)
+        }
     }
 
     fun filterInstalledOnly() {
