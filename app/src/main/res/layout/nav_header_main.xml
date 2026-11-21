@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="?attr/colorSurfaceVariant"
     android:orientation="vertical"
     android:paddingHorizontal="20dp"
-    android:paddingTop="36dp"
+    android:paddingTop="40dp"
     android:paddingBottom="20dp">
 
     <!-- 1. صف الشعار المتوهج والاسم وشارة الإصدار -->
@@ -19,10 +18,10 @@
 
         <!-- إطار الشعار الدائري المتوهج -->
         <com.google.android.material.card.MaterialCardView
-            android:layout_width="68dp"
-            android:layout_height="68dp"
+            android:layout_width="66dp"
+            android:layout_height="66dp"
             app:cardBackgroundColor="?attr/colorSurface"
-            app:cardCornerRadius="34dp"
+            app:cardCornerRadius="33dp"
             app:cardElevation="0dp"
             app:strokeColor="?attr/colorPrimary"
             app:strokeWidth="2dp">
@@ -72,7 +71,7 @@
                 android:backgroundTint="?attr/colorSurface"
                 android:paddingHorizontal="10dp"
                 android:paddingVertical="3dp"
-                android:text="الإصدار 2.3 الرسمي • 🛡️"
+                android:text="الإصدار 3.0 الرسمي • 🛡️"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="10.5sp"
                 android:textStyle="bold" />
@@ -88,13 +87,13 @@
         android:alpha="0.2"
         android:background="?attr/colorOutline" />
 
-    <!-- 2. قسم مبدّل المظهر السريع (Theme Switcher) -->
+    <!-- 2. قسم مبدّل المظهر السريع بأيقونات Vector نظيفة -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
         android:fontFamily="sans-serif-medium"
-        android:text="🎨 مظهر المتجر"
+        android:text="مظهر المتجر"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp"
         android:textStyle="bold" />
@@ -110,40 +109,55 @@
             android:id="@+id/btnThemeLight"
             style="?attr/materialButtonOutlinedStyle"
             android:layout_width="0dp"
-            android:layout_height="38dp"
+            android:layout_height="40dp"
             android:layout_weight="1"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            android:paddingHorizontal="4dp"
-            android:text="☀️ نهاري"
+            android:paddingHorizontal="6dp"
+            android:text="نهاري"
             android:textSize="11.5sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            app:cornerRadius="20dp"
+            app:icon="@drawable/ic_header_sun"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:iconSize="15dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnThemeDark"
             style="?attr/materialButtonOutlinedStyle"
             android:layout_width="0dp"
-            android:layout_height="38dp"
+            android:layout_height="40dp"
             android:layout_weight="1"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            android:paddingHorizontal="4dp"
-            android:text="🌙 ليلي"
+            android:paddingHorizontal="6dp"
+            android:text="ليلي"
             android:textSize="11.5sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            app:cornerRadius="20dp"
+            app:icon="@drawable/ic_header_moon"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:iconSize="15dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnThemeAuto"
             style="?attr/materialButtonOutlinedStyle"
             android:layout_width="0dp"
-            android:layout_height="38dp"
+            android:layout_height="40dp"
             android:layout_weight="1"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            android:paddingHorizontal="4dp"
-            android:text="🔄 تلقائي"
+            android:paddingHorizontal="6dp"
+            android:text="تلقائي"
             android:textSize="11.5sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            app:cornerRadius="20dp"
+            app:icon="@drawable/ic_header_auto_theme"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:iconSize="15dp" />
 
     </com.google.android.material.button.MaterialButtonToggleGroup>
 
