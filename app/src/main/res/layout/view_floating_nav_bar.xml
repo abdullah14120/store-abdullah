@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/floatingNavRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- تدرج سفلي ناعم لتلاشي البطاقات خلف الشريط العائم -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="96dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_bottom_scrim_fade"
+        android:clickable="false"
+        android:focusable="false" />
+
+    <!-- الكبسولة العائمة الرئيسية -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/floatingPillCard"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:layout_gravity="bottom"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="14dp"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:cardCornerRadius="36dp"
+        app:cardElevation="10dp"
+        app:strokeColor="?attr/colorOutlineVariant"
+        app:strokeWidth="1dp">
+
+        <FrameLayout
+            android:id="@+id/floatingPillInnerFrame"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:padding="6dp">
+
+            <!-- المؤشر الداخلي المرتفع المنزلق (مثل الكبسولة النشطة في التصميم الأول) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/navPillIndicator"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                app:cardBackgroundColor="?attr/colorSurface"
+                app:cardCornerRadius="30dp"
+                app:cardElevation="4dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="0.75dp" />
+
+            <!-- صف التبويبات الثلاثة -->
+            <LinearLayout
+                android:id="@+id/navTabsRow"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:baselineAligned="false"
+                android:elevation="6dp"
+                android:orientation="horizontal"
+                android:outlineProvider="none">
+
+                <!-- 1. تبويب التطبيقات -->
+                <LinearLayout
+                    android:id="@+id/tabApps"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="4dp">
+
+                    <FrameLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                        <ImageView
+                            android:id="@+id/imgNavApps"
+                            android:layout_width="23dp"
+                            android:layout_height="23dp"
+                            android:layout_gravity="center"
+                            android:layout_marginHorizontal="8dp"
+                            android:layout_marginTop="2dp"
+                            android:src="@drawable/ic_nav_apps_filled"
+                            app:tint="?attr/colorPrimary"
+                            tools:ignore="ContentDescription" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/txtNavApps"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:text="التطبيقات"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="11.5sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- 2. تبويب التحديثات -->
+                <LinearLayout
+                    android:id="@+id/tabUpdates"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="4dp">
+
+                    <FrameLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                        <ImageView
+                            android:id="@+id/imgNavUpdates"
+                            android:layout_width="23dp"
+                            android:layout_height="23dp"
+                            android:layout_gravity="center"
+                            android:layout_marginHorizontal="10dp"
+                            android:layout_marginTop="2dp"
+                            android:src="@drawable/ic_nav_updates_outlined"
+                            app:tint="?attr/colorOnSurfaceVariant"
+                            tools:ignore="ContentDescription" />
+
+                        <TextView
+                            android:id="@+id/badgeNavUpdates"
+                            android:layout_width="wrap_content"
+                            android:layout_height="16dp"
+                            android:layout_gravity="top|end"
+                            android:background="@drawable/bg_nav_badge_pill"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:minWidth="16dp"
+                            android:paddingHorizontal="4dp"
+                            android:textColor="@android:color/white"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold"
+                            android:visibility="gone"
+                            tools:text="3"
+                            tools:visibility="visible" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/txtNavUpdates"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:text="التحديثات"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="11.5sp" />
+                </LinearLayout>
+
+                <!-- 3. تبويب المثبتة بهاتفي -->
+                <LinearLayout
+                    android:id="@+id/tabInstalled"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="4dp">
+
+                    <FrameLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                        <ImageView
+                            android:id="@+id/imgNavInstalled"
+                            android:layout_width="23dp"
+                            android:layout_height="23dp"
+                            android:layout_gravity="center"
+                            android:layout_marginHorizontal="10dp"
+                            android:layout_marginTop="2dp"
+                            android:src="@drawable/ic_nav_installed_outlined"
+                            app:tint="?attr/colorOnSurfaceVariant"
+                            tools:ignore="ContentDescription" />
+
+                        <TextView
+                            android:id="@+id/badgeNavInstalled"
+                            android:layout_width="wrap_content"
+                            android:layout_height="16dp"
+                            android:layout_gravity="top|end"
+                            android:background="@drawable/bg_nav_badge_pill"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:minWidth="16dp"
+                            android:paddingHorizontal="4dp"
+                            android:textColor="@android:color/white"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold"
+                            android:visibility="gone"
+                            tools:text="7"
+                            tools:visibility="visible" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/txtNavInstalled"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:text="المثبتة بهاتفي"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="11.5sp" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </FrameLayout>
+    </com.google.android.material.card.MaterialCardView>
+</FrameLayout>
