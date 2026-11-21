@@ -103,8 +103,7 @@ object StoreDownloadEngine {
     private var isInitialized = false
 
     private var wakeLock: PowerManager.WakeLock? = null
-    private val networkCallbackLock = Any()
-    private var activeNetworkCallback: ConnectivityManager.NetworkCallback? = null
+    private var networkCallbackRegistered = false
 
     private data class PartialMeta(
         val packageName: String,
@@ -173,6 +172,7 @@ object StoreDownloadEngine {
             if (isInitialized) return
             appContext = context.applicationContext
             isInitialized = true
+            registerNetworkAutoResumeMonitor()
         }
     }
 
@@ -244,7 +244,6 @@ object StoreDownloadEngine {
             statusMessage = if (initialPartial > 0) "جاري استئناف التنزيل من $initialPartial%..." else "جاري تجهيز رابط التحميل..."
         )
         updateTask(task)
-        registerNetworkAutoResumeMonitor()
         acquireWakeLock()
         StoreDownloadForegroundService.sync(appContext)
 
@@ -885,51 +884,38 @@ object StoreDownloadEngine {
     }
 
     /**
-     * 📶 مراقب الشبكة الذكي (تهيئة كسولة عند وجود تحميل نشط فقط لتفادي النشاط الخلفي غير الضروري):
+     * 📶 مراقب الشبكة الذكي (مستوحى من SealPlus):
      * يستأنف تلقائياً أي تحميل توقف بسبب انقطاع الشبكة (PAUSED_NETWORK) فور عودة الإنترنت الفعلي
      */
     private fun registerNetworkAutoResumeMonitor() {
-        synchronized(networkCallbackLock) {
-            if (activeNetworkCallback != null) return
-            try {
-                val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                val callback = object : ConnectivityManager.NetworkCallback() {
-                    override fun onAvailable(network: Network) {
+        if (networkCallbackRegistered) return
+        try {
+            val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    resumeNetworkPausedTasks()
+                }
+
+                override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                    val validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                        caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                    if (validated) {
                         resumeNetworkPausedTasks()
                     }
-
-                    override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-                        val validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-                        if (validated) {
-                            resumeNetworkPausedTasks()
-                        }
-                    }
                 }
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    cm.registerDefaultNetworkCallback(callback)
-                } else {
-                    val request = NetworkRequest.Builder()
-                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                        .build()
-                    cm.registerNetworkCallback(request, callback)
-                }
-                activeNetworkCallback = callback
-            } catch (_: Exception) {
-                activeNetworkCallback = null
             }
-        }
-    }
 
-    private fun unregisterNetworkAutoResumeMonitor() {
-        synchronized(networkCallbackLock) {
-            val cb = activeNetworkCallback ?: return
-            activeNetworkCallback = null
-            try {
-                val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                cm.unregisterNetworkCallback(cb)
-            } catch (_: Exception) {}
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                cm.registerDefaultNetworkCallback(callback)
+            } else {
+                val request = NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .build()
+                cm.registerNetworkCallback(request, callback)
+            }
+            networkCallbackRegistered = true
+        } catch (_: Exception) {
+            networkCallbackRegistered = false
         }
     }
 
@@ -966,8 +952,10 @@ object StoreDownloadEngine {
                 wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AbdullahStore::DownloadWakeLock")
                     .apply { setReferenceCounted(false) }
             }
-            // مهلة أمان 30 دقيقة تُجدد عند كل مهمة نشطة وتُحرر فور انتهاء التنزيل
-            wakeLock?.acquire(30L * 60L * 1000L)
+            if (wakeLock?.isHeld == false) {
+                // مهلة أمان قصوى ساعتان للشبكات البطيئة جداً (SealPlus)
+                wakeLock?.acquire(2L * 60L * 60L * 1000L)
+            }
         } catch (_: Exception) {}
     }
 
@@ -981,9 +969,6 @@ object StoreDownloadEngine {
             try {
                 if (wakeLock?.isHeld == true) wakeLock?.release()
             } catch (_: Exception) {}
-        }
-        if (!hasActiveDownloads()) {
-            unregisterNetworkAutoResumeMonitor()
         }
     }
 }
