@@ -18,7 +18,14 @@ import android.os.Environment
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
+import android.annotation.SuppressLint
+import android.content.res.ColorStateList
+import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewConfiguration
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -43,11 +50,18 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.shape.CornerFamily
+import com.google.android.material.shape.MaterialShapeDrawable
+import com.google.android.material.shape.ShapeAppearanceModel
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import androidx.core.graphics.ColorUtils
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlin.math.abs
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -73,6 +87,8 @@ class MainActivity : AppCompatActivity() {
 
     private var spotlightApps: List<AppItemUiState> = emptyList()
     private var currentSpotlightIndex = 0
+    private var spotlightAutoScrollJob: Job? = null
+    private var isHeroSwipeConfigured = false
 
     private val sortLabels = arrayOf(
         "الأحدث والإصدارات المميزة ✨",
@@ -134,7 +150,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (spotlightApps.size > 1) {
+            startSpotlightAutoScroll()
+        }
+    }
+
+    override fun onPause() {
+        stopSpotlightAutoScroll()
+        super.onPause()
+    }
+
     override fun onDestroy() {
+        stopSpotlightAutoScroll()
         floatingNavController?.detach()
         floatingNavController = null
         super.onDestroy()
@@ -213,14 +242,177 @@ class MainActivity : AppCompatActivity() {
 
         if (shouldShowHero) {
             currentSpotlightIndex = currentSpotlightIndex.coerceIn(0, spotlightApps.lastIndex)
+            setupHeroSwipeGesture()
             bindSpotlightCard(spotlightApps[currentSpotlightIndex])
+            renderSpotlightDots()
+            if (spotlightApps.size > 1) {
+                startSpotlightAutoScroll()
+            } else {
+                stopSpotlightAutoScroll()
+            }
+        } else {
+            stopSpotlightAutoScroll()
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupHeroSwipeGesture() {
+        if (isHeroSwipeConfigured) return
+        isHeroSwipeConfigured = true
+
+        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop
+        val swipeThresholdPx = (44f * resources.displayMetrics.density)
+        var downX = 0f
+        var downY = 0f
+
+        binding.cardHeroSpotlight.setOnTouchListener { view, event ->
+            if (spotlightApps.size <= 1) return@setOnTouchListener false
+
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.x
+                    downY = event.y
+                    false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.x - downX
+                    val dy = event.y - downY
+                    if (abs(dx) > touchSlop && abs(dx) > abs(dy) * 1.2f) {
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                    false
+                }
+                MotionEvent.ACTION_UP -> {
+                    view.parent?.requestDisallowInterceptTouchEvent(false)
+                    val dx = event.x - downX
+                    val dy = event.y - downY
+                    if (abs(dx) > swipeThresholdPx && abs(dx) > abs(dy)) {
+                        val isRtl = resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
+                        val goNext = if (isRtl) dx > 0 else dx < 0
+                        val targetIndex = if (goNext) {
+                            (currentSpotlightIndex + 1) % spotlightApps.size
+                        } else {
+                            (currentSpotlightIndex - 1 + spotlightApps.size) % spotlightApps.size
+                        }
+                        showSpotlightAt(targetIndex, slideFromEnd = goNext, animate = true)
+                        startSpotlightAutoScroll()
+                        view.isPressed = false
+                        true
+                    } else {
+                        false
+                    }
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    view.parent?.requestDisallowInterceptTouchEvent(false)
+                    false
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun startSpotlightAutoScroll() {
+        spotlightAutoScrollJob?.cancel()
+        if (spotlightApps.size <= 1) return
+        spotlightAutoScrollJob = lifecycleScope.launch {
+            while (isActive) {
+                delay(5500L)
+                if (!isFinishing && !isDestroyed && binding.cardHeroSpotlight.isVisible && spotlightApps.size > 1) {
+                    val nextIndex = (currentSpotlightIndex + 1) % spotlightApps.size
+                    showSpotlightAt(nextIndex, slideFromEnd = true, animate = true)
+                }
+            }
+        }
+    }
+
+    private fun stopSpotlightAutoScroll() {
+        spotlightAutoScrollJob?.cancel()
+        spotlightAutoScrollJob = null
+    }
+
+    private fun showSpotlightAt(targetIndex: Int, slideFromEnd: Boolean, animate: Boolean) {
+        if (spotlightApps.isEmpty()) return
+        val safeIndex = targetIndex.coerceIn(0, spotlightApps.lastIndex)
+        currentSpotlightIndex = safeIndex
+        val uiState = spotlightApps[safeIndex]
+
+        if (!animate) {
+            bindSpotlightCard(uiState)
+            renderSpotlightDots()
+            return
+        }
+
+        val density = resources.displayMetrics.density
+        val isRtl = resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
+        val shiftPx = 16f * density * (if (slideFromEnd) 1f else -1f) * (if (isRtl) -1f else 1f)
+
+        binding.layoutHeroContent.animate().cancel()
+        binding.layoutHeroContent.animate()
+            .alpha(0f)
+            .translationX(-shiftPx * 0.5f)
+            .setDuration(130)
+            .withEndAction {
+                if (isFinishing || isDestroyed) return@withEndAction
+                bindSpotlightCard(uiState)
+                renderSpotlightDots()
+                binding.layoutHeroContent.translationX = shiftPx
+                binding.layoutHeroContent.animate()
+                    .alpha(1f)
+                    .translationX(0f)
+                    .setDuration(220)
+                    .start()
+            }
+            .start()
+    }
+
+    private fun renderSpotlightDots() {
+        val container = binding.layoutHeroDots
+        container.removeAllViews()
+        if (spotlightApps.size <= 1) {
+            container.isVisible = false
+            return
+        }
+        container.isVisible = true
+
+        val density = resources.displayMetrics.density
+        val colorPrimary = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
+        val colorOnPrimaryContainer = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnPrimaryContainer)
+        val inactiveColor = ColorUtils.setAlphaComponent(colorOnPrimaryContainer, 72)
+
+        val dotHeight = (6 * density).toInt()
+        val activeWidth = (20 * density).toInt()
+        val inactiveWidth = (6 * density).toInt()
+        val horizontalMargin = (3 * density).toInt()
+
+        spotlightApps.indices.forEach { index ->
+            val isSelected = index == currentSpotlightIndex
+            val dotView = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    if (isSelected) activeWidth else inactiveWidth,
+                    dotHeight
+                ).apply {
+                    setMargins(horizontalMargin, 0, horizontalMargin, 0)
+                }
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = dotHeight / 2f
+                    setColor(if (isSelected) colorPrimary else inactiveColor)
+                }
+                setOnClickListener {
+                    if (index != currentSpotlightIndex) {
+                        showSpotlightAt(index, slideFromEnd = index > currentSpotlightIndex, animate = true)
+                        startSpotlightAutoScroll()
+                    }
+                }
+            }
+            container.addView(dotView)
         }
     }
 
     private fun bindSpotlightCard(uiState: AppItemUiState) {
         val app = uiState.app
 
-        binding.txtHeroIndicator.text = "التالي ⟳ (${currentSpotlightIndex + 1}/${spotlightApps.size})"
+        binding.txtHeroIndicator.text = "${currentSpotlightIndex + 1} / ${spotlightApps.size}"
         binding.txtHeroTitle.text = app.name
         val sizeText = app.getFormattedSize().ifBlank { "نسخة رسمية" }
         binding.txtHeroSub.text = "${app.developer}  •  v${app.versionName}  •  $sizeText"
@@ -260,8 +452,9 @@ class MainActivity : AppCompatActivity() {
 
         binding.txtHeroIndicator.setOnClickListener {
             if (spotlightApps.size > 1) {
-                currentSpotlightIndex = (currentSpotlightIndex + 1) % spotlightApps.size
-                bindSpotlightCard(spotlightApps[currentSpotlightIndex])
+                val nextIndex = (currentSpotlightIndex + 1) % spotlightApps.size
+                showSpotlightAt(nextIndex, slideFromEnd = true, animate = true)
+                startSpotlightAutoScroll()
             }
         }
 
@@ -305,8 +498,33 @@ class MainActivity : AppCompatActivity() {
         AppCompatDelegate.setDefaultNightMode(targetMode)
     }
 
+    private fun applyRoundedDrawerSurface() {
+        val cornerRadiusPx = 28f * resources.displayMetrics.density
+        val isRtl = resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
+        val shapeBuilder = ShapeAppearanceModel.builder()
+
+        if (isRtl) {
+            shapeBuilder
+                .setTopLeftCorner(CornerFamily.ROUNDED, cornerRadiusPx)
+                .setBottomLeftCorner(CornerFamily.ROUNDED, cornerRadiusPx)
+        } else {
+            shapeBuilder
+                .setTopRightCorner(CornerFamily.ROUNDED, cornerRadiusPx)
+                .setBottomRightCorner(CornerFamily.ROUNDED, cornerRadiusPx)
+        }
+
+        val surfaceColor = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurface)
+        val drawerBg = MaterialShapeDrawable(shapeBuilder.build()).apply {
+            fillColor = ColorStateList.valueOf(surfaceColor)
+        }
+        binding.navView.background = drawerBg
+        binding.navView.clipToOutline = true
+    }
+
     private fun setupNavigationDrawer() {
         val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
+
+        applyRoundedDrawerSurface()
 
         binding.btnMenu.setOnClickListener {
             binding.drawerLayout.openDrawer(GravityCompat.START)
@@ -773,6 +991,24 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun dismissAnnouncementSmoothly() {
+        val card = binding.cardAnnouncement
+        if (!card.isVisible) return
+        card.animate().cancel()
+        card.animate()
+            .alpha(0f)
+            .scaleY(0.92f)
+            .translationY(-10f * resources.displayMetrics.density)
+            .setDuration(220)
+            .withEndAction {
+                card.isVisible = false
+                card.alpha = 1f
+                card.scaleY = 1f
+                card.translationY = 0f
+            }
+            .start()
+    }
+
     private fun observeStoreAnnouncement() {
         try {
             val dbUrl = "https://abdullah-store-a95ed-default-rtdb.europe-west1.firebasedatabase.app"
@@ -789,9 +1025,18 @@ class MainActivity : AppCompatActivity() {
                             if (isActive && body.isNotBlank()) {
                                 binding.txtAnnouncementTitle.text = title
                                 binding.txtAnnouncementBody.text = body
-                                binding.cardAnnouncement.isVisible = true
+                                if (!binding.cardAnnouncement.isVisible) {
+                                    binding.cardAnnouncement.alpha = 0f
+                                    binding.cardAnnouncement.translationY = -12f * resources.displayMetrics.density
+                                    binding.cardAnnouncement.isVisible = true
+                                    binding.cardAnnouncement.animate()
+                                        .alpha(1f)
+                                        .translationY(0f)
+                                        .setDuration(260)
+                                        .start()
+                                }
                                 binding.btnDismissAnnouncement.setOnClickListener {
-                                    binding.cardAnnouncement.isVisible = false
+                                    dismissAnnouncementSmoothly()
                                 }
                             } else {
                                 binding.cardAnnouncement.isVisible = false
