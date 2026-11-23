@@ -64,8 +64,8 @@ import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.Query
 import com.google.firebase.database.ValueEventListener
-import com.fix.engine.abdullah.service.StoreDownloadEngine
-import com.fix.engine.abdullah.service.StoreDownloadStatus
+import com.tonyodev.fetch2.Fetch
+import com.tonyodev.fetch2.Status
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -211,7 +211,6 @@ class AppDetailsActivity : AppCompatActivity() {
         binding = ActivityAppDetailsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        StoreDownloadEngine.init(applicationContext)
         downloadManager = AndroidDownloadManager(this)
         tracker = DownloadTracker(this)
 
@@ -430,27 +429,34 @@ class AppDetailsActivity : AppCompatActivity() {
 
         incrementDownloadCount(app.packageName)
 
-        val expectedBytes = app.size.toLongOrNull() ?: 0L
-        val downloadId = downloadManager.enqueueDownload(
-            url = app.downloadUrl,
-            fileName = app.getUniqueFileName(),
-            packageName = app.packageName,
-            displayName = app.name,
-            expectedSize = expectedBytes
-        )
-        currentDownloadId = downloadId
-        startTrackingProcess(downloadId)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val directUrl = LinkExtractor.extract(app.downloadUrl)
+            withContext(Dispatchers.Main) {
+                if (isFinishing || isDestroyed) return@withContext
+                val downloadId = downloadManager.enqueueDownload(directUrl, app.getUniqueFileName(), app.packageName)
+                currentDownloadId = downloadId
+                startTrackingProcess(downloadId)
+            }
+        }
     }
 
     private fun startTrackingProcess(downloadId: Int) {
         currentDownloadId = downloadId
 
         binding.btnCancelDownload.setOnClickListener {
-            downloadManager.cancelDownload(downloadId, deletePartial = true)
+            try {
+                val fetch = Fetch.getDefaultInstance()
+                fetch.cancel(downloadId)
+                fetch.remove(downloadId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             tracker.stopTracking()
             isDownloading = false
+
+            val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
             currentApp?.let { app ->
-                StoreDownloadEngine.deleteWorkFiles(app.getUniqueFileName(), deleteFinal = true)
+                File(downloadFolder, app.getUniqueFileName()).delete()
             }
 
             binding.cardDownloadingState.visibility = View.GONE
@@ -522,47 +528,59 @@ class AppDetailsActivity : AppCompatActivity() {
     @SuppressLint("Range")
     private fun syncDownloadAndUiState(app: AppModel) {
         val fileName = app.getUniqueFileName()
+        val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val finalFile = File(downloadFolder, fileName)
+
         try {
-            val activeTask = StoreDownloadEngine.getTaskByFileName(fileName)
-            val isOngoing = activeTask != null && (
-                activeTask.status == StoreDownloadStatus.QUEUED ||
-                    activeTask.status == StoreDownloadStatus.RESOLVING ||
-                    activeTask.status == StoreDownloadStatus.DOWNLOADING ||
-                    activeTask.status == StoreDownloadStatus.PAUSED_NETWORK
-                )
+            val fetch = Fetch.getDefaultInstance()
+            fetch.getDownloads { downloads ->
+                val matchedDownload = downloads
+                    .filter { it.file == finalFile.absolutePath || it.tag == app.packageName }
+                    .maxByOrNull { it.created }
 
-            if (isOngoing && activeTask != null) {
-                isDownloading = true
-                currentDownloadId = activeTask.id
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    if (matchedDownload != null && (matchedDownload.status == Status.DOWNLOADING || matchedDownload.status == Status.QUEUED || matchedDownload.status == Status.ADDED)) {
+                        isDownloading = true
+                        currentDownloadId = matchedDownload.id
 
-                binding.btnInstallState.visibility = View.GONE
-                binding.layoutInstalledState.visibility = View.GONE
-                binding.btnShareApk.visibility = View.GONE
-                binding.btnDeleteApk.visibility = View.GONE
-                binding.cardDownloadingState.visibility = View.VISIBLE
-                binding.btnCancelDownload.visibility = View.VISIBLE
+                        binding.btnInstallState.visibility = View.GONE
+                        binding.layoutInstalledState.visibility = View.GONE
+                        binding.btnShareApk.visibility = View.GONE
+                        binding.btnDeleteApk.visibility = View.GONE
+                        binding.cardDownloadingState.visibility = View.VISIBLE
+                        binding.btnCancelDownload.visibility = View.VISIBLE
 
-                val currentProg = activeTask.progress.coerceIn(0, 99)
-                if (currentProg > 0) {
-                    binding.progressDownload.isIndeterminate = false
-                    binding.progressDownload.progress = currentProg
-                    binding.tvDownloadPercent.text = if (activeTask.status == StoreDownloadStatus.PAUSED_NETWORK) {
-                        "بانتظار الشبكة... $currentProg%"
+                        val currentProg = matchedDownload.progress.coerceIn(0, 99)
+                        val dlMb = matchedDownload.downloaded / (1024.0 * 1024.0)
+                        val totMb = matchedDownload.total / (1024.0 * 1024.0)
+
+                        if (currentProg > 0) {
+                            binding.progressDownload.isIndeterminate = false
+                            binding.progressDownload.progress = currentProg
+                            binding.tvDownloadPercent.text = "جاري التنزيل... $currentProg%"
+                            binding.tvDownloadSize.text = if (matchedDownload.total > 0) {
+                                String.format(Locale.ENGLISH, "%.1f/%.1f MB", dlMb, totMb)
+                            } else {
+                                String.format(Locale.ENGLISH, "%.1f MB", dlMb)
+                            }
+                        } else {
+                            binding.progressDownload.isIndeterminate = true
+                            binding.tvDownloadPercent.text = "جاري التنزيل..."
+                        }
+
+                        startTrackingProcess(matchedDownload.id)
                     } else {
-                        "جاري التنزيل... $currentProg%"
+                        if (matchedDownload != null && matchedDownload.status != Status.COMPLETED) {
+                            fetch.remove(matchedDownload.id)
+                            finalFile.delete()
+                        }
+                        isDownloading = false
+                        setupLogic(app)
                     }
-                } else {
-                    binding.progressDownload.isIndeterminate = true
-                    binding.tvDownloadPercent.text = "جاري التنزيل..."
                 }
-                binding.tvDownloadSize.text = activeTask.statusMessage
-
-                startTrackingProcess(activeTask.id)
-            } else {
-                isDownloading = false
-                setupLogic(app)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             isDownloading = false
             setupLogic(app)
         }
@@ -1061,16 +1079,7 @@ class AppDetailsActivity : AppCompatActivity() {
             binding.btnShareApk.setOnClickListener { shareApkFile(finalFile, app.name) }
             binding.btnInstallState.setOnClickListener { triggerAdvancedInstall(finalFile) }
         } else {
-            val partialPct = StoreDownloadEngine.getPartialProgressPercent(
-                fileName = app.getUniqueFileName(),
-                packageName = app.packageName,
-                expectedSize = app.size.toLongOrNull() ?: 0L
-            )
-            binding.btnInstallState.text = when {
-                partialPct > 0 -> "استئناف التنزيل ($partialPct%)"
-                isUpdate -> "تحديث"
-                else -> "تنزيل"
-            }
+            binding.btnInstallState.text = if (isUpdate) "تحديث" else "تنزيل"
             binding.btnShareApk.visibility = View.GONE
             binding.btnInstallState.setOnClickListener { prepareAndDownload(app) }
         }
@@ -1281,18 +1290,22 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     private fun deleteAppFiles(app: AppModel) {
-        StoreDownloadEngine.cancelByFileName(app.getUniqueFileName(), deletePartial = true)
+        try {
+            val fetch = Fetch.getDefaultInstance()
+            if (currentDownloadId != -1) {
+                fetch.cancel(currentDownloadId)
+                fetch.remove(currentDownloadId)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         val downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         val finalFile = File(downloadFolder, app.getUniqueFileName())
-        val partFile = File(downloadFolder, "${app.getUniqueFileName()}.part")
-        val metaFile = File(downloadFolder, "${app.getUniqueFileName()}.part.meta")
         val tempFile = File(downloadFolder, "${app.getUniqueFileName()}.tmp")
 
         var isDeleted = false
         if (finalFile.exists() && finalFile.delete()) isDeleted = true
-        if (partFile.exists() && partFile.delete()) isDeleted = true
-        if (metaFile.exists() && metaFile.delete()) isDeleted = true
         if (tempFile.exists() && tempFile.delete()) isDeleted = true
 
         if (isDeleted) {
