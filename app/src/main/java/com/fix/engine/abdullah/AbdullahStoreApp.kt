@@ -8,26 +8,28 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
-import androidx.appcompat.app.AppCompatDelegate
-import com.fix.engine.abdullah.data.api.RetrofitClient
 import com.fix.engine.abdullah.service.CrashHandler
 import com.fix.engine.abdullah.service.StoreDownloadEngine
-import com.fix.engine.abdullah.service.UpdateWorker
 import java.io.File
 import java.util.zip.ZipFile
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Project: Abdullah Store - Android 14/15/16 Safe Core & Unified OkHttp Download Engine
+ * Project: Abdullah Store - Android 14/15/16 (API 34-36) Receiver Interceptor & Crash-Protected Core
  */
 class AbdullahStoreApp : Application() {
 
-    override fun getApplicationContext(): Context = this
+    override fun getApplicationContext(): Context {
+        return this
+    }
 
+    /**
+     * 🛡️ توحيد وضمان تمرير RECEIVER_NOT_EXPORTED لأي استدعاء داخلي في أندرويد 13 و 14 و 15 و 16
+     */
     private fun ensureSafeReceiverFlags(flags: Int): Int {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val hasExportedFlag = (flags and Context.RECEIVER_EXPORTED) != 0 ||
-                (flags and Context.RECEIVER_NOT_EXPORTED) != 0
+                    (flags and Context.RECEIVER_NOT_EXPORTED) != 0
             if (hasExportedFlag) flags else (flags or Context.RECEIVER_NOT_EXPORTED)
         } else {
             flags
@@ -42,7 +44,11 @@ class AbdullahStoreApp : Application() {
         }
     }
 
-    override fun registerReceiver(receiver: BroadcastReceiver?, filter: IntentFilter?, flags: Int): Intent? {
+    override fun registerReceiver(
+        receiver: BroadcastReceiver?,
+        filter: IntentFilter?,
+        flags: Int
+    ): Intent? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             super.registerReceiver(receiver, filter, ensureSafeReceiverFlags(flags))
         } else {
@@ -93,18 +99,16 @@ class AbdullahStoreApp : Application() {
         super.onCreate()
 
         val prefs = getSharedPreferences("FixEnginePrefs", Context.MODE_PRIVATE)
-        val savedTheme = prefs.getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        AppCompatDelegate.setDefaultNightMode(savedTheme)
+        val savedTheme = prefs.getInt("theme_mode", androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(savedTheme)
 
         appInstance = this
         CrashHandler.init(this)
 
         try {
-            RetrofitClient.init(this)
             StoreDownloadEngine.init(this)
-            UpdateWorker.schedulePeriodicCheck(this)
         } catch (t: Throwable) {
-            CrashHandler.recordException(this, t, "AbdullahStoreApp.initEngines")
+            CrashHandler.recordException(this, t, "AbdullahStoreApp.initDownloadEngine")
         }
     }
 
@@ -151,7 +155,7 @@ class AbdullahStoreApp : Application() {
                     }
                     hasApkEntries && !hasRootManifest
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 false
             }
         }
