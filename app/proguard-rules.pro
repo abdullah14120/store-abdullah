@@ -60,7 +60,11 @@
 -keep class com.google.firebase.database.** { *; }
 -dontwarn com.google.firebase.**
 
-
+# 🚀 Fetch2 Download Engine (Core, UI, and OkHttp modules)
+-keep class com.tonyodev.fetch2.** { *; }
+-keep class com.tonyodev.fetch2core.** { *; }
+-keep class com.tonyodev.fetch2okhttp.** { *; }
+-dontwarn com.tonyodev.**
 
 # --------------------------------------------------------------------
 # [4] CORE LOGIC: Background Processing & Local DB (Coroutines, Room, WorkManager)
