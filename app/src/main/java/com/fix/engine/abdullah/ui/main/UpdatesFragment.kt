@@ -16,11 +16,10 @@ import com.fix.engine.abdullah.databinding.FragmentUpdatesBinding
 import com.fix.engine.abdullah.ui.adapter.AppAdapter
 import com.fix.engine.abdullah.ui.details.AppDetailsActivity
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
-import com.google.android.material.color.MaterialColors
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Refactored: SwipeRefreshLayout Pull-to-Refresh, UI State Observation & Interactive Empty State
+ * Refactored: UI State Observation, Interactive Empty State & Janky-Free Scrolling
  */
 class UpdatesFragment : Fragment() {
 
@@ -39,26 +38,15 @@ class UpdatesFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupSwipeRefresh()
         setupRecyclerView()
         setupEmptyStateButton()
         setupObserver()
     }
 
-    private fun setupSwipeRefresh() {
-        val primaryColor = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
-        val surfaceColor = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceVariant)
-        binding.swipeRefreshUpdates.setColorSchemeColors(primaryColor)
-        binding.swipeRefreshUpdates.setProgressBackgroundColorSchemeColor(surfaceColor)
-        binding.swipeRefreshUpdates.setOnRefreshListener {
-            viewModel.reloadFromNetwork()
-        }
-    }
-
     private fun setupEmptyStateButton() {
         binding.btnCheckUpdatesAgain.setOnClickListener {
             Toast.makeText(requireContext(), "جاري فحص التحديثات... 🔄", Toast.LENGTH_SHORT).show()
-            viewModel.reloadFromNetwork()
+            viewModel.refreshAppStates()
         }
     }
 
@@ -93,15 +81,8 @@ class UpdatesFragment : Fragment() {
     }
 
     private fun setupObserver() {
-        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
-            if (loading != true) {
-                binding.swipeRefreshUpdates.isRefreshing = false
-            }
-        }
-
         viewModel.updatesUiStateList.observe(viewLifecycleOwner) { uiStates ->
             appAdapter.submitList(uiStates)
-            binding.swipeRefreshUpdates.isRefreshing = false
 
             if (!uiStates.isNullOrEmpty()) {
                 binding.layoutAllUpdated.visibility = View.GONE
