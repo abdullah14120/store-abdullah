@@ -2,13 +2,7 @@ package com.fix.engine.abdullah.service
 
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
-import android.os.Build
 import android.os.Environment
-import android.os.PowerManager
 import android.os.SystemClock
 import com.fix.engine.abdullah.data.network.LinkExtractor
 import kotlinx.coroutines.CancellationException
@@ -102,8 +96,7 @@ object StoreDownloadEngine {
     @Volatile
     private var isInitialized = false
 
-    private var wakeLock: PowerManager.WakeLock? = null
-    private var networkCallbackRegistered = false
+
 
     private data class PartialMeta(
         val packageName: String,
@@ -172,7 +165,6 @@ object StoreDownloadEngine {
             if (isInitialized) return
             appContext = context.applicationContext
             isInitialized = true
-            registerNetworkAutoResumeMonitor()
         }
     }
 
@@ -244,8 +236,7 @@ object StoreDownloadEngine {
             statusMessage = if (initialPartial > 0) "جاري استئناف التنزيل من $initialPartial%..." else "جاري تجهيز رابط التحميل..."
         )
         updateTask(task)
-        acquireWakeLock()
-        StoreDownloadForegroundService.sync(appContext)
+
 
         jobs[id]?.cancel()
         jobs[id] = scope.launch {
@@ -275,7 +266,6 @@ object StoreDownloadEngine {
                 statusMessage = "تم إلغاء التنزيل"
             ))
         }
-        cleanupIdleResources()
     }
 
     fun cancelByFileName(fileName: String, deletePartial: Boolean = true) {
@@ -383,25 +373,6 @@ object StoreDownloadEngine {
                             return@withLock
                         }
                         is StreamOutcome.TransientError -> {
-                            // إذا انقطعت الشبكة فعلياً، نضع المهمة في PAUSED_NETWORK (SealPlus) بانتظار عودتها تلقائياً
-                            if (!isValidatedNetworkAvailable()) {
-                                val currentPartLen = partFile.takeIf { it.exists() }?.length() ?: 0L
-                                val curTask = _downloadsState.value[id]
-                                val total = (curTask?.totalBytes ?: initialTask.expectedSize).coerceAtLeast(currentPartLen)
-                                val pct = if (total > 0L) ((currentPartLen * 100L) / total).toInt().coerceIn(0, 99) else (curTask?.progress ?: 0)
-                                _downloadsState.update { map ->
-                                    val cur = map[id] ?: return@update map
-                                    map + (id to cur.copy(
-                                        downloadedBytes = currentPartLen,
-                                        progress = pct,
-                                        speedBytesPerSec = 0L,
-                                        status = StoreDownloadStatus.PAUSED_NETWORK,
-                                        statusMessage = "انقطع الإنترنت... سيُستأنف تلقائياً من $pct% فور عودة الشبكة 📶"
-                                    ))
-                                }
-                                notifyBroadcast(finalFile.absolutePath, isCompleted = false)
-                                return@withLock
-                            }
 
                             if (attempt >= MAX_TRANSIENT_RETRIES) {
                                 // نبقي الملف الجزئي .part محفوظاً على القرص لكي يستأنف المستخدم عند الضغط على "استئناف"!
@@ -437,8 +408,7 @@ object StoreDownloadEngine {
                 cancelCallsFor(fileName)
                 splitFile.delete()
                 jobs.remove(id)
-                cleanupIdleResources()
-            }
+                    }
         }
     }
 
@@ -871,69 +841,6 @@ object StoreDownloadEngine {
         }
     }
 
-    private fun isValidatedNetworkAvailable(): Boolean {
-        return try {
-            val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = cm.activeNetwork ?: return false
-            val caps = cm.getNetworkCapabilities(network) ?: return false
-            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
-        } catch (_: Exception) {
-            true
-        }
-    }
-
-    /**
-     * 📶 مراقب الشبكة الذكي (مستوحى من SealPlus):
-     * يستأنف تلقائياً أي تحميل توقف بسبب انقطاع الشبكة (PAUSED_NETWORK) فور عودة الإنترنت الفعلي
-     */
-    private fun registerNetworkAutoResumeMonitor() {
-        if (networkCallbackRegistered) return
-        try {
-            val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val callback = object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    resumeNetworkPausedTasks()
-                }
-
-                override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-                    val validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                        caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-                    if (validated) {
-                        resumeNetworkPausedTasks()
-                    }
-                }
-            }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                cm.registerDefaultNetworkCallback(callback)
-            } else {
-                val request = NetworkRequest.Builder()
-                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    .build()
-                cm.registerNetworkCallback(request, callback)
-            }
-            networkCallbackRegistered = true
-        } catch (_: Exception) {
-            networkCallbackRegistered = false
-        }
-    }
-
-    private fun resumeNetworkPausedTasks() {
-        val pausedTasks = _downloadsState.value.values.filter { it.status == StoreDownloadStatus.PAUSED_NETWORK }
-        for (task in pausedTasks) {
-            if (task.id !in cancelledIds && jobs[task.id]?.isActive != true) {
-                enqueue(
-                    originalUrl = task.originalUrl,
-                    fileName = task.fileName,
-                    packageName = task.packageName,
-                    displayName = task.displayName,
-                    expectedSize = task.expectedSize
-                )
-            }
-        }
-    }
-
     private fun notifyBroadcast(filePath: String, isCompleted: Boolean) {
         try {
             val intent = Intent("com.fix.engine.abdullah.DOWNLOAD_STATE_CHANGED").apply {
@@ -943,32 +850,5 @@ object StoreDownloadEngine {
             }
             appContext.sendBroadcast(intent)
         } catch (_: Exception) {}
-    }
-
-    private fun acquireWakeLock() {
-        try {
-            if (wakeLock == null) {
-                val pm = appContext.getSystemService(Context.POWER_SERVICE) as PowerManager
-                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AbdullahStore::DownloadWakeLock")
-                    .apply { setReferenceCounted(false) }
-            }
-            if (wakeLock?.isHeld == false) {
-                // مهلة أمان قصوى ساعتان للشبكات البطيئة جداً (SealPlus)
-                wakeLock?.acquire(2L * 60L * 60L * 1000L)
-            }
-        } catch (_: Exception) {}
-    }
-
-    private fun cleanupIdleResources() {
-        val stillRunning = _downloadsState.value.values.any {
-            it.status == StoreDownloadStatus.QUEUED ||
-                it.status == StoreDownloadStatus.RESOLVING ||
-                it.status == StoreDownloadStatus.DOWNLOADING
-        }
-        if (!stillRunning) {
-            try {
-                if (wakeLock?.isHeld == true) wakeLock?.release()
-            } catch (_: Exception) {}
-        }
     }
 }
