@@ -60,8 +60,7 @@
 -keep class com.google.firebase.database.** { *; }
 -dontwarn com.google.firebase.**
 
-# 🚀 Custom OkHttp Download Foreground Service
--keep class com.fix.engine.abdullah.service.StoreDownloadForegroundService { *; }
+
 
 # --------------------------------------------------------------------
 # [4] CORE LOGIC: Background Processing & Local DB (Coroutines, Room, WorkManager)
