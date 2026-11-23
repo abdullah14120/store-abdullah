@@ -114,11 +114,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- Custom Download Foreground Service (API 34+ Data Sync Type Bound) -->
-        <service
-            android:name=".service.StoreDownloadForegroundService"
-            android:foregroundServiceType="dataSync"
-            android:exported="false" />
+
 
     </application>
 </manifest>
