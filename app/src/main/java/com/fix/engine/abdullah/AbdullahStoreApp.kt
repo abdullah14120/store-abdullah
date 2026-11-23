@@ -9,7 +9,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import com.fix.engine.abdullah.service.CrashHandler
-import com.fix.engine.abdullah.service.StoreDownloadEngine
 import java.io.File
 import java.util.zip.ZipFile
 
@@ -105,11 +104,7 @@ class AbdullahStoreApp : Application() {
         appInstance = this
         CrashHandler.init(this)
 
-        try {
-            StoreDownloadEngine.init(this)
-        } catch (t: Throwable) {
-            CrashHandler.recordException(this, t, "AbdullahStoreApp.initDownloadEngine")
-        }
+
     }
 
     companion object {
