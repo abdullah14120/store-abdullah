@@ -211,6 +211,7 @@ class AppDetailsActivity : AppCompatActivity() {
         binding = ActivityAppDetailsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        StoreDownloadEngine.init(applicationContext)
         downloadManager = AndroidDownloadManager(this)
         tracker = DownloadTracker(this)
 
