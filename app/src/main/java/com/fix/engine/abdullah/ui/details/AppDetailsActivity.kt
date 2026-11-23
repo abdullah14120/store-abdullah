@@ -338,7 +338,7 @@ class AppDetailsActivity : AppCompatActivity() {
             addAction("com.fix.engine.abdullah.UPDATE_UI")
             addAction("com.fix.engine.abdullah.DOWNLOAD_STATE_CHANGED")
         }
-        ContextCompat.registerReceiver(this, installStateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(this, installStateReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
     }
 
     private fun initFirebase() {
