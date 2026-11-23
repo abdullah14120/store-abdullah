@@ -146,10 +146,3 @@ Java_com_fix_engine_abdullah_ui_details_AppDetailsActivity_getSecureFirebaseUrl(
     
     return result;
 }
-
-// 🌐 دالة إرجاع رابط المستودع لخدمة فحص التحديثات في الخلفية (UpdateWorker)
-extern "C"
-JNIEXPORT jstring JNICALL
-Java_com_fix_engine_abdullah_service_UpdateWorker_getSecureRepoUrl(JNIEnv *env, jobject thiz) {
-    return Java_com_fix_engine_abdullah_MainActivity_getSecureRepoUrl(env, thiz);
-}
