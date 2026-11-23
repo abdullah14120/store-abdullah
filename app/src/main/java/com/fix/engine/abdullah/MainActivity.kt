@@ -6,7 +6,17 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.StateListDrawable
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -18,14 +28,7 @@ import android.os.Environment
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
-import android.annotation.SuppressLint
-import android.content.res.ColorStateList
-import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
-import android.view.MotionEvent
-import android.view.View
-import android.view.ViewConfiguration
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,37 +48,28 @@ import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.MainPagerAdapter
 import com.fix.engine.abdullah.ui.details.AppDetailsActivity
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
-import com.fix.engine.abdullah.ui.widget.FloatingNavBarController
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.shape.CornerFamily
-import com.google.android.material.shape.MaterialShapeDrawable
-import com.google.android.material.shape.ShapeAppearanceModel
+import com.google.android.material.tabs.TabLayoutMediator
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import androidx.core.graphics.ColorUtils
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlin.math.abs
 import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
  * Developed by: Abdullah Al-Tamimi
  * Project: متجر Abdullah (Official Runtime Core)
- * Feature: JNI C++ Security, Synced Day/Night Theme Switcher, Hero Spotlight, Smart Sort, Floating Pill Nav & Storage Manager
+ * Feature: JNI C++ Security, Synced Day/Night Theme Switcher, Hero Spotlight, Smart Sort & Storage Manager
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
-
-    private var floatingNavController: FloatingNavBarController? = null
 
     private lateinit var connectivityManager: ConnectivityManager
     private lateinit var networkCallback: ConnectivityManager.NetworkCallback
@@ -87,8 +81,6 @@ class MainActivity : AppCompatActivity() {
 
     private var spotlightApps: List<AppItemUiState> = emptyList()
     private var currentSpotlightIndex = 0
-    private var spotlightAutoScrollJob: Job? = null
-    private var isHeroSwipeConfigured = false
 
     private val sortLabels = arrayOf(
         "الأحدث والإصدارات المميزة ✨",
@@ -148,25 +140,6 @@ class MainActivity : AppCompatActivity() {
             delay(500)
             checkInstallPermission()
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (spotlightApps.size > 1) {
-            startSpotlightAutoScroll()
-        }
-    }
-
-    override fun onPause() {
-        stopSpotlightAutoScroll()
-        super.onPause()
-    }
-
-    override fun onDestroy() {
-        stopSpotlightAutoScroll()
-        floatingNavController?.detach()
-        floatingNavController = null
-        super.onDestroy()
     }
 
     private fun registerNetworkMonitoring() {
@@ -242,177 +215,14 @@ class MainActivity : AppCompatActivity() {
 
         if (shouldShowHero) {
             currentSpotlightIndex = currentSpotlightIndex.coerceIn(0, spotlightApps.lastIndex)
-            setupHeroSwipeGesture()
             bindSpotlightCard(spotlightApps[currentSpotlightIndex])
-            renderSpotlightDots()
-            if (spotlightApps.size > 1) {
-                startSpotlightAutoScroll()
-            } else {
-                stopSpotlightAutoScroll()
-            }
-        } else {
-            stopSpotlightAutoScroll()
-        }
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
-    private fun setupHeroSwipeGesture() {
-        if (isHeroSwipeConfigured) return
-        isHeroSwipeConfigured = true
-
-        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop
-        val swipeThresholdPx = (44f * resources.displayMetrics.density)
-        var downX = 0f
-        var downY = 0f
-
-        binding.cardHeroSpotlight.setOnTouchListener { view, event ->
-            if (spotlightApps.size <= 1) return@setOnTouchListener false
-
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    downX = event.x
-                    downY = event.y
-                    false
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = event.x - downX
-                    val dy = event.y - downY
-                    if (abs(dx) > touchSlop && abs(dx) > abs(dy) * 1.2f) {
-                        view.parent?.requestDisallowInterceptTouchEvent(true)
-                    }
-                    false
-                }
-                MotionEvent.ACTION_UP -> {
-                    view.parent?.requestDisallowInterceptTouchEvent(false)
-                    val dx = event.x - downX
-                    val dy = event.y - downY
-                    if (abs(dx) > swipeThresholdPx && abs(dx) > abs(dy)) {
-                        val isRtl = resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
-                        val goNext = if (isRtl) dx > 0 else dx < 0
-                        val targetIndex = if (goNext) {
-                            (currentSpotlightIndex + 1) % spotlightApps.size
-                        } else {
-                            (currentSpotlightIndex - 1 + spotlightApps.size) % spotlightApps.size
-                        }
-                        showSpotlightAt(targetIndex, slideFromEnd = goNext, animate = true)
-                        startSpotlightAutoScroll()
-                        view.isPressed = false
-                        true
-                    } else {
-                        false
-                    }
-                }
-                MotionEvent.ACTION_CANCEL -> {
-                    view.parent?.requestDisallowInterceptTouchEvent(false)
-                    false
-                }
-                else -> false
-            }
-        }
-    }
-
-    private fun startSpotlightAutoScroll() {
-        spotlightAutoScrollJob?.cancel()
-        if (spotlightApps.size <= 1) return
-        spotlightAutoScrollJob = lifecycleScope.launch {
-            while (isActive) {
-                delay(5500L)
-                if (!isFinishing && !isDestroyed && binding.cardHeroSpotlight.isVisible && spotlightApps.size > 1) {
-                    val nextIndex = (currentSpotlightIndex + 1) % spotlightApps.size
-                    showSpotlightAt(nextIndex, slideFromEnd = true, animate = true)
-                }
-            }
-        }
-    }
-
-    private fun stopSpotlightAutoScroll() {
-        spotlightAutoScrollJob?.cancel()
-        spotlightAutoScrollJob = null
-    }
-
-    private fun showSpotlightAt(targetIndex: Int, slideFromEnd: Boolean, animate: Boolean) {
-        if (spotlightApps.isEmpty()) return
-        val safeIndex = targetIndex.coerceIn(0, spotlightApps.lastIndex)
-        currentSpotlightIndex = safeIndex
-        val uiState = spotlightApps[safeIndex]
-
-        if (!animate) {
-            bindSpotlightCard(uiState)
-            renderSpotlightDots()
-            return
-        }
-
-        val density = resources.displayMetrics.density
-        val isRtl = resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
-        val shiftPx = 16f * density * (if (slideFromEnd) 1f else -1f) * (if (isRtl) -1f else 1f)
-
-        binding.layoutHeroContent.animate().cancel()
-        binding.layoutHeroContent.animate()
-            .alpha(0f)
-            .translationX(-shiftPx * 0.5f)
-            .setDuration(130)
-            .withEndAction {
-                if (isFinishing || isDestroyed) return@withEndAction
-                bindSpotlightCard(uiState)
-                renderSpotlightDots()
-                binding.layoutHeroContent.translationX = shiftPx
-                binding.layoutHeroContent.animate()
-                    .alpha(1f)
-                    .translationX(0f)
-                    .setDuration(220)
-                    .start()
-            }
-            .start()
-    }
-
-    private fun renderSpotlightDots() {
-        val container = binding.layoutHeroDots
-        container.removeAllViews()
-        if (spotlightApps.size <= 1) {
-            container.isVisible = false
-            return
-        }
-        container.isVisible = true
-
-        val density = resources.displayMetrics.density
-        val colorPrimary = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
-        val colorOnPrimaryContainer = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnPrimaryContainer)
-        val inactiveColor = ColorUtils.setAlphaComponent(colorOnPrimaryContainer, 72)
-
-        val dotHeight = (6 * density).toInt()
-        val activeWidth = (20 * density).toInt()
-        val inactiveWidth = (6 * density).toInt()
-        val horizontalMargin = (3 * density).toInt()
-
-        spotlightApps.indices.forEach { index ->
-            val isSelected = index == currentSpotlightIndex
-            val dotView = View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    if (isSelected) activeWidth else inactiveWidth,
-                    dotHeight
-                ).apply {
-                    setMargins(horizontalMargin, 0, horizontalMargin, 0)
-                }
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    cornerRadius = dotHeight / 2f
-                    setColor(if (isSelected) colorPrimary else inactiveColor)
-                }
-                setOnClickListener {
-                    if (index != currentSpotlightIndex) {
-                        showSpotlightAt(index, slideFromEnd = index > currentSpotlightIndex, animate = true)
-                        startSpotlightAutoScroll()
-                    }
-                }
-            }
-            container.addView(dotView)
         }
     }
 
     private fun bindSpotlightCard(uiState: AppItemUiState) {
         val app = uiState.app
 
-        binding.txtHeroIndicator.text = "${currentSpotlightIndex + 1} / ${spotlightApps.size}"
+        binding.txtHeroIndicator.text = "التالي ⟳ (${currentSpotlightIndex + 1}/${spotlightApps.size})"
         binding.txtHeroTitle.text = app.name
         val sizeText = app.getFormattedSize().ifBlank { "نسخة رسمية" }
         binding.txtHeroSub.text = "${app.developer}  •  v${app.versionName}  •  $sizeText"
@@ -452,9 +262,8 @@ class MainActivity : AppCompatActivity() {
 
         binding.txtHeroIndicator.setOnClickListener {
             if (spotlightApps.size > 1) {
-                val nextIndex = (currentSpotlightIndex + 1) % spotlightApps.size
-                showSpotlightAt(nextIndex, slideFromEnd = true, animate = true)
-                startSpotlightAutoScroll()
+                currentSpotlightIndex = (currentSpotlightIndex + 1) % spotlightApps.size
+                bindSpotlightCard(spotlightApps[currentSpotlightIndex])
             }
         }
 
@@ -498,33 +307,8 @@ class MainActivity : AppCompatActivity() {
         AppCompatDelegate.setDefaultNightMode(targetMode)
     }
 
-    private fun applyRoundedDrawerSurface() {
-        val cornerRadiusPx = 28f * resources.displayMetrics.density
-        val isRtl = resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
-        val shapeBuilder = ShapeAppearanceModel.builder()
-
-        if (isRtl) {
-            shapeBuilder
-                .setTopLeftCorner(CornerFamily.ROUNDED, cornerRadiusPx)
-                .setBottomLeftCorner(CornerFamily.ROUNDED, cornerRadiusPx)
-        } else {
-            shapeBuilder
-                .setTopRightCorner(CornerFamily.ROUNDED, cornerRadiusPx)
-                .setBottomRightCorner(CornerFamily.ROUNDED, cornerRadiusPx)
-        }
-
-        val surfaceColor = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurface)
-        val drawerBg = MaterialShapeDrawable(shapeBuilder.build()).apply {
-            fillColor = ColorStateList.valueOf(surfaceColor)
-        }
-        binding.navView.background = drawerBg
-        binding.navView.clipToOutline = true
-    }
-
     private fun setupNavigationDrawer() {
         val prefs = getSharedPreferences("FixEnginePrefs", MODE_PRIVATE)
-
-        applyRoundedDrawerSurface()
 
         binding.btnMenu.setOnClickListener {
             binding.drawerLayout.openDrawer(GravityCompat.START)
@@ -538,7 +322,7 @@ class MainActivity : AppCompatActivity() {
 
         val isNightActive = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         binding.btnThemeQuickToggle.setImageResource(
-            if (isNightActive) R.drawable.ic_header_sun else R.drawable.ic_header_moon
+            if (isNightActive) android.R.drawable.ic_menu_day else android.R.drawable.ic_menu_recent_history
         )
 
         binding.btnThemeQuickToggle.setOnClickListener {
@@ -795,13 +579,151 @@ class MainActivity : AppCompatActivity() {
     private fun setupTabs() {
         binding.viewPagerMain.adapter = MainPagerAdapter(this)
 
-        floatingNavController = FloatingNavBarController(
-            binding = binding.floatingNav,
-            viewPager = binding.viewPagerMain,
-            onTabReselected = {
+        val colorPrimary = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
+        val colorOnSurfaceVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnSurfaceVariant)
+
+        val tabColorStates = ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_selected),
+                intArrayOf(-android.R.attr.state_selected)
+            ),
+            intArrayOf(colorPrimary, colorOnSurfaceVariant)
+        )
+
+        binding.tabLayoutMain.tabIconTint = tabColorStates
+        binding.tabLayoutMain.tabTextColors = tabColorStates
+
+        TabLayoutMediator(binding.tabLayoutMain, binding.viewPagerMain) { tab, position ->
+            tab.text = when (position) {
+                0 -> "التطبيقات"
+                1 -> "التحديثات"
+                else -> "المثبتة بهاتفي"
+            }
+            tab.icon = createBottomNavStateIcon(position)
+        }.attach()
+
+        // مستوحى من CentralActivity.C4 (onTabReselected): الضغط على التبويب النشط يعيد فتح الهيدر العلوي بسلاسة
+        binding.tabLayoutMain.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
+            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
+            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
                 binding.appBar.setExpanded(true, true)
             }
-        )
+        })
+    }
+
+    /**
+     * 🎨 توليد أيقونات التبويبات السفلية (24dp) بأسلوب تطبيق Outlook و Google Play:
+     * تكون الأيقونة مفرغة (Outlined) في الوضع العادي، وممتلئة (Filled) عند تحديد التبويب.
+     */
+    private fun createBottomNavStateIcon(position: Int): Drawable {
+        val stateList = StateListDrawable()
+        val selectedDrawable = drawTabVectorBitmap(position, isSelected = true)
+        val unselectedDrawable = drawTabVectorBitmap(position, isSelected = false)
+
+        stateList.addState(intArrayOf(android.R.attr.state_selected), selectedDrawable)
+        stateList.addState(intArrayOf(), unselectedDrawable)
+        return stateList
+    }
+
+    private fun drawTabVectorBitmap(position: Int, isSelected: Boolean): Drawable {
+        val density = resources.displayMetrics.density
+        val sizePx = (24 * density).toInt().coerceAtLeast(48)
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val s = sizePx.toFloat()
+        val strokeW = 1.9f * density
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = if (isSelected) Paint.Style.FILL else Paint.Style.STROKE
+            strokeWidth = strokeW
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+
+        when (position) {
+            0 -> {
+                // أيقونة شبكة التطبيقات الرباعية (مطابقة لأيقونة "التطبيقات" في شريط Outlook السفلي)
+                val gap = s * 0.08f
+                val margin = s * 0.14f
+                val boxSize = (s - (margin * 2) - gap) / 2f
+                val radius = boxSize * 0.26f
+
+                val r1 = RectF(margin, margin, margin + boxSize, margin + boxSize)
+                val r2 = RectF(margin + boxSize + gap, margin, s - margin, margin + boxSize)
+                val r3 = RectF(margin, margin + boxSize + gap, margin + boxSize, s - margin)
+                val r4 = RectF(margin + boxSize + gap, margin + boxSize + gap, s - margin, s - margin)
+
+                canvas.drawRoundRect(r1, radius, radius, paint)
+                canvas.drawRoundRect(r2, radius, radius, paint)
+                canvas.drawRoundRect(r3, radius, radius, paint)
+                canvas.drawRoundRect(r4, radius, radius, paint)
+            }
+            1 -> {
+                // أيقونة التحديثات (إطار دائري ناعم مع سهم ترقية علوي)
+                val pad = s * 0.13f
+                val rect = RectF(pad, pad, s - pad, s - pad)
+                val radius = s * 0.24f
+
+                val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = if (isSelected) Color.BLACK else Color.WHITE
+                    style = Paint.Style.STROKE
+                    strokeWidth = strokeW
+                    strokeCap = Paint.Cap.ROUND
+                    strokeJoin = Paint.Join.ROUND
+                    if (isSelected) {
+                        xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_OUT)
+                    }
+                }
+
+                canvas.drawRoundRect(rect, radius, radius, paint)
+
+                val cx = s * 0.5f
+                val topY = s * 0.30f
+                val botY = s * 0.70f
+                val wing = s * 0.16f
+
+                val arrowPath = Path().apply {
+                    moveTo(cx, botY)
+                    lineTo(cx, topY)
+                    moveTo(cx - wing, topY + wing)
+                    lineTo(cx, topY)
+                    lineTo(cx + wing, topY + wing)
+                }
+                canvas.drawPath(arrowPath, arrowPaint)
+            }
+            else -> {
+                // أيقونة المثبتة بهاتفي (هاتف ذكي مع علامة صح بالداخل)
+                val left = s * 0.24f
+                val top = s * 0.10f
+                val right = s * 0.76f
+                val bottom = s * 0.90f
+                val radius = s * 0.12f
+
+                canvas.drawRoundRect(RectF(left, top, right, bottom), radius, radius, paint)
+
+                val checkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = if (isSelected) Color.BLACK else Color.WHITE
+                    style = Paint.Style.STROKE
+                    strokeWidth = strokeW * 0.95f
+                    strokeCap = Paint.Cap.ROUND
+                    strokeJoin = Paint.Join.ROUND
+                    if (isSelected) {
+                        xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_OUT)
+                    }
+                }
+
+                val checkPath = Path().apply {
+                    moveTo(s * 0.38f, s * 0.52f)
+                    lineTo(s * 0.47f, s * 0.61f)
+                    lineTo(s * 0.63f, s * 0.43f)
+                }
+                canvas.drawPath(checkPath, checkPaint)
+            }
+        }
+
+        return BitmapDrawable(resources, bitmap)
     }
 
     private fun setupSearchLogic() {
@@ -879,18 +801,15 @@ class MainActivity : AppCompatActivity() {
     private fun setupSearchAnimation() {
         val colorPrimary = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
         val colorOutlineVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOutlineVariant)
-        val density = resources.displayMetrics.density
-        val focusedStrokePx = (1.75f * density).toInt().coerceAtLeast(2)
-        val normalStrokePx = (1f * density).toInt().coerceAtLeast(1)
 
         binding.etSearch.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
-                binding.searchCard.animate().scaleX(1.01f).scaleY(1.01f).setDuration(220).start()
-                binding.searchCard.strokeWidth = focusedStrokePx
+                binding.searchCard.animate().scaleX(1.01f).scaleY(1.01f).setDuration(250).start()
+                binding.searchCard.strokeWidth = 2
                 binding.searchCard.strokeColor = colorPrimary
             } else {
-                binding.searchCard.animate().scaleX(1f).scaleY(1f).setDuration(220).start()
-                binding.searchCard.strokeWidth = normalStrokePx
+                binding.searchCard.animate().scaleX(1f).scaleY(1f).setDuration(250).start()
+                binding.searchCard.strokeWidth = 1
                 binding.searchCard.strokeColor = colorOutlineVariant
             }
         }
@@ -906,7 +825,7 @@ class MainActivity : AppCompatActivity() {
 
         viewModel.activeSortMode.observe(this) { mode ->
             val safeIdx = (mode ?: 0).coerceIn(0, sortShortLabels.lastIndex)
-            binding.txtActiveSortLabel.text = "${sortShortLabels[safeIdx]} ▾"
+            binding.txtActiveSortLabel.text = "الترتيب: ${sortShortLabels[safeIdx]}"
         }
 
         viewModel.appsUiStateList.observe(this) { uiStates ->
@@ -927,18 +846,37 @@ class MainActivity : AppCompatActivity() {
         viewModel.updatesUiStateList.observe(this) { updateStates ->
             if (updateStates != null) {
                 val updateCount = updateStates.size
-                floatingNavController?.setUpdatesBadge(updateCount)
+                val updatesTab = binding.tabLayoutMain.getTabAt(1)
+                val badge = updatesTab?.orCreateBadge
 
-                if (updateCount > 0 && binding.etSearch.text.isNullOrBlank() && !isNotificationSent) {
-                    sendUpdateNotification(updateCount)
-                    isNotificationSent = true
+                if (updateCount > 0) {
+                    badge?.isVisible = true
+                    badge?.number = updateCount
+                    badge?.backgroundColor = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorError)
+
+                    if (binding.etSearch.text.isNullOrBlank() && !isNotificationSent) {
+                        sendUpdateNotification(updateCount)
+                        isNotificationSent = true
+                    }
+                } else {
+                    badge?.isVisible = false
                 }
             }
         }
 
         viewModel.installedUiStateList.observe(this) { installedStates ->
             if (installedStates != null) {
-                floatingNavController?.setInstalledBadge(installedStates.size)
+                val installedCount = installedStates.size
+                val installedTab = binding.tabLayoutMain.getTabAt(2)
+                val badge = installedTab?.orCreateBadge
+
+                if (installedCount > 0) {
+                    badge?.isVisible = true
+                    badge?.number = installedCount
+                    badge?.backgroundColor = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
+                } else {
+                    badge?.isVisible = false
+                }
             }
         }
 
@@ -991,24 +929,6 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun dismissAnnouncementSmoothly() {
-        val card = binding.cardAnnouncement
-        if (!card.isVisible) return
-        card.animate().cancel()
-        card.animate()
-            .alpha(0f)
-            .scaleY(0.92f)
-            .translationY(-10f * resources.displayMetrics.density)
-            .setDuration(220)
-            .withEndAction {
-                card.isVisible = false
-                card.alpha = 1f
-                card.scaleY = 1f
-                card.translationY = 0f
-            }
-            .start()
-    }
-
     private fun observeStoreAnnouncement() {
         try {
             val dbUrl = "https://abdullah-store-a95ed-default-rtdb.europe-west1.firebasedatabase.app"
@@ -1025,18 +945,9 @@ class MainActivity : AppCompatActivity() {
                             if (isActive && body.isNotBlank()) {
                                 binding.txtAnnouncementTitle.text = title
                                 binding.txtAnnouncementBody.text = body
-                                if (!binding.cardAnnouncement.isVisible) {
-                                    binding.cardAnnouncement.alpha = 0f
-                                    binding.cardAnnouncement.translationY = -12f * resources.displayMetrics.density
-                                    binding.cardAnnouncement.isVisible = true
-                                    binding.cardAnnouncement.animate()
-                                        .alpha(1f)
-                                        .translationY(0f)
-                                        .setDuration(260)
-                                        .start()
-                                }
+                                binding.cardAnnouncement.isVisible = true
                                 binding.btnDismissAnnouncement.setOnClickListener {
-                                    dismissAnnouncementSmoothly()
+                                    binding.cardAnnouncement.isVisible = false
                                 }
                             } else {
                                 binding.cardAnnouncement.isVisible = false
