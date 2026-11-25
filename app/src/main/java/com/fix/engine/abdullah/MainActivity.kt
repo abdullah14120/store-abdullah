@@ -45,6 +45,7 @@ import com.fix.engine.abdullah.databinding.ActivityMainBinding
 import com.fix.engine.abdullah.ui.adapter.MainPagerAdapter
 import com.fix.engine.abdullah.ui.details.AppDetailsActivity
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
+import com.fix.engine.abdullah.service.UpdateWorker
 import com.fix.engine.abdullah.ui.widget.FloatingNavBarController
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
@@ -83,6 +84,7 @@ class MainActivity : AppCompatActivity() {
     private var isDataLoadedSuccessfully = false
 
     private var isNotificationSent = false
+    private var isBackgroundUpdateScheduled = false
     private var isUpdatingThemeProgrammatically = false
 
     private var spotlightApps: List<AppItemUiState> = emptyList()
@@ -114,19 +116,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    companion object {
-        init {
-            System.loadLibrary("native-lib")
-        }
-    }
-
-    private external fun verifySignatureNative(context: Context)
-    private external fun getSecureRepoUrl(): String
+    private fun getSecureRepoUrl(): String = BuildConfig.REPO_URL
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        verifySignatureNative(applicationContext)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -919,6 +912,20 @@ class MainActivity : AppCompatActivity() {
 
                     if (spotlightApps.isEmpty()) {
                         updateSpotlightList(uiStates)
+                    }
+
+                    if (!isBackgroundUpdateScheduled) {
+                        val hasNotifPerm = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                            ContextCompat.checkSelfPermission(
+                                this,
+                                android.Manifest.permission.POST_NOTIFICATIONS
+                            ) == PackageManager.PERMISSION_GRANTED
+                        if (hasNotifPerm) {
+                            isBackgroundUpdateScheduled = true
+                            runCatching {
+                                UpdateWorker.schedulePeriodicCheck(applicationContext, getSecureRepoUrl())
+                            }
+                        }
                     }
                 }
             }
