@@ -25,13 +25,6 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      # 🚀 إعداد بيئة NDK لتجميع مكتبات الـ C++ (JNI) الخاصة بطبقة الحماية
-      - name: Setup Android NDK
-        uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: r25c 
-
       # 🛠️ تم التصحيح: توليد Gradle Wrapper بإصدار 8.4 ليتوافق مع Kotlin 2.1.0 وإعداداتنا السابقة
       - name: Generate Gradle Wrapper
         run: gradle wrapper --gradle-version 8.4
