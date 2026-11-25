@@ -2,15 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Core Permissions (System & Networking) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    
+
     <!-- Storage Configurations (Scoped Storage Compliance) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
-    
+
     <!-- Package Management & Installation -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
@@ -28,9 +29,6 @@
         </intent>
     </queries>
 
-    <!-- ========================================== -->
-    <!-- 🏗️ Application Level Configuration          -->
-    <!-- ========================================== -->
     <application
         android:name=".AbdullahStoreApp"
         android:allowBackup="true"
@@ -44,22 +42,17 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:hardwareAccelerated="true"
         tools:targetApi="35">
- 
-        <!-- ========================================== -->
-        <!-- 🎨 UI Architecture (Activities)            -->
-        <!-- ========================================== -->
-        
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustPan">
-            
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep Linking Configuration -->
             <intent-filter android:label="فتح في متجر Abdullah">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -73,11 +66,6 @@
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.FixEngine" />
-
-
-        <!-- ========================================== -->
-        <!-- ⚙️ Core Logic (Providers, Receivers, Svcs) -->
-        <!-- ========================================== -->
 
         <!-- Secure File Provider for Internal/External Sharing -->
         <provider
@@ -100,22 +88,21 @@
                 android:name="androidx.work.WorkManagerInitializer"
                 android:value="androidx.startup" />
         </provider>
-        
+
         <!-- Package Installer Status Receiver (Explicit Scope) -->
-        <receiver 
-            android:name=".installer.InstallStatusReceiver" 
+        <receiver
+            android:name=".installer.InstallStatusReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.fix.engine.abdullah.COMMIT_INSTALL" />
             </intent-filter>
         </receiver>
 
-        <!-- Fetch2 Download Service (API 34 Data Sync Type Bound) -->
+        <!-- Unified Resilient Download Foreground Service (Android 14/15/16 Safe) -->
         <service
-            android:name="com.tonyodev.fetch2.FetchService"
+            android:name=".service.StoreDownloadForegroundService"
             android:foregroundServiceType="dataSync"
-            android:exported="false"
-            tools:node="merge" />
+            android:exported="false" />
 
     </application>
 </manifest>
