@@ -70,7 +70,7 @@
                         tools:text="ABWhatsApp العنّابي" />
                 </LinearLayout>
 
-                <!-- أدوات ملف الـ APK الدائرية (40dp بنفس لغة الهيدر الرئيسي) -->
+                <!-- أدوات ملف الـ APK الدائرية -->
                 <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/btnShareApk"
                     android:layout_width="40dp"
@@ -112,7 +112,7 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- ======================================================== -->
-    <!-- 2. المحتوى القابل للتمرير بانسيابية خلف الكبسولة العائمة -->
+    <!-- 2. المحتوى القابل للتمرير بالكامل بدون عوائق سفلية -->
     <!-- ======================================================== -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollDetails"
@@ -120,7 +120,7 @@
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:overScrollMode="never"
-        android:paddingBottom="116dp"
+        android:paddingBottom="28dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
@@ -129,7 +129,7 @@
             android:orientation="vertical">
 
             <!-- ======================================================== -->
-            <!-- 🎨 1. الهيدر الهادئ: خلفية متدرجة خفيفة + الأيقونة + الاسم + شارة الأمان -->
+            <!-- 1. الهيدر الرئيسي: الأيقونة + الاسم + المطور + شارة الأمان -->
             <!-- ======================================================== -->
             <LinearLayout
                 android:id="@+id/layoutDetailsHero"
@@ -196,7 +196,6 @@
                         android:textSize="13.5sp"
                         tools:text="عبدالله التميمي" />
 
-                    <!-- شارة أمان نظيفة ومختصرة بأيقونة درع Vector -->
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -231,7 +230,7 @@
             </LinearLayout>
 
             <!-- ======================================================== -->
-            <!-- 📊 2. شريط الإحصائيات الأفقي المفتوح (كبسولات حرة بدون قصّ للنصوص) -->
+            <!-- 2. شريط الإحصائيات الأفقي المفتوح -->
             <!-- ======================================================== -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
@@ -293,7 +292,7 @@
                                     android:fontFamily="sans-serif-black"
                                     android:includeFontPadding="false"
                                     android:maxLines="1"
-                                    android:text="5.0"
+                                    android:text="جديد"
                                     android:textColor="?attr/colorOnSurface"
                                     android:textSize="13.5sp"
                                     android:textStyle="bold" />
@@ -485,14 +484,186 @@
             </HorizontalScrollView>
 
             <!-- ======================================================== -->
-            <!-- 📝 3. بطاقة لمحة عن التطبيق (قابلة للطي + معلومات الحزمة التقنية) -->
+            <!-- 3. حاوية التنزيل والتثبيت (فوق لمحة عن التطبيق مباشرة) -->
+            <!-- ======================================================== -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/floatingActionDock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+                app:cardCornerRadius="26dp"
+                app:cardElevation="0dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp">
+
+                <FrameLayout
+                    android:id="@+id/containerActions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:animateLayoutChanges="true"
+                    android:padding="6dp">
+
+                    <!-- الحالة الأولى: زر التنزيل / التحديث / التثبيت الأساسي -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnInstallState"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:minHeight="52dp"
+                        android:paddingVertical="10dp"
+                        android:text="تنزيل"
+                        android:textSize="15.5sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="?attr/colorPrimary"
+                        app:cornerRadius="22dp"
+                        app:icon="@drawable/ic_download"
+                        app:iconGravity="textStart" />
+
+                    <!-- الحالة الثانية: واجهة التحميل والتثبيت الحيّة -->
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/cardDownloadingState"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="52dp"
+                        android:paddingHorizontal="6dp"
+                        android:paddingVertical="4dp"
+                        android:visibility="gone"
+                        tools:visibility="visible">
+
+                        <com.google.android.material.imageview.ShapeableImageView
+                            android:id="@+id/btnCancelDownload"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="?attr/colorSurfaceVariant"
+                            android:clickable="true"
+                            android:contentDescription="إلغاء التنزيل"
+                            android:focusable="true"
+                            android:foreground="?attr/selectableItemBackgroundBorderless"
+                            android:padding="9dp"
+                            android:src="@drawable/ic_close"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:shapeAppearanceOverlay="@style/Shape.Circle"
+                            app:tint="?attr/colorOnSurfaceVariant" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:layout_marginEnd="10dp"
+                            android:gravity="center_vertical"
+                            android:orientation="vertical"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@id/progressDownload"
+                            app:layout_constraintStart_toEndOf="@id/btnCancelDownload"
+                            app:layout_constraintTop_toTopOf="parent">
+
+                            <TextView
+                                android:id="@+id/tvDownloadPercent"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:ellipsize="end"
+                                android:gravity="start|center_vertical"
+                                android:includeFontPadding="false"
+                                android:maxLines="1"
+                                android:text="جاري التنزيل... 0%"
+                                android:textAlignment="viewStart"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="13.5sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvDownloadSize"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
+                                android:ellipsize="end"
+                                android:gravity="start|center_vertical"
+                                android:includeFontPadding="false"
+                                android:maxLines="1"
+                                android:text="0.0 MB / 0.0 MB"
+                                android:textAlignment="viewStart"
+                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textDirection="locale"
+                                android:textSize="11.5sp" />
+                        </LinearLayout>
+
+                        <com.google.android.material.progressindicator.CircularProgressIndicator
+                            android:id="@+id/progressDownload"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="2dp"
+                            android:max="100"
+                            android:progress="35"
+                            app:indicatorColor="?attr/colorPrimary"
+                            app:indicatorSize="40dp"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:trackColor="?attr/colorSurfaceVariant"
+                            app:trackCornerRadius="2dp"
+                            app:trackThickness="4dp" />
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <!-- الحالة الثالثة: مثبت (فتح + إلغاء التثبيت) -->
+                    <LinearLayout
+                        android:id="@+id/layoutInstalledState"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnUninstall"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="8dp"
+                            android:layout_weight="1"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minHeight="52dp"
+                            android:paddingVertical="10dp"
+                            android:text="إلغاء التثبيت"
+                            android:textColor="?attr/colorError"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            app:cornerRadius="22dp"
+                            app:strokeColor="?attr/colorError" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnOpenApp"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_weight="1"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minHeight="52dp"
+                            android:paddingVertical="10dp"
+                            android:text="فتح"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            app:backgroundTint="?attr/colorPrimary"
+                            app:cornerRadius="22dp" />
+                    </LinearLayout>
+                </FrameLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ======================================================== -->
+            <!-- 4. بطاقة لمحة عن التطبيق (قابلة للطي + معلومات الحزمة التقنية) -->
             <!-- ======================================================== -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="16dp"
                 app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
                 app:cardCornerRadius="22dp"
                 app:cardElevation="0dp"
@@ -562,7 +733,6 @@
                         android:visibility="gone"
                         tools:visibility="visible" />
 
-                    <!-- خط فاصل رفيع ومعلومات الحزمة القابلة للنسخ -->
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
@@ -625,427 +795,118 @@
             </com.google.android.material.card.MaterialCardView>
 
             <!-- ======================================================== -->
-            <!-- ⭐ 4. قسم التقييمات والمراجعات الرشيق (بدون تكرار أو ازدحام) -->
+            <!-- 5. قسم التقييمات والمراجعات المدمج والخفيف -->
             <!-- ======================================================== -->
             <LinearLayout
                 android:id="@+id/layoutCommentsHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="24dp"
-                android:orientation="vertical">
+                android:layout_marginTop="20dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <!-- عنوان القسم + زر كبسولي سريع للتقييم -->
                 <LinearLayout
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
                     <TextView
-                        android:layout_width="0dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
                         android:fontFamily="sans-serif-black"
                         android:text="التقييمات والمراجعات"
                         android:textColor="?attr/colorOnSurface"
-                        android:textSize="16sp"
+                        android:textSize="15.5sp"
                         android:textStyle="bold" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnAddComment"
-                        style="@style/Widget.Material3.Button.TonalButton"
+                    <TextView
+                        android:id="@+id/txtRatingSummaryInline"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:minWidth="0dp"
-                        android:paddingHorizontal="14dp"
-                        android:text="أضف تقييمك"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="12sp"
-                        android:textStyle="bold"
-                        app:cornerRadius="18dp"
-                        app:icon="@drawable/ic_details_edit"
-                        app:iconGravity="textStart"
-                        app:iconPadding="6dp"
-                        app:iconSize="15dp" />
+                        android:visibility="gone"
+                        tools:text="★ 4.8 • 12 مراجعة"
+                        tools:visibility="visible" />
                 </LinearLayout>
 
-                <!-- بطاقة ملخص التقييم التفاعلية المدمجة -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardQuickRate"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
-                    app:cardCornerRadius="22dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="?attr/colorOutlineVariant"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="18dp"
-                        android:paddingVertical="16dp">
-
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:gravity="center"
-                            android:minWidth="72dp"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:id="@+id/txtRatingBigScore"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:fontFamily="sans-serif-black"
-                                android:includeFontPadding="false"
-                                android:text="5.0"
-                                android:textColor="?attr/colorOnSurface"
-                                android:textSize="32sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/txtRatingBigStars"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="★★★★★"
-                                android:textColor="#FFB300"
-                                android:textSize="12sp" />
-
-                            <TextView
-                                android:id="@+id/txtRatingBigCount"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="جديد"
-                                android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="10.5sp" />
-                        </LinearLayout>
-
-                        <View
-                            android:layout_width="1dp"
-                            android:layout_height="48dp"
-                            android:layout_marginHorizontal="16dp"
-                            android:alpha="0.3"
-                            android:background="?attr/colorOutlineVariant" />
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:gravity="center"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="اضغط على النجوم لتقييم تجربتك"
-                                android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="11.5sp" />
-
-                            <LinearLayout
-                                android:id="@+id/layoutInteractiveStars"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
-                                android:gravity="center"
-                                android:layoutDirection="ltr"
-                                android:orientation="horizontal">
-
-                                <TextView
-                                    android:id="@+id/starRate1"
-                                    android:layout_width="34dp"
-                                    android:layout_height="34dp"
-                                    android:background="?attr/selectableItemBackgroundBorderless"
-                                    android:clickable="true"
-                                    android:focusable="true"
-                                    android:gravity="center"
-                                    android:text="★"
-                                    android:textColor="#FFB300"
-                                    android:textSize="25sp" />
-
-                                <TextView
-                                    android:id="@+id/starRate2"
-                                    android:layout_width="34dp"
-                                    android:layout_height="34dp"
-                                    android:background="?attr/selectableItemBackgroundBorderless"
-                                    android:clickable="true"
-                                    android:focusable="true"
-                                    android:gravity="center"
-                                    android:text="★"
-                                    android:textColor="#FFB300"
-                                    android:textSize="25sp" />
-
-                                <TextView
-                                    android:id="@+id/starRate3"
-                                    android:layout_width="34dp"
-                                    android:layout_height="34dp"
-                                    android:background="?attr/selectableItemBackgroundBorderless"
-                                    android:clickable="true"
-                                    android:focusable="true"
-                                    android:gravity="center"
-                                    android:text="★"
-                                    android:textColor="#FFB300"
-                                    android:textSize="25sp" />
-
-                                <TextView
-                                    android:id="@+id/starRate4"
-                                    android:layout_width="34dp"
-                                    android:layout_height="34dp"
-                                    android:background="?attr/selectableItemBackgroundBorderless"
-                                    android:clickable="true"
-                                    android:focusable="true"
-                                    android:gravity="center"
-                                    android:text="★"
-                                    android:textColor="#FFB300"
-                                    android:textSize="25sp" />
-
-                                <TextView
-                                    android:id="@+id/starRate5"
-                                    android:layout_width="34dp"
-                                    android:layout_height="34dp"
-                                    android:background="?attr/selectableItemBackgroundBorderless"
-                                    android:clickable="true"
-                                    android:focusable="true"
-                                    android:gravity="center"
-                                    android:text="★"
-                                    android:textColor="#FFB300"
-                                    android:textSize="25sp" />
-                            </LinearLayout>
-                        </LinearLayout>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAddComment"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="14dp"
+                    android:text="أضف تقييمك"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    app:cornerRadius="18dp"
+                    app:icon="@drawable/ic_details_edit"
+                    app:iconGravity="textStart"
+                    app:iconPadding="6dp"
+                    app:iconSize="15dp" />
             </LinearLayout>
 
-            <!-- رسالة الحالة الفارغة الهادئة -->
-            <TextView
-                android:id="@+id/txtEmptyComments"
+            <!-- رسالة الحالة الفارغة الهادئة والمدمجة -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardEmptyComments"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="14dp"
-                android:background="?attr/selectableItemBackground"
+                android:layout_marginTop="12dp"
                 android:clickable="true"
                 android:focusable="true"
-                android:gravity="center"
-                android:lineSpacingExtra="4dp"
-                android:paddingHorizontal="20dp"
-                android:paddingVertical="18dp"
-                android:text="لا توجد مراجعات بعد — شاركنا تجربتك مع هذا التطبيق ✨"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="13sp"
-                android:visibility="visible" />
+                android:foreground="?attr/selectableItemBackground"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp">
 
-            <!-- قائمة المراجعات -->
+                <TextView
+                    android:id="@+id/txtEmptyComments"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="14dp"
+                    android:text="لا توجد مراجعات بعد — كن أول من يقيّم هذا التطبيق ✨"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12.5sp" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- أحدث 3 مراجعات فقط -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvComments"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="14dp"
+                android:layout_marginTop="12dp"
                 android:nestedScrollingEnabled="false"
-                android:overScrollMode="never" />
+                android:overScrollMode="never"
+                android:visibility="gone" />
+
+            <!-- زر عرض كل المراجعات (يظهر فقط عند وجود أكثر من 3 مراجعات) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnShowAllReviews"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="4dp"
+                android:text="عرض كل المراجعات"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:cornerRadius="16dp"
+                tools:visibility="visible" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-
-    <!-- ======================================================== -->
-    <!-- 🚀 3. كبسولة الإجراءات العائمة السفلية (Floating Action Dock) -->
-    <!-- متطابقة تماماً مع الشريط العائم في الشاشة الرئيسية          -->
-    <!-- ======================================================== -->
-    <FrameLayout
-        android:id="@+id/floatingActionRoot"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:clipChildren="false"
-        android:clipToPadding="false">
-
-        <!-- تدرج شفاف ناعم أسفل الشاشة يبرز طفو الكبسولة فوق المراجعات -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="104dp"
-            android:layout_gravity="bottom"
-            android:background="@drawable/bg_bottom_scrim_fade"
-            android:clickable="false"
-            android:focusable="false" />
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/floatingActionDock"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:layout_marginHorizontal="16dp"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="14dp"
-            app:cardBackgroundColor="?attr/colorSurface"
-            app:cardCornerRadius="34dp"
-            app:cardElevation="10dp"
-            app:strokeColor="?attr/colorOutlineVariant"
-            app:strokeWidth="1dp">
-
-            <FrameLayout
-                android:id="@+id/containerActions"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:animateLayoutChanges="true"
-                android:padding="7dp">
-
-                <!-- الحالة الأولى: زر التنزيل / التحديث / التثبيت الأساسي -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnInstallState"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:minHeight="54dp"
-                    android:paddingVertical="10dp"
-                    android:text="تنزيل"
-                    android:textSize="15.5sp"
-                    android:textStyle="bold"
-                    app:backgroundTint="?attr/colorPrimary"
-                    app:cornerRadius="27dp"
-                    app:icon="@drawable/ic_download"
-                    app:iconGravity="textStart" />
-
-                <!-- الحالة الثانية: واجهة التحميل والتثبيت الحيّة داخل الكبسولة -->
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/cardDownloadingState"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="54dp"
-                    android:paddingHorizontal="6dp"
-                    android:paddingVertical="4dp"
-                    android:visibility="gone"
-                    tools:visibility="visible">
-
-                    <com.google.android.material.imageview.ShapeableImageView
-                        android:id="@+id/btnCancelDownload"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:background="?attr/colorSurfaceVariant"
-                        android:clickable="true"
-                        android:contentDescription="إلغاء التنزيل"
-                        android:focusable="true"
-                        android:foreground="?attr/selectableItemBackgroundBorderless"
-                        android:padding="9dp"
-                        android:src="@drawable/ic_close"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:shapeAppearanceOverlay="@style/Shape.Circle"
-                        app:tint="?attr/colorOnSurfaceVariant" />
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:layout_marginEnd="10dp"
-                        android:gravity="center_vertical"
-                        android:orientation="vertical"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toStartOf="@id/progressDownload"
-                        app:layout_constraintStart_toEndOf="@id/btnCancelDownload"
-                        app:layout_constraintTop_toTopOf="parent">
-
-                        <TextView
-                            android:id="@+id/tvDownloadPercent"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:ellipsize="end"
-                            android:gravity="start|center_vertical"
-                            android:includeFontPadding="false"
-                            android:maxLines="1"
-                            android:text="جاري التنزيل... 0%"
-                            android:textAlignment="viewStart"
-                            android:textColor="?attr/colorPrimary"
-                            android:textSize="13.5sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tvDownloadSize"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="3dp"
-                            android:ellipsize="end"
-                            android:gravity="start|center_vertical"
-                            android:includeFontPadding="false"
-                            android:maxLines="1"
-                            android:text="0.0 MB / 0.0 MB"
-                            android:textAlignment="viewStart"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textDirection="locale"
-                            android:textSize="11.5sp" />
-                    </LinearLayout>
-
-                    <com.google.android.material.progressindicator.CircularProgressIndicator
-                        android:id="@+id/progressDownload"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="2dp"
-                        android:max="100"
-                        android:progress="35"
-                        app:indicatorColor="?attr/colorPrimary"
-                        app:indicatorSize="40dp"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:trackColor="?attr/colorSurfaceVariant"
-                        app:trackCornerRadius="2dp"
-                        app:trackThickness="4dp" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
-
-                <!-- الحالة الثالثة: مثبت (فتح + إلغاء التثبيت بحواف كبسولية متطابقة) -->
-                <LinearLayout
-                    android:id="@+id/layoutInstalledState"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:visibility="gone">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnUninstall"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        android:layout_weight="1"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:minHeight="54dp"
-                        android:paddingVertical="10dp"
-                        android:text="إلغاء التثبيت"
-                        android:textColor="?attr/colorError"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        app:cornerRadius="27dp"
-                        app:strokeColor="?attr/colorError" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnOpenApp"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:layout_weight="1"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:minHeight="54dp"
-                        android:paddingVertical="10dp"
-                        android:text="فتح"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        app:backgroundTint="?attr/colorPrimary"
-                        app:cornerRadius="27dp" />
-                </LinearLayout>
-            </FrameLayout>
-        </com.google.android.material.card.MaterialCardView>
-    </FrameLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
