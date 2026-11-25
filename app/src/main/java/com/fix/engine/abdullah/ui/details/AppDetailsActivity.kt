@@ -5,22 +5,25 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
-import android.content.ClipData
-import android.content.ClipboardManager
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.StatFs
 import android.provider.Settings
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -31,6 +34,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.graphics.ColorUtils
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -39,20 +46,16 @@ import com.fix.engine.abdullah.AbdullahStoreApp
 import com.fix.engine.abdullah.BuildConfig
 import com.fix.engine.abdullah.R
 import com.fix.engine.abdullah.data.model.AppModel
-import com.fix.engine.abdullah.data.network.LinkExtractor
 import com.fix.engine.abdullah.databinding.ActivityAppDetailsBinding
 import com.fix.engine.abdullah.service.AndroidDownloadManager
 import com.fix.engine.abdullah.service.DownloadTracker
-import android.content.res.ColorStateList
-import android.graphics.drawable.GradientDrawable
-import android.text.TextUtils
-import com.google.android.material.card.MaterialCardView
-import com.google.android.material.color.MaterialColors
-import androidx.core.graphics.ColorUtils
-import androidx.core.widget.NestedScrollView
+import com.fix.engine.abdullah.service.StoreDownloadEngine
+import com.fix.engine.abdullah.service.StoreDownloadStatus
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.shape.CornerFamily
 import com.google.android.material.shape.MaterialShapeDrawable
@@ -65,8 +68,6 @@ import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.Query
 import com.google.firebase.database.ValueEventListener
-import com.fix.engine.abdullah.service.StoreDownloadEngine
-import com.fix.engine.abdullah.service.StoreDownloadStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -105,6 +106,7 @@ class AppDetailsActivity : AppCompatActivity() {
 
     companion object {
         var isActivityVisible: Boolean = false
+        private const val INLINE_REVIEWS_PREVIEW_LIMIT = 3
     }
 
     private fun getSecureFirebaseUrl(): String = BuildConfig.FIREBASE_DB_URL
@@ -212,6 +214,7 @@ class AppDetailsActivity : AppCompatActivity() {
         tracker = DownloadTracker(this)
 
         setupToolbar()
+        setupWindowInsets()
         applyAdaptiveDockStyling()
         setupScrollAwareToolbar()
         initFirebase()
@@ -252,14 +255,14 @@ class AppDetailsActivity : AppCompatActivity() {
 
     /**
      * 🛡️ مراقب ذكي لعملية التثبيت في الخلفية:
-     * يحافظ على ظهور الشريط الدائري واختفاء زر "تثبيت" طوال فترة تثبيت النظام للحزمة (مهما استغرقت على الأجهزة البطيئة)،
+     * يحافظ على ظهور الشريط الدائري واختفاء زر "تثبيت" طوال فترة تثبيت النظام للحزمة،
      * وفور رصد تثبيت الحزمة في النظام يحوّل الواجهة مباشرة إلى أزرار "فتح" و"إلغاء التثبيت".
      */
     private fun startInstallCompletionWatchdog(app: AppModel) {
         installWatchdogJob?.cancel()
         installWatchdogJob = lifecycleScope.launch(Dispatchers.IO) {
             val startTime = System.currentTimeMillis()
-            val maxWaitMillis = 120_000L // مهلة قصوى دقيقتان للتطبيقات الضخمة والأجهزة البطيئة
+            val maxWaitMillis = 120_000L
 
             while (isInstalling && (System.currentTimeMillis() - startTime) < maxWaitMillis) {
                 delay(800)
@@ -292,7 +295,6 @@ class AppDetailsActivity : AppCompatActivity() {
                 }
             }
 
-            // في حال انتهاء المهلة القصوى (دقيقتين) دون استجابة من النظام، نعيد ضبط الواجهة بأمان
             if (isInstalling) {
                 withContext(Dispatchers.Main) {
                     if (!isFinishing && !isDestroyed && isInstalling) {
@@ -495,8 +497,6 @@ class AppDetailsActivity : AppCompatActivity() {
 
                         showReadyToInstallNotification(currentApp!!, finalFile)
 
-                        // 🛡️ إذا كان المستخدم داخل صفحة التطبيق، نبدأ التثبيت تلقائياً فوراً
-                        // أما إذا اكتمل التحميل والمستخدم خارج المتجر، نجهز زر "تثبيت" لكي لا يحظر النظام نافذة التأكيد في الخلفية
                         if (isActivityVisible && !isFinishing && !isDestroyed) {
                             isInstalling = true
                             showInstallingStateUi(
@@ -601,7 +601,6 @@ class AppDetailsActivity : AppCompatActivity() {
             return
         }
 
-        // إخفاء زر التثبيت فوراً وإظهار الشريط الدائري طوال عملية التثبيت في الخلفية
         isInstalling = true
         showInstallingStateUi(
             statusText = "جاري تجهيز التثبيت...",
@@ -661,7 +660,6 @@ class AppDetailsActivity : AppCompatActivity() {
                 val packageInstaller = packageManager.packageInstaller
                 val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                     currentApp?.packageName?.let { setAppPackageName(it) }
-                    // 🛡️ تصريح رسمي لخدمة Google Play Protect بأن التثبيت يتم بطلب المستخدم ومن متجر تطبيقات شرعي
                     setInstallReason(PackageManager.INSTALL_REASON_USER)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         setPackageSource(PackageInstaller.PACKAGE_SOURCE_STORE)
@@ -908,9 +906,9 @@ class AppDetailsActivity : AppCompatActivity() {
         val message = String.format(
             Locale.US,
             "عذراً، لا توجد مساحة تخزين كافية في جهازك لـ %s هذا التطبيق.\n\n" +
-                    "• المساحة المطلوبة: %.0f MB\n" +
-                    "• المساحة المتوفرة حالياً: %.0f MB\n\n" +
-                    "يرجى تفريغ بعض المساحة من جهازك أولاً ثم المحاولة مجدداً.",
+                "• المساحة المطلوبة: %.0f MB\n" +
+                "• المساحة المتوفرة حالياً: %.0f MB\n\n" +
+                "يرجى تفريغ بعض المساحة من جهازك أولاً ثم المحاولة مجدداً.",
             actionText,
             requiredMb,
             availableMb
@@ -984,14 +982,12 @@ class AppDetailsActivity : AppCompatActivity() {
             val comparisonResult = compareVersionNames(app.versionName, installedVer)
 
             if (comparisonResult <= 0) {
-                // التطبيق مثبت ومحدث لآخر إصدار: نوقف حالة التثبيت ونعرض أزرار (فتح / إلغاء التثبيت)
                 isInstalling = false
                 activeSessionId = -1
                 showInstalledStateDirectly(app)
                 return
             }
 
-            // إذا كانت عملية التثبيت في الخلفية جارية حالياً، نحافظ على الشريط الدائري ونمنع ظهور زر "تثبيت"
             if (isInstalling) {
                 showInstallingStateUi()
                 return
@@ -1008,7 +1004,6 @@ class AppDetailsActivity : AppCompatActivity() {
 
             handleInstallOrUpdateState(app, finalFile, isApkReady = isApkReady, isUpdate = true)
         } catch (e: PackageManager.NameNotFoundException) {
-            // إذا كانت عملية التثبيت في الخلفية جارية حالياً، نحافظ على الشريط الدائري ونمنع ظهور زر "تثبيت"
             if (isInstalling) {
                 showInstallingStateUi()
                 return
@@ -1079,6 +1074,23 @@ class AppDetailsActivity : AppCompatActivity() {
         binding.toolbarDetails.setNavigationOnClickListener { finish() }
     }
 
+    /**
+     * يضمن وجود مسافة أمان أسفل القائمة فوق أزرار التنقل في النظام (يدعم Android 15 ووضع Edge-to-Edge)
+     */
+    private fun setupWindowInsets() {
+        val initialBottomPadding = binding.scrollDetails.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(binding.scrollDetails) { view, insets ->
+            val navBars = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            view.setPadding(
+                view.paddingLeft,
+                view.paddingTop,
+                view.paddingRight,
+                initialBottomPadding + navBars.bottom
+            )
+            insets
+        }
+    }
+
     private fun applyAdaptiveDockStyling() {
         val isNightMode = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         val colorSurface = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurface, Color.WHITE)
@@ -1086,12 +1098,12 @@ class AppDetailsActivity : AppCompatActivity() {
         val colorOutlineVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOutlineVariant, Color.LTGRAY)
 
         if (isNightMode) {
-            binding.floatingActionDock.setCardBackgroundColor(ColorUtils.blendARGB(colorSurface, Color.BLACK, 0.10f))
-            binding.floatingActionDock.strokeColor = ColorUtils.setAlphaComponent(colorOutlineVariant, 115)
+            binding.floatingActionDock.setCardBackgroundColor(ColorUtils.blendARGB(colorSurface, colorSurfaceVariant, 0.28f))
+            binding.floatingActionDock.strokeColor = ColorUtils.setAlphaComponent(colorOutlineVariant, 110)
         } else {
-            val pearlOuterBg = ColorUtils.blendARGB(colorSurface, colorSurfaceVariant, 0.35f)
-            binding.floatingActionDock.setCardBackgroundColor(pearlOuterBg)
-            binding.floatingActionDock.strokeColor = ColorUtils.setAlphaComponent(colorOutlineVariant, 125)
+            val softContainerBg = ColorUtils.blendARGB(colorSurface, colorSurfaceVariant, 0.30f)
+            binding.floatingActionDock.setCardBackgroundColor(softContainerBg)
+            binding.floatingActionDock.strokeColor = ColorUtils.setAlphaComponent(colorOutlineVariant, 120)
         }
     }
 
@@ -1144,8 +1156,8 @@ class AppDetailsActivity : AppCompatActivity() {
                 val layout = txtDescription.layout
                 val isTruncated = layout != null && (
                     layout.lineCount > 5 ||
-                    (layout.lineCount > 0 && layout.getEllipsisCount(layout.lineCount - 1) > 0)
-                )
+                        (layout.lineCount > 0 && layout.getEllipsisCount(layout.lineCount - 1) > 0)
+                    )
                 btnToggleDescription.visibility = if (isTruncated) View.VISIBLE else View.GONE
             }
 
@@ -1172,6 +1184,7 @@ class AppDetailsActivity : AppCompatActivity() {
                         }
                     }
                 }
+
                 override fun onCancelled(error: DatabaseError) {
                     lifecycleScope.launch(Dispatchers.Main) {
                         if (!isFinishing && !isDestroyed) {
@@ -1200,9 +1213,6 @@ class AppDetailsActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 🔔 إشعار ذكي: يفتح صفحة التطبيق داخل المتجر إذا كان الملف بصيغة APKM/XAPK لكي يتولى المتجر تثبيته
-     */
     private fun showReadyToInstallNotification(app: AppModel, file: File) {
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -1301,7 +1311,7 @@ class AppDetailsActivity : AppCompatActivity() {
     }
 
     // ====================================================================
-    // 💬 محرك التعليقات والتقييمات الاحترافي الحي عبر Firebase Realtime Database
+    // 💬 محرك التعليقات والتقييمات المدمج (أحدث 3 مراجعات + نافذة كل المراجعات)
     // ====================================================================
 
     private fun setupCommentsSection(packageName: String) {
@@ -1316,43 +1326,20 @@ class AppDetailsActivity : AppCompatActivity() {
 
         binding.rvComments.layoutManager = LinearLayoutManager(this)
 
-        // ربط جميع مداخل التقييم (الزر الرئيسي، شريط الإحصائيات العلوي، البطاقة الفارغة، والنجوم الـ 5 التفاعلية)
         binding.btnAddComment.setOnClickListener {
             showAddCommentDialog(commentsRef, initialStars = 5)
         }
         binding.layoutStatRating.setOnClickListener {
             showAddCommentDialog(commentsRef, initialStars = 5)
         }
-        binding.txtEmptyComments.setOnClickListener {
+        binding.cardEmptyComments.setOnClickListener {
             showAddCommentDialog(commentsRef, initialStars = 5)
-        }
-
-        val quickStarViews = listOf(
-            binding.starRate1,
-            binding.starRate2,
-            binding.starRate3,
-            binding.starRate4,
-            binding.starRate5
-        )
-        quickStarViews.forEachIndexed { index, starView ->
-            starView.setOnClickListener { view ->
-                val chosenStars = index + 1
-                // تحديث بصري سريع للنجوم قبل فتح نافذة التقييم
-                quickStarViews.forEachIndexed { i, tv ->
-                    tv.text = if (i < chosenStars) "★" else "☆"
-                    tv.setTextColor(if (i < chosenStars) Color.parseColor("#FFB300") else Color.parseColor("#888888"))
-                }
-                view.animate().scaleX(1.25f).scaleY(1.25f).setDuration(110).withEndAction {
-                    view.animate().scaleX(1f).scaleY(1f).setDuration(110).start()
-                    showAddCommentDialog(commentsRef, initialStars = chosenStars)
-                }.start()
-            }
         }
 
         commentsQuery = commentsRef.limitToLast(40)
         commentsListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val commentsList = mutableListOf<Map<String, Any>>()
+                val commentsList = mutableListOf>()
                 var totalStars = 0L
 
                 for (child in snapshot.children) {
@@ -1377,26 +1364,37 @@ class AppDetailsActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (isFinishing || isDestroyed) return@runOnUiThread
                     if (commentsList.isEmpty()) {
-                        binding.txtEmptyComments.visibility = View.VISIBLE
+                        binding.cardEmptyComments.visibility = View.VISIBLE
                         binding.rvComments.visibility = View.GONE
-                        binding.txtStatRating.text = "5.0"
+                        binding.btnShowAllReviews.visibility = View.GONE
+                        binding.txtRatingSummaryInline.visibility = View.GONE
+                        binding.txtStatRating.text = "جديد"
                         binding.txtStatReviewsCount.text = "قيّم الآن"
-                        binding.txtRatingBigScore.text = "5.0"
-                        binding.txtRatingBigStars.text = "★★★★★"
-                        binding.txtRatingBigCount.text = "جديد • كن أول المقيّمين"
                     } else {
-                        binding.txtEmptyComments.visibility = View.GONE
+                        binding.cardEmptyComments.visibility = View.GONE
                         binding.rvComments.visibility = View.VISIBLE
+
                         val avg = totalStars.toDouble() / commentsList.size
                         val avgFormatted = String.format(Locale.US, "%.1f", avg)
-                        val roundedStars = kotlin.math.round(avg).toInt().coerceIn(1, 5)
 
                         binding.txtStatRating.text = avgFormatted
                         binding.txtStatReviewsCount.text = "${commentsList.size} مراجعة"
-                        binding.txtRatingBigScore.text = avgFormatted
-                        binding.txtRatingBigStars.text = "★".repeat(roundedStars) + "☆".repeat(5 - roundedStars)
-                        binding.txtRatingBigCount.text = "${commentsList.size} مراجعة موثّقة"
-                        binding.rvComments.adapter = SimpleCommentsAdapter(commentsList)
+
+                        binding.txtRatingSummaryInline.visibility = View.VISIBLE
+                        binding.txtRatingSummaryInline.text = "★ $avgFormatted • ${commentsList.size} مراجعة"
+
+                        val previewList = commentsList.take(INLINE_REVIEWS_PREVIEW_LIMIT)
+                        binding.rvComments.adapter = SimpleCommentsAdapter(previewList)
+
+                        if (commentsList.size > INLINE_REVIEWS_PREVIEW_LIMIT) {
+                            binding.btnShowAllReviews.visibility = View.VISIBLE
+                            binding.btnShowAllReviews.text = "عرض كل المراجعات (${commentsList.size})"
+                            binding.btnShowAllReviews.setOnClickListener {
+                                showAllCommentsBottomSheet(commentsList, commentsRef)
+                            }
+                        } else {
+                            binding.btnShowAllReviews.visibility = View.GONE
+                        }
                     }
                 }
             }
@@ -1404,6 +1402,99 @@ class AppDetailsActivity : AppCompatActivity() {
             override fun onCancelled(error: DatabaseError) {}
         }
         commentsQuery?.addValueEventListener(commentsListener!!)
+    }
+
+    private fun showAllCommentsBottomSheet(
+        allComments: List>,
+        commentsRef: DatabaseReference
+    ) {
+        if (isFinishing || isDestroyed) return
+        val density = resources.displayMetrics.density
+        val colorSurface = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurface)
+        val colorOnSurface = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnSurface)
+
+        val bottomSheet = BottomSheetDialog(this)
+
+        val rootContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val padH = (20 * density).toInt()
+            setPadding(padH, (12 * density).toInt(), padH, (20 * density).toInt())
+            val sheetShape = ShapeAppearanceModel.builder()
+                .setTopLeftCorner(CornerFamily.ROUNDED, 28 * density)
+                .setTopRightCorner(CornerFamily.ROUNDED, 28 * density)
+                .build()
+            background = MaterialShapeDrawable(sheetShape).apply {
+                fillColor = ColorStateList.valueOf(colorSurface)
+            }
+        }
+
+        val handleView = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                (40 * density).toInt(),
+                (4 * density).toInt()
+            ).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                bottomMargin = (14 * density).toInt()
+            }
+            setBackgroundResource(R.drawable.bg_bottom_sheet_handle)
+        }
+
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (12 * density).toInt() }
+        }
+
+        val tvTitle = TextView(this).apply {
+            text = "جميع المراجعات (${allComments.size})"
+            textSize = 17f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(colorOnSurface)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val btnAdd = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonTonalStyle).apply {
+            text = "أضف تقييمك"
+            textSize = 12f
+            cornerRadius = (18 * density).toInt()
+            insetTop = 0
+            insetBottom = 0
+            minHeight = (36 * density).toInt()
+            setOnClickListener {
+                bottomSheet.dismiss()
+                showAddCommentDialog(commentsRef, initialStars = 5)
+            }
+        }
+
+        headerRow.addView(tvTitle)
+        headerRow.addView(btnAdd)
+
+        val maxListHeight = (resources.displayMetrics.heightPixels * 0.62f).toInt()
+        val rvAll = RecyclerView(this).apply {
+            layoutManager = LinearLayoutManager(this@AppDetailsActivity)
+            adapter = SimpleCommentsAdapter(allComments)
+            overScrollMode = View.OVER_SCROLL_NEVER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                maxListHeight
+            )
+        }
+
+        rootContainer.addView(handleView)
+        rootContainer.addView(headerRow)
+        rootContainer.addView(rvAll)
+
+        bottomSheet.setContentView(rootContainer)
+        bottomSheet.setOnShowListener {
+            val sheetView = bottomSheet.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            sheetView?.setBackgroundColor(Color.TRANSPARENT)
+            bottomSheet.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            bottomSheet.behavior.skipCollapsed = true
+        }
+        bottomSheet.show()
     }
 
     private fun showAddCommentDialog(commentsRef: DatabaseReference, initialStars: Int = 5) {
@@ -1415,7 +1506,11 @@ class AppDetailsActivity : AppCompatActivity() {
         val colorPrimary = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
         val colorOnPrimary = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnPrimary)
         val colorSurface = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurface)
-        val colorSurfaceContainerLow = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceContainerLow, MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceVariant))
+        val colorSurfaceContainerLow = MaterialColors.getColor(
+            binding.root,
+            com.google.android.material.R.attr.colorSurfaceContainerLow,
+            MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceVariant)
+        )
         val colorOnSurface = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnSurface)
         val colorOnSurfaceVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOnSurfaceVariant)
         val colorOutlineVariant = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOutlineVariant)
@@ -1438,7 +1533,6 @@ class AppDetailsActivity : AppCompatActivity() {
             }
         }
 
-        // مقبض السحب العلوي (Drag Handle)
         val handleView = View(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 (40 * density).toInt(),
@@ -1450,7 +1544,6 @@ class AppDetailsActivity : AppCompatActivity() {
             setBackgroundResource(R.drawable.bg_bottom_sheet_handle)
         }
 
-        // عنوان الـ BottomSheet
         val tvTitle = TextView(this).apply {
             text = "إضافة تقييم ومراجعة"
             textSize = 18f
@@ -1463,7 +1556,6 @@ class AppDetailsActivity : AppCompatActivity() {
             ).apply { bottomMargin = (14 * density).toInt() }
         }
 
-        // 1. بطاقة اختيار النجوم التفاعلية
         val ratingCard = MaterialCardView(this).apply {
             radius = 20 * density
             cardElevation = 0f
@@ -1541,7 +1633,6 @@ class AppDetailsActivity : AppCompatActivity() {
         ratingBox.addView(starsRow)
         ratingCard.addView(ratingBox)
 
-        // 2. حقل الاسم
         val tilName = TextInputLayout(this).apply {
             boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
             val corner = 16 * density
@@ -1562,7 +1653,6 @@ class AppDetailsActivity : AppCompatActivity() {
         }
         tilName.addView(etName)
 
-        // 3. حقل التعليق مع عداد الحروف
         val tilComment = TextInputLayout(this).apply {
             boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
             val corner = 16 * density
@@ -1585,7 +1675,6 @@ class AppDetailsActivity : AppCompatActivity() {
         }
         tilComment.addView(etComment)
 
-        // 4. أزرار الإجراء الكبسولية
         val actionsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -1679,12 +1768,8 @@ class AppDetailsActivity : AppCompatActivity() {
         bottomSheet.show()
     }
 
-    /**
-     * 🎨 محول برمجي احترافي لعرض بطاقات مراجعات المستخدمين بهوية بصرية فخمة
-     * يدعم الوضع النهاري والليلي تلقائياً ويتمدد بأمان مع الخطوط الكبيرة
-     */
     private inner class SimpleCommentsAdapter(
-        private val items: List<Map<String, Any>>
+        private val items: List>
     ) : RecyclerView.Adapter<SimpleCommentsAdapter.VH>() {
 
         inner class VH(
@@ -1703,7 +1788,11 @@ class AppDetailsActivity : AppCompatActivity() {
             val colorPrimary = MaterialColors.getColor(parent, androidx.appcompat.R.attr.colorPrimary)
             val colorPrimaryContainer = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorPrimaryContainer)
             val colorOnPrimaryContainer = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOnPrimaryContainer)
-            val colorSurfaceVariant = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorSurfaceContainerLow, MaterialColors.getColor(parent, com.google.android.material.R.attr.colorSurfaceVariant))
+            val colorSurfaceVariant = MaterialColors.getColor(
+                parent,
+                com.google.android.material.R.attr.colorSurfaceContainerLow,
+                MaterialColors.getColor(parent, com.google.android.material.R.attr.colorSurfaceVariant)
+            )
             val colorOnSurface = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOnSurface)
             val colorOnSurfaceVariant = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOnSurfaceVariant)
             val colorOutlineVariant = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorOutlineVariant)
@@ -1712,8 +1801,8 @@ class AppDetailsActivity : AppCompatActivity() {
                 layoutParams = RecyclerView.LayoutParams(
                     RecyclerView.LayoutParams.MATCH_PARENT,
                     RecyclerView.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = (12 * density).toInt() }
-                radius = 20 * density
+                ).apply { bottomMargin = (10 * density).toInt() }
+                radius = 18 * density
                 cardElevation = 0f
                 strokeWidth = (1 * density).toInt()
                 strokeColor = colorOutlineVariant
@@ -1722,11 +1811,10 @@ class AppDetailsActivity : AppCompatActivity() {
 
             val rootBox = LinearLayout(ctx).apply {
                 orientation = LinearLayout.VERTICAL
-                val p = (16 * density).toInt()
+                val p = (14 * density).toInt()
                 setPadding(p, p, p, p)
             }
 
-            // الصف العلوي: الصورة الرمزية + اسم المستخدم والنجوم + التاريخ
             val headerRow = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -1736,12 +1824,11 @@ class AppDetailsActivity : AppCompatActivity() {
                 )
             }
 
-            // 1. دائرة الحرف الأول من اسم المستخدم (Avatar)
-            val avatarSize = (42 * density).toInt()
+            val avatarSize = (38 * density).toInt()
             val tvAvatar = TextView(ctx).apply {
                 layoutParams = LinearLayout.LayoutParams(avatarSize, avatarSize)
                 gravity = Gravity.CENTER
-                textSize = 16f
+                textSize = 15f
                 setTypeface(typeface, Typeface.BOLD)
                 setTextColor(colorOnPrimaryContainer)
                 background = GradientDrawable().apply {
@@ -1750,7 +1837,6 @@ class AppDetailsActivity : AppCompatActivity() {
                 }
             }
 
-            // 2. عمود الاسم وشريط النجوم
             val userInfoCol = LinearLayout(ctx).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(
@@ -1758,13 +1844,13 @@ class AppDetailsActivity : AppCompatActivity() {
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     1f
                 ).apply {
-                    marginStart = (12 * density).toInt()
+                    marginStart = (10 * density).toInt()
                     marginEnd = (8 * density).toInt()
                 }
             }
 
             val tvUserName = TextView(ctx).apply {
-                textSize = 14f
+                textSize = 13.5f
                 setTypeface(typeface, Typeface.BOLD)
                 setTextColor(colorOnSurface)
                 maxLines = 1
@@ -1773,7 +1859,7 @@ class AppDetailsActivity : AppCompatActivity() {
             }
 
             val tvStars = TextView(ctx).apply {
-                textSize = 12.5f
+                textSize = 12f
                 setTypeface(typeface, Typeface.BOLD)
                 setTextColor(Color.parseColor("#FFB300"))
                 setPadding(0, (2 * density).toInt(), 0, 0)
@@ -1783,7 +1869,6 @@ class AppDetailsActivity : AppCompatActivity() {
             userInfoCol.addView(tvUserName)
             userInfoCol.addView(tvStars)
 
-            // 3. شارة التاريخ الأنيقة
             val tvDate = TextView(ctx).apply {
                 textSize = 11f
                 setTextColor(colorOnSurfaceVariant)
@@ -1801,24 +1886,22 @@ class AppDetailsActivity : AppCompatActivity() {
             headerRow.addView(userInfoCol)
             headerRow.addView(tvDate)
 
-            // خط فاصل خفيف بين الهيدر ونص المراجعة
             val divider = View(ctx).apply {
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     (1 * density).toInt().coerceAtLeast(1)
                 ).apply {
-                    topMargin = (12 * density).toInt()
-                    bottomMargin = (10 * density).toInt()
+                    topMargin = (10 * density).toInt()
+                    bottomMargin = (8 * density).toInt()
                 }
                 setBackgroundColor(colorOutlineVariant)
-                alpha = 0.45f
+                alpha = 0.4f
             }
 
-            // 4. نص المراجعة (يدعم التمدد والخطوط الكبيرة بسلاسة)
             val tvBody = TextView(ctx).apply {
-                textSize = 13.5f
+                textSize = 13f
                 setTextColor(colorOnSurface)
-                setLineSpacing(4 * density, 1.05f)
+                setLineSpacing(3 * density, 1.05f)
                 textAlignment = View.TEXT_ALIGNMENT_VIEW_START
             }
 
