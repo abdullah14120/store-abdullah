@@ -15,10 +15,11 @@ import com.fix.engine.abdullah.databinding.FragmentAllAppsBinding
 import com.fix.engine.abdullah.ui.adapter.AppAdapter
 import com.fix.engine.abdullah.ui.details.AppDetailsActivity
 import com.fix.engine.abdullah.ui.viewmodel.MainViewModel
+import com.google.android.material.color.MaterialColors
 
 /**
  * Developed by: Abdullah Al-Tamimi
- * Refactored: Dual-Mode Fragment (All Apps Tab & Installed Apps Tab), Smart Empty State & Janky-Free Scrolling
+ * Refactored: Dual-Mode Fragment with SwipeRefreshLayout & Material 3 Shimmer Skeleton Loading
  */
 class AllAppsFragment : Fragment() {
 
@@ -56,8 +57,19 @@ class AllAppsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         configureEmptyStateTexts()
+        setupSwipeRefresh()
         setupRecyclerView()
         setupObserver()
+    }
+
+    private fun setupSwipeRefresh() {
+        val primaryColor = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
+        val surfaceColor = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorSurfaceVariant)
+        binding.swipeRefreshAllApps.setColorSchemeColors(primaryColor)
+        binding.swipeRefreshAllApps.setProgressBackgroundColorSchemeColor(surfaceColor)
+        binding.swipeRefreshAllApps.setOnRefreshListener {
+            viewModel.reloadFromNetwork()
+        }
     }
 
     private fun configureEmptyStateTexts() {
@@ -109,10 +121,31 @@ class AllAppsFragment : Fragment() {
             viewModel.appsUiStateList
         }
 
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            val isEmptyNow = targetLiveData.value.isNullOrEmpty()
+            if (loading == true) {
+                if (isEmptyNow && !isInstalledOnlyTab) {
+                    binding.shimmerAllApps.visibility = View.VISIBLE
+                    binding.shimmerAllApps.startShimmer()
+                    binding.layoutEmptyState.visibility = View.GONE
+                    binding.rvAllApps.visibility = View.GONE
+                }
+            } else {
+                binding.swipeRefreshAllApps.isRefreshing = false
+                binding.shimmerAllApps.stopShimmer()
+                binding.shimmerAllApps.visibility = View.GONE
+                binding.rvAllApps.visibility = View.VISIBLE
+            }
+        }
+
         targetLiveData.observe(viewLifecycleOwner) { uiStates ->
             appAdapter.submitList(uiStates)
+            binding.swipeRefreshAllApps.isRefreshing = false
 
             if (!uiStates.isNullOrEmpty()) {
+                binding.shimmerAllApps.stopShimmer()
+                binding.shimmerAllApps.visibility = View.GONE
+                binding.rvAllApps.visibility = View.VISIBLE
                 binding.layoutEmptyState.visibility = View.GONE
                 binding.tvNoResults.visibility = View.GONE
 
@@ -123,7 +156,7 @@ class AllAppsFragment : Fragment() {
                 } else {
                     binding.rvAllApps.alpha = 1f
                 }
-            } else {
+            } else if (viewModel.isLoading.value != true) {
                 binding.layoutEmptyState.visibility = View.VISIBLE
                 binding.tvNoResults.visibility = View.VISIBLE
             }
@@ -138,6 +171,7 @@ class AllAppsFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        binding.shimmerAllApps.stopShimmer()
         super.onDestroyView()
         _binding = null
     }
