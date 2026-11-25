@@ -967,7 +967,7 @@ class MainActivity : AppCompatActivity() {
         val downloadsDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         val apkFiles = downloadsDir?.listFiles { file ->
             val name = file.name.lowercase()
-            file.isFile && (name.endsWith(".apk") || name.endsWith(".apkm") || name.endsWith(".xapk") || name.endsWith(".apks") || name.endsWith(".tmp"))
+            file.isFile && (name.endsWith(".apk") || name.endsWith(".apkm") || name.endsWith(".xapk") || name.endsWith(".apks") || name.endsWith(".tmp") || name.endsWith(".part") || name.endsWith(".part.meta") || name.endsWith(".parts"))
         } ?: emptyArray()
 
         val totalSizeBytes = apkFiles.sumOf { it.length() }
