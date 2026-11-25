@@ -2,19 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Core Permissions (System & Networking) -->
+    <!-- Core Permissions (Minimal & Play-Protect Friendly) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- Storage Configurations (Scoped Storage Compliance) -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- إزالة صلاحية الإقلاع التلقائي التي تدمجها مكتبة WorkManager افتراضياً (غير لازمة لـ minSdk 23+) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />
 
     <!-- Package Management & Installation -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
 
     <!-- Android 13+ (API 33) Requirements -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -24,9 +21,23 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <queries>
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-        </intent>
+        <package android:name="com.abwhatsapp" />
+        <package android:name="com.android.ab" />
+        <package android:name="com.android.meta" />
+        <package android:name="com.fix" />
+        <package android:name="com.fixwhatsapp" />
+        <package android:name="com.fixwhatsapp2" />
+        <package android:name="com.hadramout" />
+        <package android:name="com.nasa" />
+        <package android:name="com.ob3whatsapp" />
+        <package android:name="com.obwhatsapp" />
+        <package android:name="com.sathwbg.easymessager" />
+        <package android:name="com.snaptube.premium" />
+        <package android:name="com.target.app" />
+        <package android:name="com.target.app2" />
+        <package android:name="com.universe.messenger" />
+        <package android:name="com.wasimaster.wmkeyboard" />
+        <package android:name="com.whatsapp" />
     </queries>
 
     <application
