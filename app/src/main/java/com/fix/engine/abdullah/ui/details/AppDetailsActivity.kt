@@ -36,6 +36,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.fix.engine.abdullah.AbdullahStoreApp
+import com.fix.engine.abdullah.BuildConfig
 import com.fix.engine.abdullah.R
 import com.fix.engine.abdullah.data.model.AppModel
 import com.fix.engine.abdullah.data.network.LinkExtractor
@@ -104,13 +105,9 @@ class AppDetailsActivity : AppCompatActivity() {
 
     companion object {
         var isActivityVisible: Boolean = false
-
-        init {
-            System.loadLibrary("native-lib")
-        }
     }
 
-    private external fun getSecureFirebaseUrl(): String
+    private fun getSecureFirebaseUrl(): String = BuildConfig.FIREBASE_DB_URL
 
     private val installStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
